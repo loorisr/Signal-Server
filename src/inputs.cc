@@ -3,8 +3,10 @@
 #include <gdal.h>
 
 #include <errno.h>
+#include <future>
 #include <limits.h>
 #include <math.h>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,317 +132,6 @@ int loadClutter(char *filename, double radius, struct site tx)
 
 	fclose(fd);
 	return 0;
-}
-
-int averageHeight(int height, int width, int x, int y)
-{
-	int total = 0;
-	int c = 0;
-	if (dem[0].data[y - 1][x - 1] > 0) {
-		total += dem[0].data[y - 1][x - 1];
-		c++;
-	}
-	if (dem[0].data[y + 1][x + 1] > 0) {
-		total += dem[0].data[y + 1][x + 1];
-		c++;
-	}
-	if (dem[0].data[y - 1][x + 1] > 0) {
-		total += dem[0].data[y - 1][x + 1];
-		c++;
-	}
-	if (dem[0].data[y + 1][x - 1] > 0) {
-		total += dem[0].data[y + 1][x - 1];
-		c++;
-	}
-
-	if (c > 0) {
-		return (int)(total / c);
-	}
-	else {
-		return 0;
-	}
-}
-
-
-int LoadSDF_SDF(char *name)
-{
-	/* This function reads uncompressed ss Data Files (.sdf)
-		 containing digital elevation model data into memory.
-		 Elevation data, maximum and minimum elevations, and
-		 quadrangle limits are stored in the first available
-		 dem[] structure.
-		 NOTE: On error, this function returns a negative errno */
-
-	int x, y, data = 0, indx, minlat, minlon, maxlat, maxlon, j;
-	char found, free_page = 0, line[20], jline[20], sdf_file[255], path_plus_name[PATH_MAX];
-
-	FILE *fd;
-
-	for (x = 0; name[x] != '.' && name[x] != 0 && x < 250; x++) sdf_file[x] = name[x];
-
-	sdf_file[x] = 0;
-
-	/* Parse filename for minimum latitude and longitude values */
-
-	if (sscanf(sdf_file, "%d_%d_%d_%d", &minlat, &maxlat, &minlon, &maxlon) != 4) return -EINVAL;
-
-	sdf_file[x] = '.';
-	sdf_file[x + 1] = 's';
-	sdf_file[x + 2] = 'd';
-	sdf_file[x + 3] = 'f';
-	sdf_file[x + 4] = 0;
-
-	/* Is it already in memory? */
-
-	for (indx = 0, found = 0; indx < MAXPAGES && found == 0; indx++) {
-		if (minlat == dem[indx].min_north && minlon == dem[indx].min_west && maxlat == dem[indx].max_north &&
-				maxlon == dem[indx].max_west)
-			found = 1;
-	}
-
-	/* Is room available to load it? */
-
-	if (found == 0) {
-		for (indx = 0, free_page = 0; indx < MAXPAGES && free_page == 0; indx++)
-			if (dem[indx].max_north == -90) free_page = 1;
-	}
-
-	indx--;
-
-	if (free_page && found == 0 && indx >= 0 && indx < MAXPAGES) {
-		/* Search for SDF file in current working directory first */
-
-		strncpy(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-
-		if ((fd = fopen(path_plus_name, "rb")) == NULL) {
-			/* Next, try loading SDF file from path specified
-				 in $HOME/.ss_path file or by -d argument */
-
-			strncpy(path_plus_name, sdf_path, sizeof(path_plus_name) - 1);
-			strncat(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-            //spdlog::debug("Trying to load SDF file {}", path_plus_name);
-			if ((fd = fopen(path_plus_name, "rb")) == NULL) {
-				return -errno;
-			}
-		}
-
-		spdlog::debug("Loading SDF \"{}\" into page {}...", path_plus_name, indx + 1);
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].max_west) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].min_north) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].min_west) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].max_north) == EOF) return -errno;
-		}
-
-		/*
-			 Here X lines of DEM will be read until IPPD is reached.
-			 Each .sdf tile contains 1200x1200 = 1.44M 'points'
-			 Each point is sampled for 1200 resolution!
-		 */
-		for (x = 0; x < ippd; x++) {
-			for (y = 0; y < ippd; y++) {
-				for (j = 0; j < jgets; j++) {
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-				}
-
-				if (fgets(line, sizeof(line), fd) != NULL) {
-					data = atoi(line);
-				}
-
-				dem[indx].data[x][y] = data;
-				dem[indx].signal[x][y] = 0;
-				dem[indx].mask[x][y] = 0;
-
-				if (data > dem[indx].max_el) dem[indx].max_el = data;
-
-				if (data < dem[indx].min_el) dem[indx].min_el = data;
-			}
-
-			if (ippd == 600) {
-				for (j = 0; j < IPPD; j++) {
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-				}
-			}
-			if (ippd == 300) {
-				for (j = 0; j < IPPD; j++) {
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-				}
-			}
-		}
-
-		fclose(fd);
-
-		if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
-
-		if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
-
-		if (max_north == -90)
-			max_north = dem[indx].max_north;
-
-		else if (dem[indx].max_north > max_north)
-			max_north = dem[indx].max_north;
-
-		if (min_north == 90)
-			min_north = dem[indx].min_north;
-
-		else if (dem[indx].min_north < min_north)
-			min_north = dem[indx].min_north;
-
-		if (max_west == -1)
-			max_west = dem[indx].max_west;
-
-		else {
-			if (abs(dem[indx].max_west - max_west) < 180) {
-				if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
-			}
-
-			else {
-				if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
-			}
-		}
-
-		if (min_west == 360)
-			min_west = dem[indx].min_west;
-
-		else {
-			if (fabs(dem[indx].min_west - min_west) < 180.0) {
-				if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
-			}
-
-			else {
-				if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
-			}
-		}
-
-		return 1;
-	}
-
-	else
-		return 0;
-}
-
-int LoadSDF(char *name)
-{
-	/* This function loads the requested SDF file from the filesystem.
-		 It first tries to invoke the LoadSDF_SDF() function to load an
-		 uncompressed SDF file (since uncompressed files load slightly
-		 faster). 
-		 If that fails, then we can assume that no elevation data
-		 exists for the region requested, and that the region
-		 requested must be entirely over water. */
-
-	int x, y, indx, minlat, minlon, maxlat, maxlon;
-	char found, free_page = 0;
-	int return_value = -1;
-
-	/* Try to load an uncompressed SDF first. */
-
-	return_value = LoadSDF_SDF(name);
-
-	/* If no file format can be found, then assume the area is water. */
-
-	if (return_value <= 0) {
-		sscanf(name, "%d_%d_%d_%d", &minlat, &maxlat, &minlon, &maxlon);
-
-		/* Is it already in memory? */
-
-		for (indx = 0, found = 0; indx < MAXPAGES && found == 0; indx++) {
-			if (minlat == dem[indx].min_north && minlon == dem[indx].min_west && maxlat == dem[indx].max_north &&
-					maxlon == dem[indx].max_west)
-				found = 1;
-		}
-
-		/* Is room available to load it? */
-
-		if (found == 0) {
-			for (indx = 0, free_page = 0; indx < MAXPAGES && free_page == 0; indx++)
-				if (dem[indx].max_north == -90) free_page = 1;
-		}
-
-		indx--;
-
-		if (free_page && found == 0 && indx >= 0 && indx < MAXPAGES) {
-			spdlog::warn("SDF file not found, region \"{}\" assumed as sea-level into page {}...", name, indx + 1);
-
-			dem[indx].max_west = maxlon;
-			dem[indx].min_north = minlat;
-			dem[indx].min_west = minlon;
-			dem[indx].max_north = maxlat;
-
-			/* Fill DEM with sea-level topography */
-
-			for (x = 0; x < ippd; x++)
-				for (y = 0; y < ippd; y++) {
-					dem[indx].data[x][y] = 0;
-					dem[indx].signal[x][y] = 0;
-					dem[indx].mask[x][y] = 0;
-
-					if (dem[indx].min_el > 0) dem[indx].min_el = 0;
-				}
-
-			if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
-
-			if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
-
-			if (max_north == -90)
-				max_north = dem[indx].max_north;
-
-			else if (dem[indx].max_north > max_north)
-				max_north = dem[indx].max_north;
-
-			if (min_north == 90)
-				min_north = dem[indx].min_north;
-
-			else if (dem[indx].min_north < min_north)
-				min_north = dem[indx].min_north;
-
-			if (max_west == -1)
-				max_west = dem[indx].max_west;
-
-			else {
-				if (abs(dem[indx].max_west - max_west) < 180) {
-					if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
-				}
-
-				else {
-					if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
-				}
-			}
-
-			if (min_west == 360)
-				min_west = dem[indx].min_west;
-
-			else {
-				if (abs(dem[indx].min_west - min_west) < 180) {
-					if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
-				}
-
-				else {
-					if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
-				}
-			}
-
-            spdlog::debug("Loaded GZ SDF topo data statistics: min elevation {}, max elevation {}, bounds {:.6f}N {:.6f}W to {:.6f}N {:.6f}W",
-                min_elevation, max_elevation, min_north, min_west, max_north, max_west
-            );
-
-			return_value = 1;
-		}
-	}
-
-	return return_value;
 }
 
 int LoadPAT(char *az_filename, char *el_filename)
@@ -1253,33 +944,45 @@ int LoadDBMColors(struct site xmtr)
  *
  * Filename built from copernicus_path:
  *   ippd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
- *   otherwise  → Copernicus_DSM_COG_330_N##_00_?###_00_DEM.tif
+ *   otherwise  → Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif
  *
  * Returns 1 on success, 0 if already loaded, negative errno on error.
  */
+static std::mutex copernicus_mutex;
+
 int LoadCopernicus(int tile_lat, int tile_lon)
 {
     int indx;
     char found = 0, free_page = 0;
 
-    /* Already in memory? */
-    for (indx = 0; indx < MAXPAGES && found == 0; indx++) {
-        if (tile_lat     == (int)dem[indx].min_north &&
-            tile_lat + 1 == (int)dem[indx].max_north &&
-            tile_lon     == (int)dem[indx].min_west  &&
-            tile_lon + 1 == (int)dem[indx].max_west)
-            found = 1;
-    }
-    if (found) return 0;
+    {
+        std::lock_guard<std::mutex> lock(copernicus_mutex);
 
-    /* Find a free page */
-    for (indx = 0; indx < MAXPAGES && free_page == 0; indx++)
-        if (dem[indx].max_north == -90) free_page = 1;
-    indx--;
+        /* Already in memory? */
+        for (indx = 0; indx < MAXPAGES && found == 0; indx++) {
+            if (tile_lat     == (int)dem[indx].min_north &&
+                tile_lat + 1 == (int)dem[indx].max_north &&
+                tile_lon     == (int)dem[indx].min_west  &&
+                tile_lon + 1 == (int)dem[indx].max_west)
+                found = 1;
+        }
+        if (found) return 0;
 
-    if (!free_page || indx < 0 || indx >= MAXPAGES) {
-        spdlog::error("LoadCopernicus: no free DEM page available");
-        return -ENOMEM;
+        /* Find a free page */
+        for (indx = 0; indx < MAXPAGES && free_page == 0; indx++)
+            if (dem[indx].max_north == -90) free_page = 1;
+        indx--;
+
+        if (!free_page || indx < 0 || indx >= MAXPAGES) {
+            spdlog::error("LoadCopernicus: no free DEM page available");
+            return -ENOMEM;
+        }
+
+        /* Claim this page immediately so other threads won't pick the same slot */
+        dem[indx].min_north = (float)tile_lat;
+        dem[indx].max_north = (float)(tile_lat + 1);
+        dem[indx].min_west  = (float)tile_lon;
+        dem[indx].max_west  = (float)(tile_lon + 1);
     }
 
     /* Build the Copernicus filename.
@@ -1322,6 +1025,14 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     }
     if (ds == NULL) {
         spdlog::debug("LoadCopernicus: file not found: {}", filename);
+        /* Release the claimed page so other tiles can use it */
+        {
+            std::lock_guard<std::mutex> lock(copernicus_mutex);
+            dem[indx].min_north = 0;
+            dem[indx].max_north = -90;
+            dem[indx].min_west  = 0;
+            dem[indx].max_west  = 0;
+        }
         return -ENOENT;
     }
 
@@ -1346,6 +1057,11 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     if (err != CE_None) {
         spdlog::error("LoadCopernicus: RasterIO failed for {}", path_plus_name);
         delete[] buf;
+        /* Release the claimed page */
+        {
+            std::lock_guard<std::mutex> lock(copernicus_mutex);
+            dem[indx].max_north = -90;
+        }
         return -EIO;
     }
 
@@ -1357,12 +1073,10 @@ int LoadCopernicus(int tile_lat, int tile_lon)
      *   y: 0 = min_west  (east  edge) … ippd-1 = max_west  (west edge)
      *
      * Mapping: x = (ippd-1-r),  y = (ippd-1-c)
+     *
+     * Note: bounds (min/max_north/west) were already set when the page was claimed.
+     * Each thread owns its own indx, so no lock is needed here.
      */
-    dem[indx].min_north = (float)tile_lat;
-    dem[indx].max_north = (float)(tile_lat + 1);
-    dem[indx].min_west  = (float)tile_lon;
-    dem[indx].max_west  = (float)(tile_lon + 1);
-
     for (int r = 0; r < ippd; r++) {
         int x = ippd - 1 - r;
         for (int c = 0; c < ippd; c++) {
@@ -1385,38 +1099,42 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     delete[] buf;
 
-    /* Update global elevation bounds */
-    if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
-    if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
+    {
+        std::lock_guard<std::mutex> lock(copernicus_mutex);
 
-    /* Update global geographic bounds (same logic as LoadSDF_SDF) */
-    if (max_north == -90)
-        max_north = dem[indx].max_north;
-    else if (dem[indx].max_north > max_north)
-        max_north = dem[indx].max_north;
+        /* Update global elevation bounds */
+        if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
+        if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
 
-    if (min_north == 90)
-        min_north = dem[indx].min_north;
-    else if (dem[indx].min_north < min_north)
-        min_north = dem[indx].min_north;
+        /* Update global geographic bounds (same logic as LoadSDF_SDF) */
+        if (max_north == -90)
+            max_north = dem[indx].max_north;
+        else if (dem[indx].max_north > max_north)
+            max_north = dem[indx].max_north;
 
-    if (max_west == -1)
-        max_west = dem[indx].max_west;
-    else {
-        if (abs((int)(dem[indx].max_west - max_west)) < 180) {
-            if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
-        } else {
-            if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
+        if (min_north == 90)
+            min_north = dem[indx].min_north;
+        else if (dem[indx].min_north < min_north)
+            min_north = dem[indx].min_north;
+
+        if (max_west == -1)
+            max_west = dem[indx].max_west;
+        else {
+            if (abs((int)(dem[indx].max_west - max_west)) < 180) {
+                if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
+            } else {
+                if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
+            }
         }
-    }
 
-    if (min_west == 360)
-        min_west = dem[indx].min_west;
-    else {
-        if (fabs(dem[indx].min_west - min_west) < 180.0) {
-            if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
-        } else {
-            if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
+        if (min_west == 360)
+            min_west = dem[indx].min_west;
+        else {
+            if (fabs(dem[indx].min_west - min_west) < 180.0) {
+                if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
+            } else {
+                if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
+            }
         }
     }
 
@@ -1458,14 +1176,42 @@ int LoadTopoData(bbox region)
         exit(1);
     }
 
-    // Load the data
-    for (int x = 0; x < tiles_lon; x++) {
-        for (int y = 0; y < tiles_lat; y++) {
-            int tile_lon = r_min_lon + x;
-            int tile_lat = r_min_lat + y;
-            spdlog::debug("Loading topo for tile {}N {}W to {}N {}W", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
+    /* Set to false to load Copernicus tiles sequentially instead of in parallel */
+    bool parallel_copernicus = false;
 
-            if (copernicus_path[0]) {
+    // Load the data
+    if (parallel_copernicus) {
+        std::vector<std::future<int>> futures;
+        std::vector<std::pair<int,int>> tiles;
+
+        for (int x = 0; x < tiles_lon; x++) {
+            for (int y = 0; y < tiles_lat; y++) {
+                int tile_lon = r_min_lon + x;
+                int tile_lat = r_min_lat + y;
+                spdlog::debug("Loading topo for tile {}N {}W to {}N {}W", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
+                tiles.push_back({tile_lat, tile_lon});
+                futures.push_back(std::async(std::launch::async, LoadCopernicus, tile_lat, tile_lon));
+            }
+        }
+
+        for (size_t i = 0; i < futures.size(); i++) {
+            int success = futures[i].get();
+            if (success < 0 && success != -ENOENT) {
+                return -success;
+            }
+            if (success == -ENOENT) {
+                /* No file → treat as sea-level (same as SDF fallback) */
+                spdlog::warn("Copernicus tile not found for {}N {}W, assuming sea-level", tiles[i].first, tiles[i].second);
+                /* need to generate a zero-elevation water page */
+            }
+        }
+    } else {
+        for (int x = 0; x < tiles_lon; x++) {
+            for (int y = 0; y < tiles_lat; y++) {
+                int tile_lon = r_min_lon + x;
+                int tile_lat = r_min_lat + y;
+                spdlog::debug("Loading topo for tile {}N {}W to {}N {}W", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
+
                 /* Copernicus mode: try GeoTIFF, fall back to water tile */
                 int success = LoadCopernicus(tile_lat, tile_lon);
                 if (success < 0 && success != -ENOENT) {
@@ -1474,19 +1220,8 @@ int LoadTopoData(bbox region)
                 if (success == -ENOENT) {
                     /* No file → treat as sea-level (same as SDF fallback) */
                     spdlog::warn("Copernicus tile not found for {}N {}W, assuming sea-level", tile_lat, tile_lon);
-                    char sdf_name[32];
-                    snprintf(sdf_name, sizeof(sdf_name), "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
-                    LoadSDF(sdf_name);   /* will generate a zero-elevation water page */
+                    /* need to generate a zero-elevation water page */
                 }
-            } else {
-                /* SDF mode (original behaviour) */
-                char basename[32], string[32];
-                snprintf(basename, 16, "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
-                strcpy(string, basename);
-                if (ippd == 3600) strcat(string, "-hd");
-                int success;
-                if ((success = LoadSDF(string)) < 0)
-                    return -success;
             }
         }
     }

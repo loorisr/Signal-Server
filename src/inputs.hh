@@ -8,8 +8,6 @@ extern char scf_file[255];
 int resample_data(int scaling_factor);
 int resize_data(int resolution);
 
-int LoadSDF_SDF(char *name, int winfiles);
-int LoadSDF(char *name, int winfiles);
 int LoadCopernicus(int tile_lat, int tile_lon);
 int LoadPAT(char *az_filename, char *el_filename);
 int LoadSignalColors(struct site xmtr);
@@ -18,7 +16,6 @@ int LoadDBMColors(struct site xmtr);
 int LoadTopoData(bbox region);
 int LoadUDT(char *filename);
 int loadClutter(char *filename, double radius, struct site tx);
-int averageHeight(int h, int w, int x, int y);
 static const char AZ_FILE_SUFFIX[] = ".az";
 static const char EL_FILE_SUFFIX[] = ".el";
 

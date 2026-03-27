@@ -51,7 +51,7 @@ int MAXPAGES = 10*10;
 int IPPD = 1200;
 int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
 
-char sdf_path[255], copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
+char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
 
 double earthradius, max_range = 0.0, forced_erp, dpp, ppd, yppd,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
@@ -1087,9 +1087,8 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Additional improvements and multithreading fixes by P. McDonnell, W3AXL\n\n");
         fprintf(stdout, "Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile\n\n");
         fprintf(stdout, "Data:\n");
-        fprintf(stdout, "     -sdf Directory containing SRTM derived .sdf DEM tiles\n");
         fprintf(stdout, "     -copernicus Directory containing Copernicus DSM GeoTIFF COG tiles\n");
-        fprintf(stdout, "                  (Copernicus_DSM_COG_330_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
+        fprintf(stdout, "                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
         fprintf(stdout, "                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)\n");
         fprintf(stdout, "     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'\n");
         fprintf(stdout, "     -clt MODIS 17-class wide area clutter in ASCII grid format\n");
@@ -1163,7 +1162,6 @@ int main(int argc, char *argv[])
     clutter = 0.0;
     forced_erp = -1.0;
     forced_freq = 0.0;
-    sdf_path[0] = 0;
     udt_file = NULL;
     color_file = NULL;
     path.length = 0;
@@ -1364,10 +1362,15 @@ int main(int argc, char *argv[])
         }
 
         if (strcmp(argv[x], "-hd") == 0) {
+            spdlog::info("    hd mode");
+            free_elev();
+            free_path();
+            free_dem();
             MAXPAGES = 32;  // was 9
             ARRAYSIZE = 115210;  // was 32410
             IPPD = 3600;
             ippd = 3600;
+            do_allocs();
             spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, IPPD);
         }
 
@@ -1380,13 +1383,6 @@ int main(int argc, char *argv[])
 
         if (strcmp(argv[x], "--geotiff") == 0) {
             geotiff = 1;
-        }
-
-        if (strcmp(argv[x], "-sdf") == 0) {
-            z = x + 1;
-
-            if (z <= y && argv[z][0] && argv[z][0] != '-')
-                strncpy(sdf_path, argv[z], 253);
         }
 
         if (strcmp(argv[x], "-copernicus") == 0) {
@@ -1774,15 +1770,15 @@ int main(int argc, char *argv[])
         clutter /= METERS_PER_FOOT;	/* Feet to metres */
     }
 
-    /* Ensure a trailing '/' is present in sdf_path */
+    /* Ensure a trailing '/' is present in copernicus_path */
 
-    if (sdf_path[0]) {
-        x = strlen(sdf_path);
+    if (copernicus_path[0]) {
+        x = strlen(copernicus_path);
 
-        if (sdf_path[x - 1] != '/' && x != 0) {
-            spdlog::debug("Appending / to SDF directory");
-            sdf_path[x] = '/';
-            sdf_path[x + 1] = 0;
+        if (copernicus_path[x - 1] != '/' && x != 0) {
+            spdlog::debug("Appending / to Copernicus directory");
+            copernicus_path[x] = '/';
+            copernicus_path[x + 1] = 0;
         }
     }
 
@@ -1807,9 +1803,7 @@ int main(int argc, char *argv[])
     }
     spdlog::info("");
     spdlog::info("    Directories:");
-    spdlog::info("        SDF: {}", sdf_path);
-    if (copernicus_path[0])
-        spdlog::info("        Copernicus: {}", copernicus_path);
+    spdlog::info("        Copernicus: {}", copernicus_path);
     spdlog::info(VERT_SEP);
 
     /**
@@ -1873,7 +1867,7 @@ int main(int argc, char *argv[])
     // DEM first
 
     if( (result = LoadTopoData(plot_bounds)) != 0 ){
-        // This only fails on errors loading SDF tiles
+        // This only fails on errors loading DEM tiles
         spdlog::error("Error loading topo data");
         return result;
     }

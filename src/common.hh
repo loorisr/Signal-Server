@@ -27,7 +27,7 @@
 #define FOUR_THIRDS	1.3333333333333
 #define KM_PER_DEG_LAT 110.754
 
-#define MAX(x,y)((x)>(y)?(x):(y))
+//#define MAX(x,y)((x)>(y)?(x):(y))
 
 struct dem {
 	float min_north;
@@ -128,7 +128,6 @@ extern double cropLat;
 extern double cropLon;
 
 extern char string[];
-extern char sdf_path[];
 extern char copernicus_path[];
 extern char gpsav;
 

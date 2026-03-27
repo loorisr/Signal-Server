@@ -19,7 +19,7 @@
 #include <limits.h>
 
 namespace {
-	bool ***processed;
+	//bool ***processed; //unused
 	bool has_init_processed = false;
 
     // Storage for processing threads
@@ -1217,7 +1217,7 @@ void PlotPropagationRadius(struct site source, double range,
 
     // Calculate plot width & height in degrees
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
-    double plot_height = bounds.upper_left.lat - bounds.lower_right.lat;
+    //double plot_height = bounds.upper_left.lat - bounds.lower_right.lat; //unsed
 
     // Calculate the radius of our circle, in pixels
     double radius_px = (plot_width / 2.0) * ppd;

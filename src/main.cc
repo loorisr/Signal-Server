@@ -41,6 +41,7 @@
 #include "logos.hh"
 
 #include <chrono>
+#include <thread>
 
 #include <spdlog/spdlog.h>
 
@@ -1055,7 +1056,8 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now();
 
     int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
-      haf = 0, pmenv = 1, result, segments = 4;
+      haf = 0, pmenv = 1, result,
+      segments = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
 
     PropModel prop_model;
 

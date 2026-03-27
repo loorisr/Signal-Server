@@ -1,6 +1,7 @@
 #ifndef _MAIN_HH_
 #define _MAIN_HH_
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 
@@ -18,6 +19,8 @@
 #endif
 
 #define VERT_SEP "----------------------------------------------------------------------------------"
+
+void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename);
 
 int ReduceAngle(double angle);
 double LonDiff(double lon1, double lon2);

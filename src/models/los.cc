@@ -876,7 +876,7 @@ void PlotPropPath(
 	//	cropLon-=360;
 }
 
-void PlotLOSMap(struct site source, double altitude, char *plo_filename,
+void PlotLOSMap(struct site source, double altitude,
 		bool use_threads, uint8_t segments)
 {
 	/* This function performs a 360 degree sweep around the
@@ -890,9 +890,6 @@ void PlotLOSMap(struct site source, double altitude, char *plo_filename,
 
 	static __thread unsigned char mask_value = 1;
 	FILE *fd = NULL;
-
-	if (plo_filename[0] != 0)
-		fd = fopen(plo_filename, "wb");
 
 	if (fd != NULL) {
 		fprintf(fd,
@@ -960,7 +957,6 @@ void PlotLOSMap(struct site source, double altitude, char *plo_filename,
 /// @param source source site
 /// @param bounds bounding box
 /// @param altitude antenna altitude
-/// @param plo_filename plot filename
 /// @param prop_model propagation model to use
 /// @param knifeedge whether to use knife edge propagation
 /// @param haf 
@@ -968,7 +964,7 @@ void PlotLOSMap(struct site source, double altitude, char *plo_filename,
 /// @param use_threads whether to use threads or not
 /// @param segments number of segments to divide the plot by
 void PlotPropagation(struct site source, bbox bounds, 
-                    double altitude, char *plo_filename,
+                    double altitude,
 		            PropModel prop_model, int knifeedge, int haf, int pmenv, bool
 		            use_threads, uint8_t segments)
 {
@@ -999,9 +995,6 @@ void PlotPropagation(struct site source, bbox bounds,
         spdlog::debug("Using {:.2f} {} of ground clutter", metric ? clutter * METERS_PER_FOOT : clutter, metric ? "meters" : "feet");
 
     spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} ft AGL", source.lat, source.lon, source.alt);
-
-	if (plo_filename[0] != 0)
-		fd = fopen(plo_filename, "wb");
 
 	if (fd != NULL) {
 		fprintf(fd,
@@ -1154,8 +1147,7 @@ void PlotPropagation(struct site source, bbox bounds,
 }
 
 void PlotPropagationRadius(struct site source, double range, 
-                            double altitude, char *plot_filename, 
-                            PropModel prop_model, int knifeedge, int haf, int pmenv, 
+                            double altitude, PropModel prop_model, int knifeedge, int haf, int pmenv, 
                             bool use_threads, uint8_t segments)
 {
 
@@ -1207,13 +1199,13 @@ void PlotPropagationRadius(struct site source, double range,
     bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
 
     // Open file and ensure it opened
-	if (plot_filename[0] != 0)
+	/*if (plot_filename[0] != 0)
 		fd = fopen(plot_filename, "wb");
 	if (fd != NULL) {
 		fprintf(fd,
 			"%.3f, %.3f\t; max_west, min_west\n%.3f, %.3f\t; max_north, min_north\n",
 			bounds.upper_left.lon, bounds.lower_right.lon, bounds.upper_left.lat, bounds.lower_right.lat);
-	}
+	}*/
 
     // Calculate plot width & height in degrees
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;

@@ -19,8 +19,7 @@
 #include "models/sui.hh"
 #include "image.hh"
 
-void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
-		unsigned char ngs, struct site *xmtr)
+void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the content of flags held in the mask[][]
@@ -37,7 +36,7 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 	image_ctx_t ctx;
 	int success;
 
-	if( (success = image_init(&ctx, width, (kml ? height : height + 30), IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
+	if( (success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -59,12 +58,15 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
-		if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-			spdlog::error("Error creating file name");
-			exit(1);
+		if (write_ppm) {
+			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
+				spdlog::error("Error creating file name");
+				exit(1);
+			}
+			fd = fopen(mapfile,"wb");
+		} else {
+			fd = NULL;
 		}
-
-		fd = fopen(mapfile,"wb");
 
 	} else {
 
@@ -80,16 +82,13 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 
 	north = (double)max_north - dpp;
 
-	if (kml || geo)
-		south = (double)min_north;	/* No bottom legend */
-	else
-		south = (double)min_north - (30.0 / ppd);	/* 30 pixels for bottom legend */
+	south = (double)min_north;	/* No bottom legend */
 
 	east = (minwest < 180.0 ? -minwest : 360.0 - min_west);
 	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename != NULL ? mapfile : "to stdout", width, (kml ? height : height + 30));
+			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
@@ -238,22 +237,25 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 		}
 	}
 
-	if((success = image_write(&ctx,fd)) != 0){
-		spdlog::error("Error writing image");
-		exit(success);
+	if(write_ppm || filename == NULL) {
+		if((success = image_write(&ctx,fd)) != 0){
+			spdlog::error("Error writing image");
+			exit(success);
+		}
 	}
+	if(geotiff && filename != NULL)
+		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 
-	if( filename != NULL ) {
+	if( filename != NULL && write_ppm ) {
 		fclose(fd);
 		fd = NULL;
 	}
 
 }
 
-int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
-	      unsigned char ngs, struct site *xmtr)
+int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal strength values held in the
@@ -270,7 +272,7 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 	image_ctx_t ctx;
 	int success;
 
-	if((success = image_init(&ctx, width, (kml ? height : height + 30), IMAGE_RGB, IMAGE_DEFAULT)) != 0){
+	if((success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -292,12 +294,15 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
-		if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-			spdlog::error("Error creating file name");
-			exit(1);
+		if (write_ppm) {
+			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
+				spdlog::error("Error creating file name");
+				exit(1);
+			}
+			fd = fopen(mapfile,"wb");
+		} else {
+			fd = NULL;
 		}
-
-		fd = fopen(mapfile,"wb");
 
 	} else {
 
@@ -319,7 +324,7 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename != NULL ? mapfile : "to stdout", width, (kml ? height : height + 30));
+			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
@@ -478,22 +483,25 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 		}
 	}
 
-	if((success = image_write(&ctx,fd)) != 0){
-		spdlog::error("Error writing image");
-		exit(success);
+	if(write_ppm || filename == NULL) {
+		if((success = image_write(&ctx,fd)) != 0){
+			spdlog::error("Error writing image");
+			exit(success);
+		}
 	}
+	if(geotiff && filename != NULL)
+		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 
-	if( filename != NULL ) {
+	if( filename != NULL && write_ppm ) {
 		fclose(fd);
 		fd = NULL;
 	}
 	return 0;
 }
 
-void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
-	      unsigned char ngs, struct site *xmtr)
+void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -510,7 +518,7 @@ void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
 	image_ctx_t ctx;
 	int success;
 
-	if( (success = image_init(&ctx, width, (kml ? height : height + 30), IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
+	if( (success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -532,12 +540,15 @@ void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
-		if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-			spdlog::error("Error creating file name");
-			exit(1);
+		if (write_ppm) {
+			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
+				spdlog::error("Error creating file name");
+				exit(1);
+			}
+			fd = fopen(mapfile,"wb");
+		} else {
+			fd = NULL;
 		}
-
-		fd = fopen(mapfile,"wb");
 
 	} else {
 
@@ -559,7 +570,7 @@ void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
 	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			(filename != NULL ? mapfile : "to stdout"), width, (kml ? height : height));
+			(filename != NULL ? mapfile : "to stdout"), width, height);
 
 	// Draw image of x by y pixels
 	for (y = 0, lat = north; y < (int)height;
@@ -719,24 +730,26 @@ void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
 		}
 	}
 
-	if((success = image_write(&ctx,fd)) != 0){
-		spdlog::error("Error writing image");
-		exit(success);
+	if(write_ppm || filename == NULL) {
+		if((success = image_write(&ctx,fd)) != 0){
+			spdlog::error("Error writing image");
+			exit(success);
+		}
+		fflush(fd);
 	}
-
-	fflush(fd);
+	if(geotiff && filename != NULL)
+		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 
-	if( filename != NULL ) {
+	if( filename != NULL && write_ppm ) {
 		fclose(fd);
 		fd = NULL;
 	}
 
 }
 
-void DoLOS(char *filename, unsigned char geo, unsigned char kml,
-	   unsigned char ngs, struct site *xmtr)
+void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -753,7 +766,7 @@ void DoLOS(char *filename, unsigned char geo, unsigned char kml,
 	image_ctx_t ctx;
 	int success;
 
-	if((success = image_init(&ctx, width, (kml ? height : height + 30), IMAGE_RGB, IMAGE_DEFAULT)) != 0){
+	if((success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -770,15 +783,18 @@ void DoLOS(char *filename, unsigned char geo, unsigned char kml,
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
-		if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-			spdlog::error("Error creating file name");
-			exit(1);
+		if (write_ppm) {
+			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
+				spdlog::error("Error creating file name");
+				exit(1);
+			}
+			fd = fopen(mapfile,"wb");
+		} else {
+			fd = NULL;
 		}
 
-		fd = fopen(mapfile,"wb");
-
 	} else {
-		
+
 		spdlog::info("Writing to stdout");
 		fd = stdout;
 
@@ -797,7 +813,7 @@ void DoLOS(char *filename, unsigned char geo, unsigned char kml,
 	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...\n",
-			filename != NULL ? mapfile : "to stdout", width, (kml ? height : height + 30));
+			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
@@ -962,14 +978,18 @@ void DoLOS(char *filename, unsigned char geo, unsigned char kml,
 		}
 	}
 
-	if((success = image_write(&ctx,fd)) != 0){
-		spdlog::error("Error writing image");
-		exit(success);
+	if(write_ppm || filename == NULL) {
+		if((success = image_write(&ctx,fd)) != 0){
+			spdlog::error("Error writing image");
+			exit(success);
+		}
 	}
+	if(geotiff && filename != NULL)
+		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 
-	if( filename != NULL) {
+	if( filename != NULL && write_ppm ) {
 		fclose(fd);
 		fd = NULL;
 	}

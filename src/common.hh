@@ -135,6 +135,8 @@ extern unsigned char got_elevation_pattern;
 extern unsigned char got_azimuth_pattern;
 extern unsigned char metric;
 extern unsigned char dbm;
+extern unsigned char geotiff;
+extern unsigned char write_ppm;
 
 extern struct dem *dem;
 extern __thread struct path path;

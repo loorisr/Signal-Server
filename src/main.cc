@@ -21,6 +21,8 @@
 
 /* GDAL must come before any header that defines MAX */
 #include <gdal.h>
+#include <cpl_conv.h>
+#include <ogr_srs_api.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -47,7 +49,7 @@
 
 #include <spdlog/spdlog.h>
 
-int MAXPAGES = 10*10;
+int MAXPAGES = 4*4;
 int IPPD = 1200;
 int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
 
@@ -66,6 +68,7 @@ int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric = 0, dbm = 0;
 unsigned char geotiff = 0;
+unsigned char write_ppm = 0;
 
 bool to_stdout = false, cropping = true;
 
@@ -238,14 +241,10 @@ int GetMask(double lat, double lon)
 void PutSignal(double lat, double lon, unsigned char signal)
 {
     int x = 0, y = 0, indx;
-    char found, dotfile[260], basename[255];
+    char found;
 
     /* This function writes a signal level (0-255)
        at the specified location for later recall. */
-
-    snprintf(basename, 255, "%s", tx_site[0].filename);
-    strcpy(dotfile, basename);
-    strcat(dotfile, ".dot");
 
     if (signal > hottest)	// dBm, dBuV
         hottest = signal;
@@ -353,7 +352,7 @@ int AddElevation(double lat, double lon, double height, int size)
     if (found && size>1){
         for(i=size*-1; i <= size; i=i+1){
             for(j=size*-1; j <= size; j=j+1){
-                if(x+j >= 0 && x+j <=IPPD && y+i >= 0 && y+i <=IPPD)
+                if(x+j >= 0 && x+j < IPPD && y+i >= 0 && y+i < IPPD)
                     dem[indx].data[x+j][y+i] += (short)rint(height);
             }
 
@@ -566,7 +565,7 @@ void ReadPath(struct site source, struct site destination)
         tempsite.lon = lon2;
         path.elevation[c] = GetElevation(tempsite);
         // fix for tile gaps in multi-tile LIDAR plots
-        if(path.elevation[c]==0 && path.elevation[c-1] > 10)
+        if(c > 0 && path.elevation[c] < 0 && path.elevation[c-1] > 10)
             path.elevation[c]=path.elevation[c-1];
         path.distance[c] = distance;
     }
@@ -1050,6 +1049,78 @@ void do_allocs(void)
     }
 }
 
+void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename)
+{
+    char tif_file[300];
+    double ulx, uly, lrx, lry;
+
+    /* Build .tif output path */
+    size_t len = strlen(filename);
+    if (len > 4 && strcmp(filename + len - 4, ".ppm") == 0)
+        snprintf(tif_file, sizeof(tif_file), "%.*s.tif", (int)(len - 4), filename);
+    else
+        snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
+
+    /* Compute geographic bounds */
+    if (cropping) {
+        ulx = tx_site[0].lon - cropLon;
+        uly = tx_site[0].lat + cropLat;
+        lrx = tx_site[0].lon + cropLon;
+        lry = tx_site[0].lat - cropLat;
+    } else {
+        ulx = west;
+        uly = max_north;
+        lrx = east;
+        lry = min_north;
+    }
+
+    GDALDriverH drv = GDALGetDriverByName("GTiff");
+    if (drv == NULL) {
+        spdlog::error("write_geotiff_from_canvas: GTiff GDAL driver not available");
+        return;
+    }
+
+    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 3, GDT_Byte, NULL);
+    if (ds == NULL) {
+        spdlog::error("write_geotiff_from_canvas: failed to create {}", tif_file);
+        return;
+    }
+
+    double gt[6] = {
+        ulx,
+        (lrx - ulx) / img_width,
+        0.0,
+        uly,
+        0.0,
+        (lry - uly) / img_height   /* negative → north-up raster */
+    };
+    GDALSetGeoTransform(ds, gt);
+
+    OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL);
+    OSRImportFromEPSG(srs, 4326);
+    char *wkt = NULL;
+    OSRExportToWkt(srs, &wkt);
+    GDALSetProjection(ds, wkt);
+    CPLFree(wkt);
+    OSRDestroySpatialReference(srs);
+
+    /* Write interleaved RGB canvas (RGBRGB…) to 3 separate GDAL bands */
+    int bandMap[3] = {1, 2, 3};
+    CPLErr err = (CPLErr)GDALDatasetRasterIO(ds, GF_Write,
+        0, 0, img_width, img_height,
+        (void *)canvas, img_width, img_height, GDT_Byte,
+        3, bandMap,
+        RGB_SIZE,                   /* nPixelSpace: bytes to next pixel in same band */
+        img_width * RGB_SIZE,       /* nLineSpace:  bytes to next row */
+        1);                         /* nBandSpace:  bytes to next band within pixel */
+    if (err != CE_None)
+        spdlog::error("write_geotiff_from_canvas: RasterIO write failed for {}", tif_file);
+    else
+        spdlog::info("GeoTIFF written: {}", tif_file);
+
+    GDALClose(ds);
+}
+
 int main(int argc, char *argv[])
 {
     auto start_time = std::chrono::steady_clock::now();
@@ -1066,9 +1137,9 @@ int main(int argc, char *argv[])
 
     bool use_radial = false;
 
-    unsigned char geo = 0, kml = 0, ngs = 0;
+    unsigned char ngs = 0;
 
-    char mapfile[255], ano_filename[255], clutter_file[255],antenna_file[255];
+    char mapfile[255], clutter_file[255],antenna_file[255];
     char *az_filename, *el_filename, *udt_file = NULL;
 
     double altitude = 0.0, altitudeLR = 0.0;
@@ -1087,7 +1158,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Additional improvements and multithreading fixes by P. McDonnell, W3AXL\n\n");
         fprintf(stdout, "Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile\n\n");
         fprintf(stdout, "Data:\n");
-        fprintf(stdout, "     -copernicus Directory containing Copernicus DSM GeoTIFF COG tiles\n");
+        fprintf(stdout, "     -copernicus Directory containing Copernicus DEM GeoTIFF COG tiles\n");
         fprintf(stdout, "                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
         fprintf(stdout, "                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)\n");
         fprintf(stdout, "     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'\n");
@@ -1151,8 +1222,6 @@ int main(int argc, char *argv[])
     do_allocs();
 
     y = argc - 1;
-    kml = 0;
-    geo = 0;
     dbm = 0;
     gpsav = 0;
     metric = 0;
@@ -1169,15 +1238,13 @@ int main(int argc, char *argv[])
     contour_threshold = 0;
     resample = 0;
 
-    ano_filename[0] = 0;
     earthradius = EARTHRADIUS;
     max_range = 1.0;
     prop_model = ITM_LR;
     lat = 0;
     lon = 0;
     txh = 0;
-    ngs = 1;		// no terrain background
-    kml = 1;
+    ngs = 1;	
     ippd = IPPD;		// default resolution
 
     sscanf("0.1", "%lf", &altitudeLR);
@@ -1366,10 +1433,10 @@ int main(int argc, char *argv[])
             free_elev();
             free_path();
             free_dem();
-            MAXPAGES = 32;  // was 9
-            ARRAYSIZE = 115210;  // was 32410
+            //MAXPAGES = 32;  // was 16
             IPPD = 3600;
             ippd = 3600;
+            ARRAYSIZE = (MAXPAGES * IPPD) + 10;
             do_allocs();
             spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, IPPD);
         }
@@ -1381,15 +1448,21 @@ int main(int argc, char *argv[])
         if (strcmp(argv[x], "-dbm") == 0)
             dbm = 1;
 
-        if (strcmp(argv[x], "--geotiff") == 0) {
+        if (strcmp(argv[x], "-geotiff") == 0) {
             geotiff = 1;
+        }
+
+        if (strcmp(argv[x], "-ppm") == 0) {
+            write_ppm = 1;
         }
 
         if (strcmp(argv[x], "-copernicus") == 0) {
             z = x + 1;
 
-            if (z <= y && argv[z][0] && argv[z][0] != '-')
+            if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 strncpy(copernicus_path, argv[z], 253);
+                copernicus_path[253] = '\0';
+            }
         }
         
         if (strcmp(argv[x], "-res") == 0) {
@@ -1597,6 +1670,7 @@ int main(int argc, char *argv[])
                 if( udt_file == NULL )
                     return ENOMEM;
                 strncpy(udt_file, argv[z], 253);
+                udt_file[253] = '\0';
             }
         }
 
@@ -1677,6 +1751,7 @@ int main(int argc, char *argv[])
                 if (color_file == NULL)
                     return ENOMEM;
                 strncpy(color_file, argv[z], 253);
+                color_file[253] = '\0';
             }
         }
 
@@ -1902,18 +1977,18 @@ int main(int argc, char *argv[])
     if (ppa == 0) {
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
-            PlotLOSMap(tx_site[0], altitudeLR, ano_filename, use_threads, segments);
-            DoLOS(mapfile, geo, kml, ngs, tx_site);
+            PlotLOSMap(tx_site[0], altitudeLR, use_threads, segments);
+            DoLOS(mapfile, ngs, tx_site);
         } else {
             // 90% of effort here
             if (use_radial)
             {
-                PlotPropagationRadius(tx_site[0], max_range, altitudeLR, ano_filename, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
+                PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
                 spdlog::debug("Finished PlotPropagationRadius()");
             }
             else
             {
-                PlotPropagation(tx_site[0], plot_bounds, altitudeLR, ano_filename, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
+                PlotPropagation(tx_site[0], plot_bounds, altitudeLR, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
                 spdlog::debug("Finished PlotPropagation()");
             }
 
@@ -1941,11 +2016,11 @@ int main(int argc, char *argv[])
 
             // Write bitmap
             if (LR.erp == 0.0)
-                DoPathLoss(mapfile, geo, kml, ngs, tx_site);
+                DoPathLoss(mapfile, ngs, tx_site);
             else if (dbm)
-                DoRxdPwr((to_stdout == true ? NULL : mapfile), geo, kml, ngs, tx_site);
+                DoRxdPwr((to_stdout == true ? NULL : mapfile), ngs, tx_site);
             else
-                    if ((result = DoSigStr(mapfile, geo, kml, ngs, tx_site)) != 0)
+                    if ((result = DoSigStr(mapfile, ngs, tx_site)) != 0)
                     return result;
         }
 
@@ -1956,46 +2031,26 @@ int main(int argc, char *argv[])
         if (tx_site[0].lon < -180.0)
             tx_site[0].lon += 360;
 
-        if (geotiff && !to_stdout) {
-            char ppm_file[300];
-            char tif_file[300];
-            char command[1024];
-            double ulx, uly, lrx, lry;
-
-            size_t len = strlen(mapfile);
-            if (len > 4 && strcmp(mapfile + len - 4, ".ppm") == 0) {
-                snprintf(ppm_file, sizeof(ppm_file), "%s", mapfile);
-                snprintf(tif_file, sizeof(tif_file), "%.*s.tif", (int)(len - 4), mapfile);
-            } else {
-                snprintf(ppm_file, sizeof(ppm_file), "%s.ppm", mapfile);
-                snprintf(tif_file, sizeof(tif_file), "%s.tif", mapfile);
-            }
-
-            if (cropping) {
-                ulx = tx_site[0].lon-cropLon;
-                uly = tx_site[0].lat+cropLat;
-                lrx = tx_site[0].lon+cropLon;
-                lry = tx_site[0].lat-cropLat;
-            } else {
-                ulx = west;
-                uly = max_north;
-                lrx = east;
-                lry = min_north;
-            }
-
-            snprintf(command, sizeof(command), "gdal_translate -of GTiff -a_srs EPSG:4326 -a_ullr %.9f %.9f %.9f %.9f \"%s\" \"%s\"", ulx, uly, lrx, lry, ppm_file, tif_file);
-            spdlog::info("Generating GeoTIFF: {}", command);
-            int ret = system(command);
-            if (ret != 0) {
-                spdlog::error("Error generating GeoTIFF. Is gdal_translate installed?");
-            }
-        }
-
         if (cropping) {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
 
+            // JSON
+            char fn[253];
+            sprintf(fn, "%s.json", mapfile);
+            FILE *f = fopen(fn, "w");
+            if (f) {
+                fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
+                fclose(f);
+            }
         } else {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,east,min_north,west);
+            // JSON
+            char fn[253];
+            sprintf(fn, "%s.json", mapfile);
+            FILE *f = fopen(fn, "w");
+            if (f) {
+                fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", max_north, east, min_north, west);
+            }
         }
 
     } else {

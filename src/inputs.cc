@@ -208,17 +208,15 @@ int LoadPAT(char *az_filename, char *el_filename)
 				read_count[x]++;
 			}
 
-			if (fgets(string, 254, fd) == NULL) {
-				// fprintf(stderr,"Azimuth read error\n");
-				//  exit(0);
-			}
+			if (fgets(string, 254, fd) == NULL)
+				break;
 			pointer = strchr(string, ';');
 
 			if (pointer != NULL) *pointer = 0;
 
 			sscanf(string, "%f %f", &az, &amplitude);
 
-		} while (feof(fd) == 0);
+		} while (1);
 
 		fclose(fd);
 		fd = NULL;
@@ -343,7 +341,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 		sscanf(string, "%f %f", &elevation, &amplitude);
 
-		while (feof(fd) == 0) {
+		while (1) {
 			/* Read in normalized radiated field values
 				 for every 0.01 degrees of elevation between
 				 -10.0 and +90.0 degrees */
@@ -355,9 +353,9 @@ int LoadPAT(char *az_filename, char *el_filename)
 				read_count[x]++;
 			}
 
-			if (fgets(string, 254, fd) != NULL) {
-				pointer = strchr(string, ';');
-			}
+			if (fgets(string, 254, fd) == NULL)
+				break;
+			pointer = strchr(string, ';');
 			if (pointer != NULL) *pointer = 0;
 
 			sscanf(string, "%f %f", &elevation, &amplitude);
@@ -578,10 +576,7 @@ int LoadSignalColors(struct site xmtr)
 		x = 0;
 		s = fgets(string, 80, fd);
 
-		if (s)
-			;
-
-		while (x < 128 && feof(fd) == 0) {
+		while (x < 128 && s != NULL) {
 			pointer = strchr(string, ';');
 
 			if (pointer != NULL) *pointer = 0;
@@ -740,10 +735,7 @@ int LoadLossColors(struct site xmtr)
 		x = 0;
 		s = fgets(string, 80, fd);
 
-		if (s)
-			;
-
-		while (x < 128 && feof(fd) == 0) {
+		while (x < 128 && s != NULL) {
 			pointer = strchr(string, ';');
 
 			if (pointer != NULL) *pointer = 0;
@@ -892,10 +884,7 @@ int LoadDBMColors(struct site xmtr)
 		x = 0;
 		s = fgets(string, 80, fd);
 
-		if (s)
-			;
-
-		while (x < 128 && feof(fd) == 0) {
+		while (x < 128 && s != NULL) {
 			pointer = strchr(string, ';');
 
 			if (pointer != NULL) *pointer = 0;
@@ -1258,14 +1247,11 @@ int LoadUDT(char *filename)
 
 	s = fgets(input, 78, fd1);
 
-	if (s)
-		;
-
 	pointer = strchr(input, ';');
 
 	if (pointer != NULL) *pointer = 0;
 
-	while (feof(fd1) == 0) {
+	while (s != NULL) {
 		// Parse line for latitude, longitude, height
 
 		for (x = 0, y = 0, z = 0; x < 78 && input[x] != 0 && z < 3; x++) {
@@ -1358,7 +1344,7 @@ int LoadUDT(char *filename)
 				x++;
 			}
 
-		} while (feof(fd2) == 0 && z == 0);
+		} while (n == 3 && z == 0);
 
 		if (z == 0) {
 			// No duplicate found
@@ -1373,7 +1359,7 @@ int LoadUDT(char *filename)
 
 		rewind(fd2);
 
-	} while (feof(fd1) == 0);
+	} while (n == 3);
 
 	fclose(fd1);
 	fclose(fd2);

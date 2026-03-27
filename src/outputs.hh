@@ -3,13 +3,13 @@
 
 #include "models/los.hh"
 
-void DoPathLoss(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr);
+void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr);
 
-int DoSigStr(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr);
+int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr);
 
-void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr);
+void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr);
 
-void DoLOS(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr);
+void DoLOS(char *filename, unsigned char ngs, struct site *xmtr);
 
 void PathReport(struct site source, struct site destination, char *name, char graph_it, PropModel propmodel, int pmenv,
                 double rxGain);

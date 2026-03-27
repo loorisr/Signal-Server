@@ -1072,23 +1072,10 @@ int main(int argc, char *argv[])
 
     double altitude = 0.0, altitudeLR = 0.0;
 
-    if (strstr(argv[0], "signalserverHD")) {
-            MAXPAGES = 32;  // was 9
-        ARRAYSIZE = 115210;  // was 32410
-        IPPD = 3600;
-    }
-
-    if (strstr(argv[0], "signalserverHD")) {
-        spdlog::info(sshd_block);
-    }
-    else
-    {
-        spdlog::info(ss_block);
-    }
+    spdlog::info(ss_block);
 
     spdlog::info("Version {}.{} ({} {})", VER_MAJ, VER_MIN, GIT_BRANCH, GIT_COMMIT_HASH);
     spdlog::info("    Compile date: {} {}", __DATE__, __TIME__);
-    spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, IPPD);
     spdlog::info("");
 
     if (argc == 1) {
@@ -1122,6 +1109,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "     -rel Reliability for ITM model (%% of 'time') 1 to 99 (optional, default 50%%)\n");
         fprintf(stdout, "     -conf Confidence for ITM model (%% of 'situations') 1 to 99 (optional, default 50%%)\n");
         fprintf(stdout, "     -segments Number of segments to divide the plot rectangle into (must be even and > 4)\n");
+        fprintf(stdout, "     -hd Use HD mode (30m), per defaut 90m\n");
         fprintf(stdout, "Output:\n");
         fprintf(stdout, "     -o basename (Output file basename - required, min 5 chars)\n");
         fprintf(stdout,	"     -dbm Plot Rxd signal power instead of field strength in dBuV/m\n");
@@ -1366,7 +1354,14 @@ int main(int argc, char *argv[])
 
         if (strcmp(argv[x], "-m") == 0) {
             metric = 1;
+        }
 
+        if (strcmp(argv[x], "-hd") == 0) {
+            MAXPAGES = 32;  // was 9
+            ARRAYSIZE = 115210;  // was 32410
+            IPPD = 3600;
+            ippd = 3600;
+            spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, IPPD);
         }
 
         if (strcmp(argv[x], "-t") == 0) {

@@ -66,16 +66,9 @@ find_library(z z)
 find_package(spdlog REQUIRED)
 
 add_executable(signalserver main.cc)
-add_executable(signalserverHD main.cc)
 
 target_compile_definitions(
     signalserver PRIVATE
-    "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
-    "-DGIT_BRANCH=\"${GIT_BRANCH}\""
-)
-
-target_compile_definitions(
-    signalserverHD PRIVATE
     "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\""
     "-DGIT_BRANCH=\"${GIT_BRANCH}\""
 )
@@ -105,32 +98,5 @@ target_link_libraries(signalserver
             PUBLIC geo
 		  )
 
-target_link_libraries(signalserverHD 
-			PUBLIC image
-			PUBLIC image-ppm
-			PUBLIC inputs
-			PUBLIC outputs
-			PUBLIC tiles
-			PUBLIC cost
-			PUBLIC ecc33
-			PUBLIC egli
-			PUBLIC ericsson
-			PUBLIC fspl
-			PUBLIC hata
-			PUBLIC itwom3.0
-			PUBLIC los
-			PUBLIC pel
-			PUBLIC soil
-			PUBLIC sui
-			PUBLIC bz2
-			PUBLIC dl
-			PUBLIC pthread
-			PUBLIC z
-            PUBLIC spdlog::spdlog
-            PUBLIC geo
-		  )
-
 # INSTALL target (make install)
 install(TARGETS signalserver)
-install(TARGETS signalserverHD)
-

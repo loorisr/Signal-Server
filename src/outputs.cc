@@ -22,7 +22,7 @@
 #include "image.hh"
 
 void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
-		unsigned char ngs, struct site *xmtr, unsigned char txsites)
+		unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the content of flags held in the mask[][]
@@ -262,7 +262,7 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 }
 
 int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
-	      unsigned char ngs, struct site *xmtr, unsigned char txsites)
+	      unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal strength values held in the
@@ -510,7 +510,7 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 }
 
 void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
-	      unsigned char ngs, struct site *xmtr, unsigned char txsites)
+	      unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -753,7 +753,7 @@ void DoRxdPwr(char *filename, unsigned char geo, unsigned char kml,
 }
 
 void DoLOS(char *filename, unsigned char geo, unsigned char kml,
-	   unsigned char ngs, struct site *xmtr, unsigned char txsites)
+	   unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the

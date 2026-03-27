@@ -40,6 +40,8 @@
 #include "image.hh"
 #include "logos.hh"
 
+#include <chrono>
+
 #include <spdlog/spdlog.h>
 
 int MAXPAGES = 10*10;
@@ -1050,26 +1052,25 @@ void do_allocs(void)
 
 int main(int argc, char *argv[])
 {
+    auto start_time = std::chrono::steady_clock::now();
+
     int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
       haf = 0, pmenv = 1, lidar=0, result, segments = 4;
 
     PropModel prop_model;
 
-    double min_lat, min_lon, max_lat, max_lon, rxlat, rxlon, txlat, txlon,
-      west_min, west_max, nortRxHin, nortRxHax;
+    double min_lat, min_lon, max_lat, max_lon, rxlat, rxlon;
 
     bool use_threads = true;
 
     bool use_radial = false;
 
-    unsigned char LRmap = 0, txsites = 0, topomap = 0, geo = 0, kml =
-        0, area_mode = 0, max_txsites, ngs = 0;
+    unsigned char geo = 0, kml = 0, ngs = 0;
 
     char mapfile[255], ano_filename[255], lidar_tiles[27000], clutter_file[255],antenna_file[255];
     char *az_filename, *el_filename, *udt_file = NULL;
 
-    double altitude = 0.0, altitudeLR = 0.0, tx_range = 0.0,
-        rx_range = 0.0, deg_range = 0.0, deg_limit = 0.0, deg_range_lon;
+    double altitude = 0.0, altitudeLR = 0.0;
 
     if (strstr(argv[0], "signalserverHD")) {
             MAXPAGES = 32;  // was 9
@@ -1188,7 +1189,6 @@ int main(int argc, char *argv[])
     udt_file = NULL;
     color_file = NULL;
     path.length = 0;
-    max_txsites = 30;
     fzone_clearance = 0.6;
     contour_threshold = 0;
     resample = 0;
@@ -1202,8 +1202,6 @@ int main(int argc, char *argv[])
     txh = 0;
     ngs = 1;		// no terrain background
     kml = 1;
-    LRmap = 1;
-    area_mode = 1;
     ippd = IPPD;		// default resolution
 
     sscanf("0.1", "%lf", &altitudeLR);
@@ -1504,7 +1502,6 @@ int main(int argc, char *argv[])
                 sscanf(argv[z], "%f", &tx_site[0].alt);
 
             }
-            txsites = 1;
         }
 
         if (strcmp(argv[x], "-rxh") == 0) {
@@ -1933,85 +1930,6 @@ int main(int argc, char *argv[])
             return result;
         }
 
-        /*if (area_mode || topomap) {
-            for (z = 0; z < txsites && z < max_txsites; z++) {
-                // "Ball park" estimates used to load any additional SDF files required to conduct this analysis.
-
-                tx_range =
-                    sqrt(1.5 *
-                     (tx_site[z].alt + GetElevation(tx_site[z])));
-
-                if (LRmap)
-                    rx_range = sqrt(1.5 * altitudeLR);
-                else
-                    rx_range = sqrt(1.5 * altitude);
-
-                // deg_range determines the maximum amount of topo data we read
-
-                deg_range = (tx_range + rx_range) / 57.0;
-
-                if (max_range == 0.0)
-                    max_range = tx_range + rx_range;
-
-                deg_range = max_range / 57.0;
-
-                // No more than 8 degs
-                deg_limit = 3.5;
-
-                if (fabs(tx_site[z].lat) < 70.0)
-                    deg_range_lon =
-                        deg_range / cos(DEG2RAD * tx_site[z].lat);
-                else
-                    deg_range_lon = deg_range / cos(DEG2RAD * 70.0);
-
-                // Correct for squares in degrees not being square in miles
-
-                if (deg_range > deg_limit)
-                    deg_range = deg_limit;
-
-                if (deg_range_lon > deg_limit)
-                    deg_range_lon = deg_limit;
-
-                nortRxHin = (int)floor(tx_site[z].lat - deg_range);
-                nortRxHax = (int)floor(tx_site[z].lat + deg_range);
-
-                west_min = (int)floor(tx_site[z].lon - deg_range_lon);
-
-                while (west_min < 0)
-                    west_min += 360;
-
-                while (west_min >= 360)
-                    west_min -= 360;
-
-                west_max = (int)floor(tx_site[z].lon + deg_range_lon);
-
-                while (west_max < 0)
-                    west_max += 360;
-
-                while (west_max >= 360)
-                    west_max -= 360;
-
-                if (nortRxHin < min_lat)
-                    min_lat = nortRxHin;
-
-                if (nortRxHax > max_lat)
-                    max_lat = nortRxHax;
-
-                if (LonDiff(west_min, min_lon) < 0.0)
-                    min_lon = west_min;
-
-                if (LonDiff(west_max, max_lon) >= 0.0)
-                    max_lon = west_max;
-            }
-
-            // Load any additional SDF files, if required
-
-            if( (result = LoadTopoData(max_lon, min_lon, max_lat, min_lat)) != 0 ){
-                // This only fails on errors loading SDF tiles
-                spdlog::error("Error loading topo data");
-                return result;
-            }
-        }*/
         ppd=(double)ippd;
         yppd=ppd; 
 
@@ -2044,7 +1962,7 @@ int main(int argc, char *argv[])
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
             PlotLOSMap(tx_site[0], altitudeLR, ano_filename, use_threads, segments);
-            DoLOS(mapfile, geo, kml, ngs, tx_site, txsites);
+            DoLOS(mapfile, geo, kml, ngs, tx_site);
         } else {
             // 90% of effort here
             if (use_radial)
@@ -2082,11 +2000,11 @@ int main(int argc, char *argv[])
 
             // Write bitmap
             if (LR.erp == 0.0)
-                DoPathLoss(mapfile, geo, kml, ngs, tx_site, txsites);
+                DoPathLoss(mapfile, geo, kml, ngs, tx_site);
             else if (dbm)
-                DoRxdPwr((to_stdout == true ? NULL : mapfile), geo, kml, ngs, tx_site, txsites);
+                DoRxdPwr((to_stdout == true ? NULL : mapfile), geo, kml, ngs, tx_site);
             else
-                    if ((result = DoSigStr(mapfile, geo, kml, ngs, tx_site, txsites)) != 0)
+                    if ((result = DoSigStr(mapfile, geo, kml, ngs, tx_site)) != 0)
                     return result;
         }
 
@@ -2152,6 +2070,10 @@ int main(int argc, char *argv[])
         SeriesData(tx_site[1], tx_site[0], tx_site[0].filename, 1, normalise);
     }
     fflush(stderr);
+
+    auto end_time = std::chrono::steady_clock::now();
+    double elapsed_s = std::chrono::duration<double>(end_time - start_time).count();
+    fprintf(stderr, "Execution time: %.3f seconds\n", elapsed_s);
 
     return 0;
 }

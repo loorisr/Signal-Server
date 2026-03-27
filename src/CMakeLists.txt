@@ -57,7 +57,6 @@ add_library(soil STATIC models/soil.cc)
 add_library(sui STATIC models/sui.cc)
 
 # external libraries
-find_library(bz2 bz2)
 find_library(dl dl)
 find_library(pthread pthread)
 find_library(z z)
@@ -94,7 +93,6 @@ target_link_libraries(signalserver
 			PUBLIC pel
 			PUBLIC soil
 			PUBLIC sui
-			PUBLIC bz2
 			PUBLIC dl
 			PUBLIC pthread
 			PUBLIC z

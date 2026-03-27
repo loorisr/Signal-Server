@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include <bzlib.h>
 #include <zlib.h>
 
 #include "main.hh"
@@ -61,12 +60,9 @@ double earthradius, max_range = 0.0, forced_erp, dpp, ppd, yppd,
     westoffset=180, eastoffset=-180, delta=0, rxGain=0, antenna_rotation,
     antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
 
-int ippd, mpi, max_elevation = -32768, min_elevation = 32768, bzerror, gzerr,
+int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
-    loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0,
-    bzbuf_empty = 1, gzbuf_empty = 1;
-
-long bzbuf_pointer = 0L, bzbytes_read, gzbuf_pointer = 0L, gzbytes_read;
+    loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0;
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric = 0, dbm = 0;
 unsigned char geotiff = 0;
@@ -1091,7 +1087,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Additional improvements and multithreading fixes by P. McDonnell, W3AXL\n\n");
         fprintf(stdout, "Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile\n\n");
         fprintf(stdout, "Data:\n");
-        fprintf(stdout, "     -sdf Directory containing SRTM derived .sdf DEM tiles (may be .gz or .bz2)\n");
+        fprintf(stdout, "     -sdf Directory containing SRTM derived .sdf DEM tiles\n");
         fprintf(stdout, "     -copernicus Directory containing Copernicus DSM GeoTIFF COG tiles\n");
         fprintf(stdout, "                  (Copernicus_DSM_COG_330_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
         fprintf(stdout, "                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)\n");

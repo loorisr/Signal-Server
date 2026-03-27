@@ -3,8 +3,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <bzlib.h>
-#include <zlib.h>
 
 #include <spdlog/spdlog.h>
 

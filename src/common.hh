@@ -129,6 +129,7 @@ extern double cropLon;
 
 extern char string[];
 extern char sdf_path[];
+extern char copernicus_path[];
 extern char gpsav;
 
 extern unsigned char got_elevation_pattern;

@@ -1,3 +1,7 @@
+/* GDAL must come before any header that defines MAX, because some GDAL
+ * versions guard both MIN and MAX under a single #if !defined(MAX) block. */
+#include <gdal.h>
+
 #include <bzlib.h>
 #include <errno.h>
 #include <limits.h>
@@ -1767,6 +1771,194 @@ int LoadDBMColors(struct site xmtr)
 }
 
 /**
+ * Load a single Copernicus DSM GeoTIFF COG tile into a free dem[] page.
+ *
+ * @param tile_lat  Southern latitude of the tile (e.g. 44 for 44N–45N)
+ * @param tile_lon  Internal west-positive min_west (e.g. 355 for the
+ *                  tile whose western edge is 4E, 72 for the tile whose
+ *                  western edge is 73W).  Same convention used throughout
+ *                  the rest of the code: min_west = tile_lon,
+ *                  max_west = tile_lon + 1.
+ *
+ * Filename built from copernicus_path:
+ *   ippd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
+ *   otherwise  → Copernicus_DSM_COG_330_N##_00_?###_00_DEM.tif
+ *
+ * Returns 1 on success, 0 if already loaded, negative errno on error.
+ */
+int LoadCopernicus(int tile_lat, int tile_lon)
+{
+    int indx;
+    char found = 0, free_page = 0;
+
+    /* Already in memory? */
+    for (indx = 0; indx < MAXPAGES && found == 0; indx++) {
+        if (tile_lat     == (int)dem[indx].min_north &&
+            tile_lat + 1 == (int)dem[indx].max_north &&
+            tile_lon     == (int)dem[indx].min_west  &&
+            tile_lon + 1 == (int)dem[indx].max_west)
+            found = 1;
+    }
+    if (found) return 0;
+
+    /* Find a free page */
+    for (indx = 0; indx < MAXPAGES && free_page == 0; indx++)
+        if (dem[indx].max_north == -90) free_page = 1;
+    indx--;
+
+    if (!free_page || indx < 0 || indx >= MAXPAGES) {
+        spdlog::error("LoadCopernicus: no free DEM page available");
+        return -ENOMEM;
+    }
+
+    /* Build the Copernicus filename.
+     * tile_lon is min_west in the internal west-positive convention.
+     * The tile's western geographic edge = tile_lon + 1 converted to
+     * standard degrees (positive east / negative west). */
+    int west_edge_internal = tile_lon + 1; /* western edge, west-positive */
+    char ew;
+    int lon_abs;
+    if (west_edge_internal <= 180) {
+        /* Western hemisphere */
+        ew = 'W';
+        lon_abs = west_edge_internal;
+    } else {
+        /* Eastern hemisphere: convert west-positive → east-positive */
+        ew = 'E';
+        lon_abs = 360 - west_edge_internal;
+    }
+
+    char ns = (tile_lat >= 0) ? 'N' : 'S';
+    int  lat_abs = abs(tile_lat);
+
+    const char *res_str = (ippd == 3600) ? "10" : "30";
+
+    char filename[64];
+    snprintf(filename, sizeof(filename),
+             "Copernicus_DSM_COG_%s_%c%02d_00_%c%03d_00_DEM.tif",
+             res_str, ns, lat_abs, ew, lon_abs);
+
+    /* Try current working directory first, then copernicus_path */
+    char path_plus_name[PATH_MAX];
+    strncpy(path_plus_name, filename, sizeof(path_plus_name) - 1);
+    path_plus_name[sizeof(path_plus_name) - 1] = '\0';
+
+    GDALDatasetH ds = GDALOpen(path_plus_name, GA_ReadOnly);
+    if (ds == NULL) {
+        snprintf(path_plus_name, sizeof(path_plus_name),
+                 "%s%s", copernicus_path, filename);
+        ds = GDALOpen(path_plus_name, GA_ReadOnly);
+    }
+    if (ds == NULL) {
+        spdlog::debug("LoadCopernicus: file not found: {}", filename);
+        return -ENOENT;
+    }
+
+    spdlog::debug("LoadCopernicus: loading \"{}\" into page {}...",
+                  path_plus_name, indx + 1);
+
+    GDALRasterBandH band = GDALGetRasterBand(ds, 1);
+    int nodata_valid = 0;
+    double nodata_val = GDALGetRasterNoDataValue(band, &nodata_valid);
+
+    int src_x = GDALGetRasterXSize(ds);
+    int src_y = GDALGetRasterYSize(ds);
+
+    /* Read and resample to ippd×ippd using float to handle any source type */
+    float *buf = new float[ippd * ippd];
+    CPLErr err = (CPLErr)GDALRasterIO(band, GF_Read,
+                                      0, 0, src_x, src_y,
+                                      buf, ippd, ippd,
+                                      GDT_Float32, 0, 0);
+    GDALClose(ds);
+
+    if (err != CE_None) {
+        spdlog::error("LoadCopernicus: RasterIO failed for {}", path_plus_name);
+        delete[] buf;
+        return -EIO;
+    }
+
+    /* Fill dem page.
+     *
+     * GeoTIFF layout : row 0 = north, col 0 = west (geographic)
+     * dem[] layout   : data[x][y]
+     *   x: 0 = min_north (south edge) … ippd-1 = max_north (north edge)
+     *   y: 0 = min_west  (east  edge) … ippd-1 = max_west  (west edge)
+     *
+     * Mapping: x = (ippd-1-r),  y = (ippd-1-c)
+     */
+    dem[indx].min_north = (float)tile_lat;
+    dem[indx].max_north = (float)(tile_lat + 1);
+    dem[indx].min_west  = (float)tile_lon;
+    dem[indx].max_west  = (float)(tile_lon + 1);
+
+    for (int r = 0; r < ippd; r++) {
+        int x = ippd - 1 - r;
+        for (int c = 0; c < ippd; c++) {
+            int y = ippd - 1 - c;
+            float fval = buf[r * ippd + c];
+            short val;
+            if (nodata_valid && fval == (float)nodata_val)
+                val = 0;
+            else
+                val = (short)roundf(fval);
+
+            dem[indx].data[x][y]   = val;
+            dem[indx].signal[x][y] = 0;
+            dem[indx].mask[x][y]   = 0;
+
+            if (val > dem[indx].max_el) dem[indx].max_el = val;
+            if (val < dem[indx].min_el) dem[indx].min_el = val;
+        }
+    }
+
+    delete[] buf;
+
+    /* Update global elevation bounds */
+    if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
+    if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
+
+    /* Update global geographic bounds (same logic as LoadSDF_SDF) */
+    if (max_north == -90)
+        max_north = dem[indx].max_north;
+    else if (dem[indx].max_north > max_north)
+        max_north = dem[indx].max_north;
+
+    if (min_north == 90)
+        min_north = dem[indx].min_north;
+    else if (dem[indx].min_north < min_north)
+        min_north = dem[indx].min_north;
+
+    if (max_west == -1)
+        max_west = dem[indx].max_west;
+    else {
+        if (abs((int)(dem[indx].max_west - max_west)) < 180) {
+            if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
+        } else {
+            if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
+        }
+    }
+
+    if (min_west == 360)
+        min_west = dem[indx].min_west;
+    else {
+        if (fabs(dem[indx].min_west - min_west) < 180.0) {
+            if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
+        } else {
+            if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
+        }
+    }
+
+    spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}W → {:.0f}N {:.0f}W)",
+                 filename,
+                 dem[indx].min_el, dem[indx].max_el,
+                 dem[indx].min_north, dem[indx].min_west,
+                 dem[indx].max_north, dem[indx].max_west);
+
+    return 1;
+}
+
+/**
  * Load the required Topo data for the given lat/lon box
 */
 int LoadTopoData(bbox region)
@@ -1801,16 +1993,29 @@ int LoadTopoData(bbox region)
             int tile_lon = r_min_lon + x;
             int tile_lat = r_min_lat + y;
             spdlog::debug("Loading topo for tile {}N {}W to {}N {}W", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
-            // Generate the filename string to load
-            char basename[32], string[32];
-            snprintf(basename, 16, "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
-            strcpy(string, basename);
-            if (ippd == 3600) strcat(string, "-hd");
-            // Load the tile
-            int success;
-            if ((success = LoadSDF(string)) < 0) 
-            {
-                return -success;
+
+            if (copernicus_path[0]) {
+                /* Copernicus mode: try GeoTIFF, fall back to water tile */
+                int success = LoadCopernicus(tile_lat, tile_lon);
+                if (success < 0 && success != -ENOENT) {
+                    return -success;
+                }
+                if (success == -ENOENT) {
+                    /* No file → treat as sea-level (same as SDF fallback) */
+                    spdlog::warn("Copernicus tile not found for {}N {}W, assuming sea-level", tile_lat, tile_lon);
+                    char sdf_name[32];
+                    snprintf(sdf_name, sizeof(sdf_name), "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
+                    LoadSDF(sdf_name);   /* will generate a zero-elevation water page */
+                }
+            } else {
+                /* SDF mode (original behaviour) */
+                char basename[32], string[32];
+                snprintf(basename, 16, "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
+                strcpy(string, basename);
+                if (ippd == 3600) strcat(string, "-hd");
+                int success;
+                if ((success = LoadSDF(string)) < 0)
+                    return -success;
             }
         }
     }

@@ -14,6 +14,7 @@ int LoadSDF_GZ(char *name);
 char *GZfgets(char *output, gzFile gzfd, unsigned length);
 int LoadSDF_BZ(char *name);
 int LoadSDF(char *name, int winfiles);
+int LoadCopernicus(int tile_lat, int tile_lon);
 int LoadPAT(char *az_filename, char *el_filename);
 int LoadSignalColors(struct site xmtr);
 int LoadLossColors(struct site xmtr);

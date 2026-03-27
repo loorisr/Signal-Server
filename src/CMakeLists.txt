@@ -65,6 +65,10 @@ find_library(z z)
 # Spdlog
 find_package(spdlog REQUIRED)
 
+# GDAL (for Copernicus GeoTIFF/COG DEM support)
+find_package(GDAL REQUIRED)
+include_directories(${GDAL_INCLUDE_DIR})
+
 add_executable(signalserver main.cc)
 
 target_compile_definitions(
@@ -73,7 +77,7 @@ target_compile_definitions(
     "-DGIT_BRANCH=\"${GIT_BRANCH}\""
 )
 
-target_link_libraries(signalserver 
+target_link_libraries(signalserver
 			PUBLIC image
 			PUBLIC image-ppm
 			PUBLIC inputs
@@ -96,6 +100,7 @@ target_link_libraries(signalserver
 			PUBLIC z
             PUBLIC spdlog::spdlog
             PUBLIC geo
+            PUBLIC GDAL::GDAL
 		  )
 
 # INSTALL target (make install)

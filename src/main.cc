@@ -19,6 +19,9 @@
 *                                                                            *
 \****************************************************************************/
 
+/* GDAL must come before any header that defines MAX */
+#include <gdal.h>
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -49,7 +52,7 @@ int MAXPAGES = 10*10;
 int IPPD = 1200;
 int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
 
-char sdf_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
+char sdf_path[255], copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
 
 double earthradius, max_range = 0.0, forced_erp, dpp, ppd, yppd,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
@@ -1089,6 +1092,9 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile\n\n");
         fprintf(stdout, "Data:\n");
         fprintf(stdout, "     -sdf Directory containing SRTM derived .sdf DEM tiles (may be .gz or .bz2)\n");
+        fprintf(stdout, "     -copernicus Directory containing Copernicus DSM GeoTIFF COG tiles\n");
+        fprintf(stdout, "                  (Copernicus_DSM_COG_330_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
+        fprintf(stdout, "                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)\n");
         fprintf(stdout, "     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'\n");
         fprintf(stdout, "     -clt MODIS 17-class wide area clutter in ASCII grid format\n");
         fprintf(stdout, "     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette\n");
@@ -1145,6 +1151,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    GDALAllRegister();
+
     do_allocs();
 
     y = argc - 1;
@@ -1153,6 +1161,7 @@ int main(int argc, char *argv[])
     dbm = 0;
     gpsav = 0;
     metric = 0;
+    copernicus_path[0] = 0;
     mapfile[0] = 0;
     clutter_file[0] = 0;
     clutter = 0.0;
@@ -1382,6 +1391,13 @@ int main(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-')
                 strncpy(sdf_path, argv[z], 253);
+        }
+
+        if (strcmp(argv[x], "-copernicus") == 0) {
+            z = x + 1;
+
+            if (z <= y && argv[z][0] && argv[z][0] != '-')
+                strncpy(copernicus_path, argv[z], 253);
         }
         
         if (strcmp(argv[x], "-res") == 0) {
@@ -1796,6 +1812,8 @@ int main(int argc, char *argv[])
     spdlog::info("");
     spdlog::info("    Directories:");
     spdlog::info("        SDF: {}", sdf_path);
+    if (copernicus_path[0])
+        spdlog::info("        Copernicus: {}", copernicus_path);
     spdlog::info(VERT_SEP);
 
     /**

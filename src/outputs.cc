@@ -110,13 +110,6 @@ void DoPathLoss(char *filename, unsigned char geo, unsigned char kml,
 					      (LonDiff
 					       ((double)dem[indx].max_west,
 						lon)));
-				 // fix for multi-tile lidar
-                              /*  if(width==10000 && (indx==1 || indx==3)){
-                                        if(y0 >= 3432){ //3535
-                                                y0=y0-3432;
-                                        }
-                                }*/
-
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
 				    && y0 <= mpi)
@@ -347,14 +340,6 @@ int DoSigStr(char *filename, unsigned char geo, unsigned char kml,
 					      (LonDiff
 					       ((double)dem[indx].max_west,
 						lon)));
-
-				 // fix for multi-tile lidar
-                           /*     if(width==10000 && (indx==1 || indx==3)){
-                                        if(y0 >= 3432){ //3535
-                                                y0=y0-3432;
-                                        }
-                                }
-				*/
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
 				    && y0 <= mpi)

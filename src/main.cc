@@ -1055,7 +1055,7 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now();
 
     int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
-      haf = 0, pmenv = 1, lidar=0, result, segments = 4;
+      haf = 0, pmenv = 1, result, segments = 4;
 
     PropModel prop_model;
 
@@ -1067,7 +1067,7 @@ int main(int argc, char *argv[])
 
     unsigned char geo = 0, kml = 0, ngs = 0;
 
-    char mapfile[255], ano_filename[255], lidar_tiles[27000], clutter_file[255],antenna_file[255];
+    char mapfile[255], ano_filename[255], clutter_file[255],antenna_file[255];
     char *az_filename, *el_filename, *udt_file = NULL;
 
     double altitude = 0.0, altitudeLR = 0.0;
@@ -1078,17 +1078,8 @@ int main(int argc, char *argv[])
         IPPD = 3600;
     }
 
-    if (strstr(argv[0], "signalserverLIDAR")) {
-        MAXPAGES = 100; // 10x10
-        lidar = 1;
-        IPPD = 6000; // will be overridden based upon file header...
-    }
-
     if (strstr(argv[0], "signalserverHD")) {
         spdlog::info(sshd_block);
-    }
-    else if (strstr(argv[0], "signalserverLIDAR")) {
-        spdlog::info(sslidar_block);
     }
     else
     {
@@ -1109,7 +1100,6 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile\n\n");
         fprintf(stdout, "Data:\n");
         fprintf(stdout, "     -sdf Directory containing SRTM derived .sdf DEM tiles (may be .gz or .bz2)\n");
-        fprintf(stdout, "     -lid ASCII grid tile (LIDAR) with dimensions and resolution defined in header\n");
         fprintf(stdout, "     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'\n");
         fprintf(stdout, "     -clt MODIS 17-class wide area clutter in ASCII grid format\n");
         fprintf(stdout, "     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette\n");
@@ -1131,14 +1121,13 @@ int main(int argc, char *argv[])
         fprintf(stdout,	"          6. Maritime temperate (Land) 7. Maritime temperate (Sea)\n");
         fprintf(stdout, "     -rel Reliability for ITM model (%% of 'time') 1 to 99 (optional, default 50%%)\n");
         fprintf(stdout, "     -conf Confidence for ITM model (%% of 'situations') 1 to 99 (optional, default 50%%)\n");
-        fprintf(stdout, "     -resample Reduce Lidar resolution by specified factor (2 = 50%%)\n");
         fprintf(stdout, "     -segments Number of segments to divide the plot rectangle into (must be even and > 4)\n");
         fprintf(stdout, "Output:\n");
         fprintf(stdout, "     -o basename (Output file basename - required, min 5 chars)\n");
         fprintf(stdout,	"     -dbm Plot Rxd signal power instead of field strength in dBuV/m\n");
         fprintf(stdout, "     -rt Rx Threshold (dB / dBm / dBuV/m)\n");
         fprintf(stdout, "     -R Radius (miles/kilometers)\n");
-        fprintf(stdout,	"     -res Pixels per tile. 300/600/1200/3600 (Optional. LIDAR res is within the tile)\n");
+        fprintf(stdout,	"     -res Pixels per tile. 300/600/1200/3600 (Optional)\n");
         fprintf(stdout,	"     -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,\n");
         fprintf(stdout,	"          5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,\n");
         fprintf(stdout, "          10: Plane earth, 11: Egli VHF/UHF, 12: Soil\n");
@@ -1166,13 +1155,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /*
-     * If we're not called as signalserverLIDAR we can allocate various
-     * memory now. For LIDAR we need to wait until we've parsed
-     * the headers in the .asc file to know how much memory to allocate...
-     */
-    if (!lidar)
-        do_allocs();
+    do_allocs();
 
     y = argc - 1;
     kml = 0;
@@ -1404,20 +1387,10 @@ int main(int argc, char *argv[])
                 strncpy(sdf_path, argv[z], 253);
         }
         
-        if (strcmp(argv[x], "-lid") == 0) {
-            z = x + 1;
-            lidar=1;
-            if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                strncpy(lidar_tiles, argv[z], 27000); // 900 tiles!
-                spdlog::info("LIDAR directory: {}", lidar_tiles);
-            }
-        }
-
         if (strcmp(argv[x], "-res") == 0) {
             z = x + 1;
 
-            if (!lidar &&
-                z <= y &&
+            if (z <= y &&
                 argv[z][0] &&
                 argv[z][0] != '-') {
                 sscanf(argv[z], "%d", &ippd);
@@ -1445,18 +1418,6 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-        }
-
-        if (strcmp(argv[x], "-resample") == 0) {
-            z = x + 1;
-
-            if(!lidar){
-                spdlog::error("Error, this should only be used with LIDAR tiles.");
-                return -1;
-            }
-
-            sscanf(argv[z], "%d", &resample);
-            spdlog::info("Resampling LIDAR data by {}", resample);
         }
 
         if (strcmp(argv[x], "-lat") == 0) {
@@ -1772,11 +1733,9 @@ int main(int argc, char *argv[])
         exit(EINVAL);
     }
 
-    if(!lidar){
-        if (ippd < 300 || ippd > 10000) {
-            spdlog::error("resolution out of range!");
-            exit(EINVAL);
-        }
+    if (ippd < 300 || ippd > 10000) {
+        spdlog::error("resolution out of range!");
+        exit(EINVAL);
     }
 
     if (contour_threshold < -200 || contour_threshold > 240) {
@@ -1900,42 +1859,19 @@ int main(int argc, char *argv[])
     );
 
     /* Load the required tiles */
-    if (lidar) {
-        if( (result = loadLIDAR(lidar_tiles, resample)) != 0 ){
-            spdlog::error("Couldn't find one or more of the lidar files. Please ensure their paths are correct and try again.");
-            spdlog::error("Error {}: {}", result, strerror(result));
-            exit(result);
-        }
+    // DEM first
 
-        ppd=((double)height / (max_north-min_north));
-        yppd=ppd;
-        
-        spdlog::debug("ppd {}, yppd {}, {:.2f}, {:.4f}, {:.4f}, {:.4f}, {} x {}",ppd,yppd,max_north,min_west,min_north,max_west,width,height);
-
-        if (yppd < ppd/4) {
-            spdlog::error("yppd is bad! Check longitudes");
-            exit(1);
-        }
-
-        if (delta > 0) {
-            tx_site[0].lon+=delta;
-        }
-
-    } else {
-        // DEM first
-
-        if( (result = LoadTopoData(plot_bounds)) != 0 ){
-            // This only fails on errors loading SDF tiles
-            spdlog::error("Error loading topo data");
-            return result;
-        }
-
-        ppd=(double)ippd;
-        yppd=ppd; 
-
-        width = (unsigned)(ippd * ReduceAngle(max_west - min_west));
-        height = (unsigned)(ippd * ReduceAngle(max_north - min_north));
+    if( (result = LoadTopoData(plot_bounds)) != 0 ){
+        // This only fails on errors loading SDF tiles
+        spdlog::error("Error loading topo data");
+        return result;
     }
+
+    ppd=(double)ippd;
+    yppd=ppd; 
+
+    width = (unsigned)(ippd * ReduceAngle(max_west - min_west));
+    height = (unsigned)(ippd * ReduceAngle(max_north - min_north));
 
     dpp = 1 / ppd;
     mpi = ippd-1; 
@@ -2050,10 +1986,6 @@ int main(int argc, char *argv[])
             }
         }
 
-        /*if(lidar){
-            east=eastoffset;
-            west=westoffset;
-        }*/
         if (cropping) {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
 

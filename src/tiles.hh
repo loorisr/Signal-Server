@@ -41,8 +41,6 @@ typedef struct _tile_t{
 	int		ppdy;
 } tile_t, *ptile_t;
 
-int tile_load_lidar(tile_t*, char *);
-int tile_rescale(tile_t *, float);
 void tile_destroy(tile_t *);
 
 #endif

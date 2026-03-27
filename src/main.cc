@@ -63,6 +63,7 @@ int ippd, mpi, max_elevation = -32768, min_elevation = 32768, bzerror, gzerr,
 long bzbuf_pointer = 0L, bzbytes_read, gzbuf_pointer = 0L, gzbytes_read;
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric = 0, dbm = 0;
+unsigned char geotiff = 0;
 
 bool to_stdout = false, cropping = true;
 
@@ -1394,6 +1395,10 @@ int main(int argc, char *argv[])
         if (strcmp(argv[x], "-dbm") == 0)
             dbm = 1;
 
+        if (strcmp(argv[x], "--geotiff") == 0) {
+            geotiff = 1;
+        }
+
         if (strcmp(argv[x], "-sdf") == 0) {
             z = x + 1;
 
@@ -2084,16 +2089,53 @@ int main(int argc, char *argv[])
                     if ((result = DoSigStr(mapfile, geo, kml, ngs, tx_site, txsites)) != 0)
                     return result;
         }
-        /*if(lidar){
-            east=eastoffset;
-            west=westoffset;
-        }*/
+
 
         if (tx_site[0].lon > 0.0)
                 tx_site[0].lon *= -1;
 
         if (tx_site[0].lon < -180.0)
             tx_site[0].lon += 360;
+
+        if (geotiff && !to_stdout) {
+            char ppm_file[300];
+            char tif_file[300];
+            char command[1024];
+            double ulx, uly, lrx, lry;
+
+            size_t len = strlen(mapfile);
+            if (len > 4 && strcmp(mapfile + len - 4, ".ppm") == 0) {
+                snprintf(ppm_file, sizeof(ppm_file), "%s", mapfile);
+                snprintf(tif_file, sizeof(tif_file), "%.*s.tif", (int)(len - 4), mapfile);
+            } else {
+                snprintf(ppm_file, sizeof(ppm_file), "%s.ppm", mapfile);
+                snprintf(tif_file, sizeof(tif_file), "%s.tif", mapfile);
+            }
+
+            if (cropping) {
+                ulx = tx_site[0].lon-cropLon;
+                uly = tx_site[0].lat+cropLat;
+                lrx = tx_site[0].lon+cropLon;
+                lry = tx_site[0].lat-cropLat;
+            } else {
+                ulx = west;
+                uly = max_north;
+                lrx = east;
+                lry = min_north;
+            }
+
+            snprintf(command, sizeof(command), "gdal_translate -of GTiff -a_srs EPSG:4326 -a_ullr %.9f %.9f %.9f %.9f \"%s\" \"%s\"", ulx, uly, lrx, lry, ppm_file, tif_file);
+            spdlog::info("Generating GeoTIFF: {}", command);
+            int ret = system(command);
+            if (ret != 0) {
+                spdlog::error("Error generating GeoTIFF. Is gdal_translate installed?");
+            }
+        }
+
+        /*if(lidar){
+            east=eastoffset;
+            west=westoffset;
+        }*/
         if (cropping) {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
 

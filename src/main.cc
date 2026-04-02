@@ -68,6 +68,7 @@ int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric = 0, dbm = 0;
 unsigned char geotiff = 0;
+unsigned char json = 0;
 unsigned char write_ppm = 0;
 
 bool to_stdout = false, cropping = true;
@@ -1080,7 +1081,12 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
         return;
     }
 
-    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 3, GDT_Byte, NULL);
+    char *create_opts[] = {
+        (char *)"COMPRESS=LZW",
+        (char *)"PREDICTOR=2",
+        NULL
+    };
+    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 3, GDT_Byte, create_opts);
     if (ds == NULL) {
         spdlog::error("write_geotiff_from_canvas: failed to create {}", tif_file);
         return;
@@ -1195,6 +1201,8 @@ int main(int argc, char *argv[])
         fprintf(stdout, "          10: Plane earth, 11: Egli VHF/UHF, 12: Soil\n");
         fprintf(stdout,	"     -pe Propagation model mode: 1=Urban,2=Suburban,3=Rural\n");
         fprintf(stdout,	"     -ked Knife edge diffraction (Already on for ITM)\n");
+        fprintf(stdout,	"     -geotiff Output a geotiff file\n");
+        fprintf(stdout,	"     -json Output a json file with boundaries\n");
         fprintf(stdout, "Antenna:\n");
         fprintf(stdout, "     -ant (antenna pattern file basename+path for .az and .el files)\n");
         fprintf(stdout, "     -txh Tx Height (above ground)\n");
@@ -1450,6 +1458,10 @@ int main(int argc, char *argv[])
 
         if (strcmp(argv[x], "-geotiff") == 0) {
             geotiff = 1;
+        }
+
+        if (strcmp(argv[x], "-json") == 0) {
+            json = 1;
         }
 
         if (strcmp(argv[x], "-ppm") == 0) {
@@ -2035,21 +2047,25 @@ int main(int argc, char *argv[])
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
 
             // JSON
-            char fn[253];
-            sprintf(fn, "%s.json", mapfile);
-            FILE *f = fopen(fn, "w");
-            if (f) {
-                fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
-                fclose(f);
+            if (json) {
+                char fn[253];
+                sprintf(fn, "%s.json", mapfile);
+                FILE *f = fopen(fn, "w");
+                if (f) {
+                    fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
+                    fclose(f);
+                }
             }
         } else {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,east,min_north,west);
             // JSON
-            char fn[253];
-            sprintf(fn, "%s.json", mapfile);
-            FILE *f = fopen(fn, "w");
-            if (f) {
-                fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", max_north, east, min_north, west);
+            if (json) {
+                char fn[253];
+                sprintf(fn, "%s.json", mapfile);
+                FILE *f = fopen(fn, "w");
+                if (f) {
+                    fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", max_north, east, min_north, west);
+                }
             }
         }
 

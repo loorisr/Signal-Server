@@ -191,7 +191,7 @@ namespace {
 			alloc_elev();
 			alloc_path();
 		}
-
+        spdlog::info("r");
         // Check if our start & stop angles are the same
         if (r->start_angle_rad == r->stop_angle_rad)
         {
@@ -1164,6 +1164,8 @@ void PlotPropagationRadius(struct site source, double range,
         spdlog::error("Segment number must be an multiple of either 2 or 3!");
         exit(1);
     }
+    
+    spdlog::error("ok1");
 
     static __thread unsigned char mask_value = 1;
 	FILE *fd = NULL;
@@ -1187,6 +1189,7 @@ void PlotPropagationRadius(struct site source, double range,
 			range,
 			altitude
     );
+    spdlog::error("ok2");
 
     // Optional clutter debug print
 	if (clutter > 0.0)
@@ -1228,6 +1231,7 @@ void PlotPropagationRadius(struct site source, double range,
     // Create our ranges
     std::vector<PropagationRadius> radii;
 
+    spdlog::error("ok3");
     // Iterate through our segments
     for (int i = 0; i < segments; i++)
     {
@@ -1263,6 +1267,7 @@ void PlotPropagationRadius(struct site source, double range,
         exit(1);
     }
 
+    spdlog::error("ok4");
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(segments);
 
@@ -1271,6 +1276,7 @@ void PlotPropagationRadius(struct site source, double range,
         init_processed();
     }
 
+    spdlog::error("ok5");
     // Iterate over the final list of ranges
     for (size_t i = 0; i < radii.size(); i++) {
         // Set the segment id
@@ -1286,6 +1292,7 @@ void PlotPropagationRadius(struct site source, double range,
         }
     }
 
+    spdlog::error("ok6");
     // Wait for threads to finish
 	if(use_threads)
     {

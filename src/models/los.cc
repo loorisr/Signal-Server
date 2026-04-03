@@ -18,6 +18,10 @@
 #include <vector>
 #include <limits.h>
 
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 namespace {
 	//bool ***processed; //unused
 	bool has_init_processed = false;
@@ -160,7 +164,7 @@ namespace {
 			if(v->los)
 				PlotLOSPath(v->source, edge, v->mask_value);
 			else
-				PlotPropPath(v->source, edge, v->mask_value, v->fd, v->prop_model,
+				PlotPropPath(v->source, edge, v->mask_value, v->prop_model,
 					v->knifeedge, v->pmenv);
             // Increment our counters
 			++y;
@@ -224,7 +228,7 @@ namespace {
             if (r->los)
                 PlotLOSPath(r->source, edge, r->mask_value);
             else
-                PlotPropPath(r->source, edge, r->mask_value, r->fd, r->prop_model, r->knifeedge, r->pmenv);
+                PlotPropPath(r->source, edge, r->mask_value, r->prop_model, r->knifeedge, r->pmenv);
 
             // Increment
             rad += rps;
@@ -392,13 +396,8 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
 
             cos_angle = (distance2 + tx_alt2 - rx_alt2) / (2.0 * distance * tx_alt);
 
-            if (cos_angle > 1.0) {
-                cos_angle = 1.0;
-            }
+            cos_angle = MIN(1.0, MAX(-1.0, cos_angle));
 
-            if (cos_angle < -1.0) {
-                cos_angle = -1.0;
-            }
 
             test_alt = earthradius + (path.elevation[x] == 0.0 ? path.elevation[x] : path.elevation[x] + clutter);
             test_alt2 = test_alt * test_alt;
@@ -434,13 +433,7 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
 
                 cos_limit_angle = (distance2 + tx_alt2 - limit_alt2) / (2.0 * distance * tx_alt);
 
-                if (cos_limit_angle > 1.0) {
-                    cos_limit_angle = 1.0;
-                }
-
-                if (cos_limit_angle < -1.0) {
-                   cos_limit_angle = -1.0;
-                }
+                cos_limit_angle = MIN(1.0, MAX(-1.0, cos_limit_angle));
 
                 if (cos_limit_angle > cos_horizon_angle) {
                     bStop = true;
@@ -465,7 +458,6 @@ void PlotPropPath(
     struct site source, 
     struct site destination,
 	unsigned char mask_value, 
-    FILE * fd, 
     PropModel prop_model,
 	int knifeedge, 
     int pmenv
@@ -477,14 +469,13 @@ void PlotPropPath(
 	double loss, azimuth, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
 	    cos_rcvr_angle, cos_test_angle = 0.0, test_alt,
-	    elevation = 0.0, distance = 0.0, four_thirds_earth,
+	    elevation = 0.0, distance = 0.0,
 	    field_strength = 0.0, rxp, dBm, diffloss;
 	struct site temp;
 	float dkm;
 
 	ReadPath(source, destination);
 
-	four_thirds_earth = FOUR_THIRDS * EARTHRADIUS;
 
 	for (x = 1; x < path.length - 1; x++)
 		elev[x + 2] =
@@ -520,16 +511,11 @@ void PlotPropPath(
 
 		if ( (GetMask(path.lat[y], path.lon[y]) & 248) !=
 			(mask_value << 3) && can_process(path.lat[y], path.lon[y])) {
-
-			char fd_buffer[64];
-			int buffer_offset = 0;
+		//if (can_process(path.lat[y], path.lon[y])) {
 
 			distance = FEET_PER_MILE * path.distance[y];
-			xmtr_alt =
-			    four_thirds_earth + source.alt + path.elevation[0];
-			dest_alt =
-			    four_thirds_earth + destination.alt +
-			    path.elevation[y];
+			xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
+			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
 			dest_alt2 = dest_alt * dest_alt;
 			xmtr_alt2 = xmtr_alt * xmtr_alt;
 
@@ -540,13 +526,10 @@ void PlotPropPath(
 			    ((xmtr_alt2) + (distance * distance) -
 			     (dest_alt2)) / (2.0 * xmtr_alt * distance);
 
-			if (cos_rcvr_angle > 1.0)
-				cos_rcvr_angle = 1.0;
+			
+            cos_rcvr_angle = MIN(1.0, MAX(-1.0, cos_rcvr_angle));
 
-			if (cos_rcvr_angle < -1.0)
-				cos_rcvr_angle = -1.0;
-
-			if (got_elevation_pattern || fd != NULL) {
+			if (got_elevation_pattern) {
 				/* Determine the elevation angle to the first obstruction
 				   along the path IF elevation pattern data is available
 				   or an output (.ano) file has been designated. */
@@ -556,7 +539,7 @@ void PlotPropPath(
 					distance = FEET_PER_MILE * path.distance[x];
 
 					test_alt =
-					    four_thirds_earth +
+					    FOUR_THIRDS_EARTH +
 					    (path.elevation[x] ==
 					     0.0 ? path.elevation[x] : path.
 					     elevation[x] + clutter);
@@ -573,11 +556,8 @@ void PlotPropPath(
 								       *
 								       distance);
 
-					if (cos_test_angle > 1.0)
-						cos_test_angle = 1.0;
 
-					if (cos_test_angle < -1.0)
-						cos_test_angle = -1.0;
+                    cos_test_angle = MIN(1.0, MAX(-1.0, cos_test_angle));    
 
 					/* Compare these two angles to determine if
 					   an obstruction exists.  Since we're comparing
@@ -744,20 +724,6 @@ void PlotPropPath(
 
 			azimuth = (Azimuth(source, temp));
 
-			if (fd != NULL)
-				buffer_offset += sprintf(fd_buffer+buffer_offset,
-					"%.7f, %.7f, %.3f, %.3f, ",
-					path.lat[y], path.lon[y], azimuth,
-					elevation);
-
-			/* If ERP==0, write path loss to alphanumeric
-			   output file.  Otherwise, write field strength
-			   or received power level (below), as appropriate. */
-
-			if (fd != NULL && LR.erp == 0.0)
-				buffer_offset += sprintf(fd_buffer+buffer_offset,
-					"%.2f", loss);
-
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
 
@@ -785,9 +751,6 @@ void PlotPropPath(
 
 					dBm = 10.0 * (log10(rxp * 1000.0));
 
-					if (fd != NULL)
-						buffer_offset += sprintf(fd_buffer+buffer_offset,
-							"%.3f", dBm);
 
 					/* Scale roughly between 0 and 255 */
 
@@ -834,10 +797,6 @@ void PlotPropPath(
 					PutSignal(path.lat[y], path.lon[y],
 						  (unsigned char)ifs);
 
-					if (fd != NULL)
-						buffer_offset += sprintf(fd_buffer+buffer_offset,
-							"%.3f",
-							field_strength);
 				}
 			}
 
@@ -854,13 +813,6 @@ void PlotPropPath(
 
 				PutSignal(path.lat[y], path.lon[y],
 					  (unsigned char)ifs);
-			}
-
-			if (fd != NULL) {
-				if (block)
-					buffer_offset += sprintf(fd_buffer+buffer_offset,
-						" *");
-				fprintf(fd, "%s\n", fd_buffer);
 			}
 
 			/* Mark this point as having been analyzed */
@@ -895,13 +847,6 @@ void PlotLOSMap(struct site source, double altitude,
 	   is later invoked. */
 
 	static __thread unsigned char mask_value = 1;
-	FILE *fd = NULL;
-
-	if (fd != NULL) {
-		fprintf(fd,
-			"%.3f, %.3f\t; max_west, min_west\n%.3f, %.3f\t; max_north, min_north\n",
-			max_west, min_west, max_north, min_north);
-	}
 
 	// Four sections start here
 	// Process north edge east/west, east edge north/south,
@@ -928,7 +873,6 @@ void PlotLOSMap(struct site source, double altitude,
 		r[i].altitude = altitude;
 		r[i].source = source;
 		r[i].mask_value = mask_value;
-		r[i].fd = fd;
 
         // Set the segment id
         thread_progress[i].id = i;
@@ -975,7 +919,6 @@ void PlotPropagation(struct site source, bbox bounds,
 		            use_threads, uint8_t segments)
 {
 	static __thread unsigned char mask_value = 1;
-	FILE *fd = NULL;
 
     char plotType[32];
 	
@@ -1001,12 +944,6 @@ void PlotPropagation(struct site source, bbox bounds,
         spdlog::debug("Using {:.2f} {} of ground clutter", metric ? clutter * METERS_PER_FOOT : clutter, metric ? "meters" : "feet");
 
     spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} ft AGL", source.lat, source.lon, source.alt);
-
-	if (fd != NULL) {
-		fprintf(fd,
-			"%.3f, %.3f\t; max_west, min_west\n%.3f, %.3f\t; max_north, min_north\n",
-			bounds.upper_left.lon, bounds.lower_right.lon, bounds.upper_left.lat, bounds.lower_right.lat);
-	}
 
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
     double plot_height = bounds.upper_left.lat - bounds.lower_right.lat;
@@ -1115,7 +1052,6 @@ void PlotPropagation(struct site source, bbox bounds,
         ranges[i].altitude = altitude;
         ranges[i].source = source;
         ranges[i].mask_value = mask_value;
-        ranges[i].fd = fd;
         ranges[i].prop_model = prop_model;
         ranges[i].knifeedge = knifeedge;
         ranges[i].pmenv = pmenv;
@@ -1145,9 +1081,6 @@ void PlotPropagation(struct site source, bbox bounds,
 		ranges.erase(ranges.begin() + i);
 	}
 
-    if (fd != NULL)
-		fclose(fd);
-
 	if (mask_value < 30)
 		mask_value++;
 }
@@ -1174,7 +1107,6 @@ void PlotPropagationRadius(struct site source, double range,
     spdlog::error("ok1");
 
     static __thread unsigned char mask_value = 1;
-	FILE *fd = NULL;
 
     // Get plot type string
     char plotType[32];
@@ -1206,15 +1138,6 @@ void PlotPropagationRadius(struct site source, double range,
 
     // Get bounding box of plot
     bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
-
-    // Open file and ensure it opened
-	/*if (plot_filename[0] != 0)
-		fd = fopen(plot_filename, "wb");
-	if (fd != NULL) {
-		fprintf(fd,
-			"%.3f, %.3f\t; max_west, min_west\n%.3f, %.3f\t; max_north, min_north\n",
-			bounds.upper_left.lon, bounds.lower_right.lon, bounds.upper_left.lat, bounds.lower_right.lat);
-	}*/
 
     // Calculate plot width & height in degrees
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
@@ -1250,7 +1173,6 @@ void PlotPropagationRadius(struct site source, double range,
         propRadius.use_threads = use_threads;
         propRadius.altitude = altitude;
         propRadius.mask_value = mask_value;
-        propRadius.fd = fd;
         propRadius.prop_model = prop_model;
         propRadius.knifeedge = knifeedge;
         propRadius.pmenv = pmenv;
@@ -1312,11 +1234,6 @@ void PlotPropagationRadius(struct site source, double range,
 		radii.erase(radii.begin() + i);
 	}
 
-    // Close the file
-    if (fd != NULL)
-    {
-        fclose(fd);
-    }
 
 	if (mask_value < 30)
     {

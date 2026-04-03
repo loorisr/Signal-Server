@@ -27,6 +27,7 @@
 #define FOUR_THIRDS	1.3333333333333
 #define KM_PER_DEG_LAT 110.754
 
+#define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS);
 //#define MAX(x,y)((x)>(y)?(x):(y))
 
 struct dem {

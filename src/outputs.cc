@@ -29,7 +29,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 
 	char mapfile[255];
 	unsigned red, green, blue, terrain = 0;
-	unsigned char found, mask, cityorcounty;
+	unsigned char found;
 	int indx, x, y, z, x0 = 0, y0 = 0, loss, match;
 	double lat, lon, conversion, one_over_gamma, minwest;
 	FILE *fd;
@@ -116,9 +116,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 			}
 
 			if (found) {
-				mask = dem[indx].mask[x0][y0];
 				loss = (dem[indx].signal[x0][y0]);
-				cityorcounty = 0;
 
 				match = 255;
 
@@ -144,30 +142,6 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 					blue = region.color[match][2];
 				}
 
-				if (mask & 2) {
-					/* Text Labels: Red or otherwise */
-
-					if (red >= 180 && green <= 75
-					    && blue <= 75 && loss == 0)
-						ADD_PIXEL(&ctx, 255 ^ red,
-							255 ^ green,
-							255 ^ blue);
-					else
-						ADD_PIXEL(&ctx, 255, 0,
-							0);
-
-					cityorcounty = 1;
-				}
-
-				else if (mask & 4) {
-					/* County Boundaries: Black */
-
-					ADD_PIXEL(&ctx, 0, 0, 0);
-
-					cityorcounty = 1;
-				}
-
-				if (cityorcounty == 0) {
 					if (loss == 0
 					    || (contour_threshold != 0
 						&& loss >
@@ -225,7 +199,6 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 							}
 						}
 					}
-				}
 			}
 
 			else {
@@ -265,7 +238,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
-	unsigned char found, mask, cityorcounty;
+	unsigned char found;
 	int indx, x, y, z = 1, x0 = 0, y0 = 0, signal, match;
 	double conversion, one_over_gamma, lat, lon, minwest;
 	FILE *fd;
@@ -352,9 +325,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 			}
 
 			if (found) {
-				mask = dem[indx].mask[x0][y0];
 				signal = (dem[indx].signal[x0][y0]) - 100;
-				cityorcounty = 0;
 				match = 255;
 
 				red = 0;
@@ -380,30 +351,6 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 					blue = region.color[match][2];
 				}
 
-				if (mask & 2) {
-					/* Text Labels: Red or otherwise */
-
-					if (red >= 180 && green <= 75
-					    && blue <= 75)
-						ADD_PIXEL(&ctx, 255 ^ red,
-							255 ^ green,
-							255 ^ blue);
-					else
-						ADD_PIXEL(&ctx, 255, 0,
-							0);
-
-					cityorcounty = 1;
-				}
-
-				else if (mask & 4) {
-					/* County Boundaries: Black */
-
-					ADD_PIXEL(&ctx, 0, 0, 0);
-
-					cityorcounty = 1;
-				}
-
-				if (cityorcounty == 0) {
 					if (contour_threshold != 0
 					    && signal < contour_threshold) {
 						if (ngs)
@@ -471,7 +418,6 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 							}
 						}
 					}
-				}
 			}
 
 			else {
@@ -511,7 +457,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
-	unsigned char found, mask, cityorcounty;
+	unsigned char found;
 	int indx, x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
 	double conversion, one_over_gamma, lat, lon, minwest;
 	FILE *fd;
@@ -602,9 +548,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 			}
 
 			if (found) {
-				mask = dem[indx].mask[x0][y0];
 				dBm = (dem[indx].signal[x0][y0]) - 200;
-				cityorcounty = 0;
 				match = 255;
 
 				red = 0;
@@ -629,28 +573,6 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 					blue = region.color[match][2];
 				}
 
-				if (mask & 2) {
-					/* Text Labels: Red or otherwise */
-
-					if (red >= 180 && green <= 75
-					    && blue <= 75 && dBm != 0)
-						ADD_PIXEL(&ctx, 255 ^ red,
-							255 ^ green,
-							255 ^ blue);
-					else
-						ADD_PIXEL(&ctx, 255, 0,
-							0);
-
-					cityorcounty = 1;
-				}
-
-				else if (mask & 4) {
-					/* County Boundaries: Black */
-					ADD_PIXEL(&ctx, 0, 0, 0);
-					cityorcounty = 1;
-				}
-
-				if (cityorcounty == 0) {
 					if (contour_threshold != 0
 					    && dBm < contour_threshold) {
 						if (ngs)	/* No terrain */
@@ -718,7 +640,6 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 							}
 						}
 					}
-				}
 			}
 
 			else {
@@ -1015,13 +936,12 @@ void PathReport(struct site source, struct site destination, char *name,
 	    azimuth, pattern = 1.0, patterndB = 0.0,
 	    total_loss = 0.0, cos_xmtr_angle, cos_test_angle = 0.0,
 	    source_alt, test_alt, dest_alt, source_alt2, dest_alt2,
-	    distance, elevation, four_thirds_earth,
+	    distance, elevation,
 	    free_space_loss = 0.0, eirp =
 	    0.0, voltage, rxp, power_density, dkm;
 	FILE *fd = NULL, *fd2 = NULL;
 
 	snprintf(report_name, 80, "%s.txt%c", name, 0);
-	four_thirds_earth = FOUR_THIRDS * EARTHRADIUS;
 
 	fd2 = fopen(report_name, "w");
 
@@ -1332,8 +1252,8 @@ void PathReport(struct site source, struct site destination, char *name,
 		for (y = 2; y < (path.length - 1); y++) {	/* path.length-1 avoids LR error */
 			distance = FEET_PER_MILE * path.distance[y];
 
-			source_alt = four_thirds_earth + source.alt + path.elevation[0];
-			dest_alt = four_thirds_earth + destination.alt +
+			source_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
+			dest_alt = FOUR_THIRDS_EARTH + destination.alt +
 			    path.elevation[y];
 			dest_alt2 = dest_alt * dest_alt;
 			source_alt2 = source_alt * source_alt;
@@ -1355,7 +1275,7 @@ void PathReport(struct site source, struct site destination, char *name,
 					    FEET_PER_MILE * (path.distance[y] -
 						      path.distance[x]);
 					test_alt =
-					    four_thirds_earth +
+					    FOUR_THIRDS_EARTH +
 					    path.elevation[x];
 
 					/* Calculate the cosine of the elevation

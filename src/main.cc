@@ -565,9 +565,6 @@ void ReadPath(struct site source, struct site destination)
         tempsite.lat = lat2;
         tempsite.lon = lon2;
         path.elevation[c] = GetElevation(tempsite);
-        // fix for tile gaps in multi-tile LIDAR plots
-        if(c > 0 && path.elevation[c] < 0 && path.elevation[c-1] > 10)
-            path.elevation[c]=path.elevation[c-1];
         path.distance[c] = distance;
     }
 

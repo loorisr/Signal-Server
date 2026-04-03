@@ -44,6 +44,9 @@
 #include <complex>
 #include <assert.h>
 #include <string.h>
+#include <algorithm>
+#include <math.h>
+#include <immintrin.h>
 
 #include "../common.hh"
 
@@ -869,23 +872,18 @@ double ascat(double d, prop_type & prop, propa_type & propa)
 
 double qerfi(double q)
 {
-	double x, t, v;
-	double c0 = 2.515516698;
-	double c1 = 0.802853;
-	double c2 = 0.010328;
-	double d1 = 1.432788;
-	double d2 = 0.189269;
-	double d3 = 0.001308;
+    static const double c0 = 2.515516698;
+    static const double c1 = 0.802853;
+    static const double c2 = 0.010328;
+    static const double d1 = 1.432788;
+    static const double d2 = 0.189269;
+    static const double d3 = 0.001308;
 
-	x = 0.5 - q;
-	t = MAX(0.5 - fabs(x), 0.000001);
-	t = sqrt(-2.0 * log(t));
-	v = t - ((c2 * t + c1) * t + c0) / (((d3 * t + d2) * t + d1) * t + 1.0);
+    double x = 0.5 - q;
+    double t = sqrt(-2.0 * log(MAX(0.5 - fabs(x), 1e-6)));
+    double v = t - ((c2 * t + c1) * t + c0) / (((d3 * t + d2) * t + d1) * t + 1.0);
 
-	if (x < 0.0)
-		v = -v;
-
-	return v;
+    return x < 0.0 ? -v : v;
 }
 
 void qlrps(double fmhz, double zsys, double en0, int ipol, double eps,
@@ -1782,50 +1780,56 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 
 void hzns(double pfl[], prop_type & prop)
 {
-	/* Used only with ITM 1.2.2 */
-	bool wq;
-	int np;
-	double xi, za, zb, qc, q, sb, sa;
+    const int np = static_cast<int>(pfl[0]);
+    if (np < 2) return; // Early exit if no iterations needed
 
-	np = (int)pfl[0];
-	xi = pfl[1];
-	za = pfl[2] + prop.hg[0];
-	zb = pfl[np + 2] + prop.hg[1];
-	qc = 0.5 * prop.gme;
-	q = qc * prop.dist;
-	prop.the[1] = (zb - za) / prop.dist;
-	prop.the[0] = prop.the[1] - q;
-	prop.the[1] = -prop.the[1] - q;
-	prop.dl[0] = prop.dist;
-	prop.dl[1] = prop.dist;
+    const double xi = pfl[1];
+    const double dist = prop.dist;
+    const double za = pfl[2] + prop.hg[0];
+    const double zb = pfl[np + 2] + prop.hg[1];
+    const double qc = 0.5 * prop.gme;
+    const double q_dist = qc * dist;
 
-	if (np >= 2) {
-		sa = 0.0;
-		sb = prop.dist;
-		wq = true;
+    double the0 = (zb - za) / dist - q_dist;
+    double the1 = -((zb - za) / dist) - q_dist;
+    double dl0 = dist;
+    double dl1 = dist;
 
-		for (int i = 1; i < np; i++) {
-			sa += xi;
-			sb -= xi;
-			q = pfl[i + 2] - (qc * sa + prop.the[0]) * sa - za;
+    double sa = 0.0;
+    double sb = dist;
+    bool wq = true;
 
-			if (q > 0.0) {
-				prop.the[0] += q / sa;
-				prop.dl[0] = sa;
-				wq = false;
-			}
+    // Pointer-based access to avoid repeated indexing calculations
+    const double* p_val = &pfl[3]; 
 
-			if (!wq) {
-				q = pfl[i + 2] - (qc * sb + prop.the[1]) * sb -
-				    zb;
+    for (int i = 1; i < np; ++i) {
+        sa += xi;
+        sb -= xi;
+        
+        const double val = *p_val++; // Current elevation point
+        
+        // Check horizon for side A
+        double q = val - (qc * sa + the0) * sa - za;
+        if (q > 0.0) {
+            the0 += q / sa;
+            dl0 = sa;
+            wq = false;
+        }
 
-				if (q > 0.0) {
-					prop.the[1] += q / sb;
-					prop.dl[1] = sb;
-				}
-			}
-		}
-	}
+        // Only check side B if we've found at least one potential horizon
+        if (!wq) {
+            q = val - (qc * sb + the1) * sb - zb;
+            if (q > 0.0) {
+                the1 += q / sb;
+                dl1 = sb;
+            }
+        }
+    }
+
+    prop.the[0] = the0;
+    prop.the[1] = the1;
+    prop.dl[0] = dl0;
+    prop.dl[1] = dl1;
 }
 
 void hzns2(double pfl[], prop_type & prop, propa_type & propa)
@@ -1921,7 +1925,7 @@ void z1sq1(double z[], const double &x1, const double &x2, double &z0,
 	int n, ja, jb;
 
 	xn = z[0];
-	xa = int (FORTRAN_DIM(x1 / z[1], 0.0));
+	xa = int (MAX(x1 / z[1], 0.0));
 	xb = xn - int (FORTRAN_DIM(xn, x2 / z[1]));
 
 	if (xb <= xa) {
@@ -1960,7 +1964,7 @@ void z1sq2(double z[], const double &x1, const double &x2, double &z0,
 	int n, ja, jb;
 
 	xn = z[0];
-	xa = int (FORTRAN_DIM(x1 / z[1], 0.0));
+	xa = int (MAX(x1 / z[1], 0.0));
 	xb = xn - int (FORTRAN_DIM(xn, x2 / z[1]));
 
 	if (xb <= xa) {
@@ -1993,68 +1997,25 @@ void z1sq2(double z[], const double &x1, const double &x2, double &z0,
 	zn = a + (b * (xn - xb));
 }
 
+/*
+ * qtile
+ * Finds the k-th order statistic (k-th smallest element) of an array
+ * using a modified quickselect / partial quicksort algorithm.
+ * Used to compute terrain roughness percentiles in d1thx/d1thx2.
+ *
+ * NOTE: The input array a[] is modified in-place (partially sorted).
+ *
+ * Parameters:
+ *   nn - number of elements (array indices 0..nn)
+ *   a  - array to search (modified in-place)
+ *   ir - desired rank (0-based); returns element at rank ir
+ * Returns: the value of the ir-th order statistic (i.e., a[k] after partial sort)
+ */
 double qtile(const int &nn, double a[], const int &ir)
 {
-	double q = 0.0, r;	/* q initialization -- KD2BD */
-	int m, n, i, j, j1 = 0, i0 = 0, k;	/* more initializations -- KD2BD */
-	bool done = false;
-	bool goto10 = true;
-
-	m = 0;
-	n = nn;
-	k = MIN(MAX(0, ir), n);
-
-	while (!done) {
-		if (goto10) {
-			q = a[k];
-			i0 = m;
-			j1 = n;
-		}
-
-		i = i0;
-
-		while (i <= n && a[i] >= q)
-			i++;
-
-		if (i > n)
-			i = n;
-
-		j = j1;
-
-		while (j >= m && a[j] <= q)
-			j--;
-
-		if (j < m)
-			j = m;
-
-		if (i < j) {
-			r = a[i];
-			a[i] = a[j];
-			a[j] = r;
-			i0 = i + 1;
-			j1 = j - 1;
-			goto10 = false;
-		}
-
-		else if (i < k) {
-			a[k] = a[i];
-			a[i] = q;
-			m = i + 1;
-			goto10 = true;
-		}
-
-		else if (j > k) {
-			a[k] = a[j];
-			a[j] = q;
-			n = j - 1;
-			goto10 = true;
-		}
-
-		else
-			done = true;
-	}
-
-	return q;
+	int k = MAX(0, MIN(ir, nn));
+    std::nth_element(a, a + k, a + nn + 1, std::greater<double>());
+    return a[k];
 }
 
 double qerf(const double &z)
@@ -2419,7 +2380,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	propa_type propa;
 	double zsys = 0;
 	double zc, zr;
-	double eno, enso, q;
+	double eno, q;
 	long ja, jb, i, np;
 	/* double dkm, xkm; */
 	double fs;
@@ -2436,8 +2397,6 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	/* dkm=(elev[1]*elev[0])/1000.0; */
 	/* xkm=elev[1]/1000.0; */
 	eno = eno_ns_surfref;
-	enso = 0.0;
-	q = enso;
 
 	ja = (long)(3.0 + 0.1 * elev[0]);	/* added (long) to correct */
 	jb = np - ja + 6;
@@ -2539,7 +2498,7 @@ void point_to_point(double tht_m, double rht_m, double eps_dielect,
 
 	double zsys = 0;
 	double zc, zr;
-	double eno, enso, q;
+	double eno, q;
 	long ja, jb, i, np;
 	/* double dkm, xkm; */
 	double tpd, fs;
@@ -2559,8 +2518,6 @@ void point_to_point(double tht_m, double rht_m, double eps_dielect,
 	/* dkm=(elev[1]*elev[0])/1000.0; */
 	/* xkm=elev[1]/1000.0; */
 	eno = eno_ns_surfref;
-	enso = 0.0;
-	q = enso;
 
 	/* PRESET VALUES for Basic Version w/o additional inputs active */
 

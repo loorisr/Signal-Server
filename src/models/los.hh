@@ -34,7 +34,6 @@ struct PropagationRange {
     bool eastwest, los, use_threads;
     site source;
     unsigned char mask_value;
-    FILE *fd;
     PropModel prop_model;
     int knifeedge, pmenv;
 };
@@ -47,7 +46,6 @@ struct PropagationRadius {
     bool los, use_threads;
     site source;
     unsigned char mask_value;
-    FILE *fd;
     PropModel prop_model;
     int knifeedge, pmenv, points;
 };
@@ -61,7 +59,7 @@ struct progress_t {
 
 void PlotLOSPath(struct site source, struct site destination, char mask_value);
 
-void PlotPropPath(struct site source, struct site destination, unsigned char mask_value, FILE *fd, PropModel propmodel, int knifeedge,
+void PlotPropPath(struct site source, struct site destination, unsigned char mask_value, PropModel propmodel, int knifeedge,
                   int pmenv);
 
 void PlotLOSMap(struct site source, double altitude, bool use_threads, uint8_t segments);

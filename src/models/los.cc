@@ -206,6 +206,7 @@ namespace {
 
         // Iterate
         double rad = r->start_angle_rad;
+        spdlog::info("r1");
         for (int i = 0; i < r->points; i++)
         {
             // Get coordinates of point on circle
@@ -215,6 +216,10 @@ namespace {
             edge.lat = point.lat;
             edge.lon = point.lon;
             edge.alt = r->altitude;
+
+
+            spdlog::info("coord {:.6f} {:.6f} {:.6f}", edge.lat, edge.lon, edge.alt);
+            
             // Plot
             if (r->los)
                 PlotLOSPath(r->source, edge, r->mask_value);
@@ -235,6 +240,7 @@ namespace {
         if(r->use_threads) {
             free_elev();
             free_path();
+            spdlog::info("t");
 		}
 
         return NULL;
@@ -1267,7 +1273,7 @@ void PlotPropagationRadius(struct site source, double range,
         exit(1);
     }
 
-    spdlog::error("ok4");
+    spdlog::error("vector of radii ({}) segment count {}", radii.size(), segments);
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(segments);
 
@@ -1299,6 +1305,7 @@ void PlotPropagationRadius(struct site source, double range,
         spdlog::debug("Waiting for threads to finish...");
         finishThreads();
     }
+    spdlog::error("ok7");
 
     // Clean up our radii
 	for(size_t i = 0; i < radii.size(); i++){

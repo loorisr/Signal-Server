@@ -53,7 +53,7 @@ int MAXPAGES = 4*4;
 int IPPD = 1200;
 int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
 
-char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
+char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
 
 double earthradius, max_range = 0.0, forced_erp, dpp, ppd, yppd,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,

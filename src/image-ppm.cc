@@ -26,6 +26,7 @@ int ppm_init(image_ctx_t *ctx){
 }
 
 int ppm_add_pixel(image_ctx_t *ctx,const uint8_t r,const uint8_t g,const uint8_t b,const uint8_t a){
+	(void)a; // PPM is RGB-only
 	register uint8_t* next;
 
 	next = ctx->next_pixel;
@@ -40,6 +41,7 @@ int ppm_add_pixel(image_ctx_t *ctx,const uint8_t r,const uint8_t g,const uint8_t
 }
 
 int ppm_get_pixel(image_ctx_t *ctx,const size_t x,const size_t y,const uint8_t *r,const uint8_t *g,const uint8_t *b,const uint8_t *a){
+	(void)ctx; (void)x; (void)y; (void)r; (void)g; (void)b; (void)a;
 	/* STUB */
 	return 0;
 }

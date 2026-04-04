@@ -185,7 +185,7 @@ namespace {
 		return NULL;
 	}
 
-    void* radiusPropagation(progress_t &progress, void *parameters)
+    void* radiusPropagation(progress_t &/*progress*/, void *parameters)
     {
         // Create a prop radius from our parameters
         PropagationRadius *r = (PropagationRadius*)parameters;
@@ -856,7 +856,7 @@ void PlotLOSMap(struct site source, double altitude,
 /// @param segments number of segments to divide the plot by
 void PlotPropagation(struct site source, bbox bounds, 
                     double altitude,
-		            PropModel prop_model, int knifeedge, int haf, int pmenv, bool
+		            PropModel prop_model, int knifeedge, int /*haf*/, int pmenv, bool
 		            use_threads, uint8_t segments)
 {
 	static __thread unsigned char mask_value = 1;
@@ -1022,7 +1022,7 @@ void PlotPropagation(struct site source, bbox bounds,
 }
 
 void PlotPropagationRadius(struct site source, double range, 
-                            double altitude, PropModel prop_model, int knifeedge, int haf, int pmenv, 
+                            double altitude, PropModel prop_model, int knifeedge, int /*haf*/, int pmenv,
                             bool use_threads, uint8_t segments)
 {
 

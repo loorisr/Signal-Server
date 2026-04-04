@@ -952,32 +952,42 @@ void PathReport(struct site source, struct site destination, char *name,
 		fprintf(fd2, "\n\nPropagation model: ");
 
 		switch (propmodel) {
-		case 1:
+		case ITM_P2P:
+		case ITM_LR:
 			fprintf(fd2, "Irregular Terrain Model\n");
 			break;
-		case 2:
+		case LOS:
 			fprintf(fd2, "Line of sight\n");
 			break;
-		case 3:
+		case HATA:
 			fprintf(fd2, "Okumura-Hata\n");
 			break;
-		case 4:
+		case ECC33:
 			fprintf(fd2, "ECC33 (ITU-R P.529)\n");
 			break;
-		case 5:
+		case SUI:
 			fprintf(fd2, "Stanford University Interim\n");
 			break;
-		case 6:
+		case COST231_HATA:
 			fprintf(fd2, "COST231-Hata\n");
 			break;
-		case 7:
+		case ITU_R:
 			fprintf(fd2, "Free space path loss (ITU-R.525)\n");
 			break;
-		case 8:
+		case ITWOM_3:
 			fprintf(fd2, "ITWOM 3.0\n");
 			break;
-		case 9:
+		case ERICSSON:
 			fprintf(fd2, "Ericsson\n");
+			break;
+		case PLANE_EARTH:
+			fprintf(fd2, "Plane Earth\n");
+			break;
+		case ELGI_V_U:
+			fprintf(fd2, "Egli VHF/UHF\n");
+			break;
+		case SOIL:
+			fprintf(fd2, "Soil\n");
 			break;
 		}
 

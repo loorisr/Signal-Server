@@ -31,7 +31,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 	unsigned red, green, blue, terrain = 0;
 	unsigned char found;
 	int indx, x, y, z, x0 = 0, y0 = 0, loss, match;
-	double lat, lon, conversion, one_over_gamma, minwest;
+	double lat, lon, conversion, one_over_gamma;
 	FILE *fd;
 	image_ctx_t ctx;
 	int success;
@@ -75,38 +75,25 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 
 	}
 
-	minwest = ((double)min_west) + dpp;
-
-	if (minwest > 360.0)
-		minwest -= 360.0;
-
 	north = (double)max_north - dpp;
-
 	south = (double)min_north;	/* No bottom legend */
-
-	east = (minwest < 180.0 ? -minwest : 360.0 - min_west);
-	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
+	west = min_lon;
+	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = max_west; x < (int)width;
-		     x++, lon = max_west - (dpp * (double)x)) {
-			if (lon < 0.0)
-				lon += 360.0;
+		for (x = 0, lon = min_lon; x < (int)width;
+		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			for (indx = 0, found = 0;
 			     indx < MAXPAGES && found == 0;) {
 				x0 = (int)rint(ppd *
 					       (lat -
 						(double)dem[indx].min_north));
-				y0 = mpi -
-				    (int)rint(ppd *
-					      (LonDiff
-					       ((double)dem[indx].max_west,
-						lon)));
+				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
 				    && y0 <= mpi)
@@ -240,7 +227,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 	unsigned terrain, red, green, blue;
 	unsigned char found;
 	int indx, x, y, z = 1, x0 = 0, y0 = 0, signal, match;
-	double conversion, one_over_gamma, lat, lon, minwest;
+	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
 	int success;
@@ -284,38 +271,25 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 
 	}
 
-	minwest = ((double)min_west) + dpp;
-
-	if (minwest > 360.0)
-		minwest -= 360.0;
-
 	north = (double)max_north - dpp;
-
 	south = (double)min_north;	/* No bottom legend */
-
-	east = (minwest < 180.0 ? -minwest : 360.0 - min_west);
-	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
+	west = min_lon;
+	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = max_west; x < (int)width;
-		     x++, lon = max_west - (dpp * (double)x)) {
-			if (lon < 0.0)
-				lon += 360.0;
+		for (x = 0, lon = min_lon; x < (int)width;
+		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			for (indx = 0, found = 0;
 			     indx < MAXPAGES && found == 0;) {
 				x0 = (int)rint(ppd *
 					       (lat -
 						(double)dem[indx].min_north));
-				y0 = mpi -
-				    (int)rint(ppd *
-					      (LonDiff
-					       ((double)dem[indx].max_west,
-						lon)));
+				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
 				    && y0 <= mpi)
@@ -459,7 +433,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 	unsigned terrain, red, green, blue;
 	unsigned char found;
 	int indx, x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
-	double conversion, one_over_gamma, lat, lon, minwest;
+	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
 	int success;
@@ -503,17 +477,10 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 
 	}
 
-	minwest = ((double)min_west) + dpp;
-
-	if (minwest > 360.0)
-		minwest -= 360.0;
-
 	north = (double)max_north - dpp;
-
 	south = (double)min_north;	/* No bottom legend */
-
-	east = (minwest < 180.0 ? -minwest : 360.0 - min_west);
-	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
+	west = min_lon;
+	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			(filename != NULL ? mapfile : "to stdout"), width, height);
@@ -521,10 +488,8 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 	// Draw image of x by y pixels
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = max_west; x < (int)width;
-		     x++, lon = max_west - (dpp * (double)x)) {
-			if (lon < 0.0)
-				lon += 360.0;
+		for (x = 0, lon = min_lon; x < (int)width;
+		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			for (indx = 0, found = 0;
 			     indx < MAXPAGES && found == 0;) {
@@ -532,10 +497,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 				x0 = (int)rint((ppd *
 					      (lat -
 						(double)dem[indx].min_north))); 
-				y0 = mpi -
-				    (int)rint(ppd * 
-					      (LonDiff
-					       ((double)dem[indx].max_west,lon)));
+				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
 
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
@@ -682,7 +644,7 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 	unsigned terrain;
 	unsigned char found, mask;
 	int indx, x, y, x0 = 0, y0 = 0;
-	double conversion, one_over_gamma, lat, lon, minwest;
+	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
 	int success;
@@ -721,38 +683,25 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 
 	}
 
-	minwest = ((double)min_west) + dpp;
-
-	if (minwest > 360.0)
-		minwest -= 360.0;
-
 	north = (double)max_north - dpp;
-
 	south = (double)min_north;	/* No bottom legend */
-
-	east = (minwest < 180.0 ? -minwest : 360.0 - min_west);
-	west = (double)(max_west < 180 ? -max_west : 360 - max_west);
+	west = min_lon;
+	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...\n",
 			filename != NULL ? mapfile : "to stdout", width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = max_west; x < (int)width;
-		     x++, lon = max_west - (dpp * (double)x)) {
-			if (lon < 0.0)
-				lon += 360.0;
+		for (x = 0, lon = min_lon; x < (int)width;
+		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			for (indx = 0, found = 0;
 			     indx < MAXPAGES && found == 0;) {
 				x0 = (int)rint(ppd *
 					       (lat -
 						(double)dem[indx].min_north));
-				y0 = mpi -
-				    (int)rint(ppd *
-					      (LonDiff
-					       ((double)dem[indx].max_west,
-						lon)));
+				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
 
 				if (x0 >= 0 && x0 <= mpi && y0 >= 0
 				    && y0 <= mpi)
@@ -948,23 +897,7 @@ void PathReport(struct site source, struct site destination, char *name,
 	fprintf(fd2, "\n\t\t--==[ Path Profile Analysis ]==--\n\n");
 	fprintf(fd2, "Transmitter site: %s\n", source.name);
 
-	if (source.lat >= 0.0) {
-
-		if (source.lon <= 180){
-			fprintf(fd2, "Site location: %.4f, -%.4f\n",source.lat, source.lon);
-		}else{
-			fprintf(fd2, "Site location: %.4f, %.4f\n",source.lat, 360 - source.lon);
-		}
-	}
-
-	else {
-
-		if (source.lon <= 180){
-			fprintf(fd2, "Site location: %.4f, -%.4f\n",source.lat, source.lon);
-		}else{
-			fprintf(fd2, "Site location: %.4f, %.4f\n",source.lat, 360 - source.lon);
-		}
-	}
+	fprintf(fd2, "Site location: %.4f, %.4f\n", source.lat, source.lon);
 
 	fprintf(fd2, "Ground elevation: %.2f meters AMSL\n", GetElevation(source));
 	fprintf(fd2,
@@ -1001,23 +934,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 	fprintf(fd2, "\nReceiver site: %s\n", destination.name);
 
-	if (destination.lat >= 0.0) {
-
-		if (destination.lon <= 180){
-			fprintf(fd2, "Site location: %.4f, -%.4f\n",destination.lat, destination.lon);
-		}else{
-			fprintf(fd2, "Site location: %.4f, %.4f\n",destination.lat, 360 - destination.lon);
-		}
-	}
-
-	else {
-
-		if (destination.lon <= 180){
-			fprintf(fd2, "Site location: %.4f, -%.4f\n",destination.lat, destination.lon);
-		}else{
-			fprintf(fd2, "Site location: %.4f, %.4f\n",destination.lat, 360 - destination.lon);
-		}
-	}
+	fprintf(fd2, "Site location: %.4f, %.4f\n", destination.lat, destination.lon);
 
 	fprintf(fd2, "Ground elevation: %.2f meters AMSL\n", GetElevation(destination));
 	fprintf(fd2,

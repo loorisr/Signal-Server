@@ -100,13 +100,7 @@ int loadClutter(char *filename, double radius, struct site tx)
 					xOffset = x * cellsize;  // 12 deg wide
 					yOffset = y * cellsize;  // 16 deg high
 
-					// make all longitudes positive
-					if (xll + xOffset > 0) {
-						lon = 360 - (xll + xOffset);
-					}
-					else {
-						lon = (xll + xOffset) * -1;
-					}
+					lon = xll + xOffset;
 					lat = yll + yOffset;
 
 					// bounding box
@@ -163,8 +157,8 @@ int LoadSDF_SDF(char *name)
 	/* Is it already in memory? */
 
 	for (indx = 0, found = 0; indx < MAXPAGES && found == 0; indx++) {
-		if (minlat == dem[indx].min_north && minlon == dem[indx].min_west && maxlat == dem[indx].max_north &&
-				maxlon == dem[indx].max_west)
+		if (minlat == dem[indx].min_north && minlon == dem[indx].min_lon && maxlat == dem[indx].max_north &&
+				maxlon == dem[indx].max_lon)
 			found = 1;
 	}
 
@@ -197,7 +191,7 @@ int LoadSDF_SDF(char *name)
 		spdlog::debug("Loading SDF \"{}\" into page {}...", path_plus_name, indx + 1);
 
 		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].max_west) == EOF) return -errno;
+			if (sscanf(line, "%f", &dem[indx].max_lon) == EOF) return -errno;
 		}
 
 		if (fgets(line, 19, fd) != NULL) {
@@ -205,7 +199,7 @@ int LoadSDF_SDF(char *name)
 		}
 
 		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].min_west) == EOF) return -errno;
+			if (sscanf(line, "%f", &dem[indx].min_lon) == EOF) return -errno;
 		}
 
 		if (fgets(line, 19, fd) != NULL) {
@@ -256,37 +250,14 @@ int LoadSDF_SDF(char *name)
 		else if (dem[indx].min_north < min_north)
 			min_north = dem[indx].min_north;
 
-		if (max_west == -1)
-			max_west = dem[indx].max_west;
+		if (dem[indx].max_lon > max_lon) max_lon = dem[indx].max_lon;
+		if (dem[indx].min_lon < min_lon) min_lon = dem[indx].min_lon;
 
-		else {
-			if (abs(dem[indx].max_west - max_west) < 180) {
-				if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
-			}
-
-			else {
-				if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
-			}
-		}
-
-		if (min_west == 360)
-			min_west = dem[indx].min_west;
-
-		else {
-			if (fabs(dem[indx].min_west - min_west) < 180.0) {
-				if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
-			}
-
-			else {
-				if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
-			}
-		}
-
-		spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}W → {:.0f}N {:.0f}W)",
+		spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
 					path_plus_name,
 					dem[indx].min_el, dem[indx].max_el,
-					dem[indx].min_north, dem[indx].min_west,
-					dem[indx].max_north, dem[indx].max_west);
+					dem[indx].min_north, dem[indx].min_lon,
+					dem[indx].max_north, dem[indx].max_lon);
 
 		return 1;
 	}
@@ -1087,11 +1058,8 @@ int LoadDBMColors(struct site xmtr)
  * Load a single Copernicus DSM GeoTIFF COG tile into a free dem[] page.
  *
  * @param tile_lat  Southern latitude of the tile (e.g. 44 for 44N–45N)
- * @param tile_lon  Internal west-positive min_west (e.g. 355 for the
- *                  tile whose western edge is 4E, 72 for the tile whose
- *                  western edge is 73W).  Same convention used throughout
- *                  the rest of the code: min_west = tile_lon,
- *                  max_west = tile_lon + 1.
+ * @param tile_lon  East-positive western edge of tile (e.g. 4 for 4E–5E,
+ *                  -73 for 73W–72W). min_lon = tile_lon, max_lon = tile_lon + 1.
  *
  * Filename built from copernicus_path:
  *   ippd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
@@ -1113,8 +1081,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         for (indx = 0; indx < MAXPAGES && found == 0; indx++) {
             if (tile_lat     == (int)dem[indx].min_north &&
                 tile_lat + 1 == (int)dem[indx].max_north &&
-                tile_lon     == (int)dem[indx].min_west  &&
-                tile_lon + 1 == (int)dem[indx].max_west)
+                tile_lon     == (int)dem[indx].min_lon   &&
+                tile_lon + 1 == (int)dem[indx].max_lon)
                 found = 1;
         }
         if (found) return 0;
@@ -1132,26 +1100,14 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         /* Claim this page immediately so other threads won't pick the same slot */
         dem[indx].min_north = (float)tile_lat;
         dem[indx].max_north = (float)(tile_lat + 1);
-        dem[indx].min_west  = (float)tile_lon;
-        dem[indx].max_west  = (float)(tile_lon + 1);
+        dem[indx].min_lon   = (float)tile_lon;
+        dem[indx].max_lon   = (float)(tile_lon + 1);
     }
 
     /* Build the Copernicus filename.
-     * tile_lon is min_west in the internal west-positive convention.
-     * The tile's western geographic edge = tile_lon + 1 converted to
-     * standard degrees (positive east / negative west). */
-    int west_edge_internal = tile_lon + 1; /* western edge, west-positive */
-    char ew;
-    int lon_abs;
-    if (west_edge_internal <= 180) {
-        /* Western hemisphere */
-        ew = 'W';
-        lon_abs = west_edge_internal;
-    } else {
-        /* Eastern hemisphere: convert west-positive → east-positive */
-        ew = 'E';
-        lon_abs = 360 - west_edge_internal;
-    }
+     * tile_lon is the east-positive western edge of the tile. */
+    char ew = (tile_lon >= 0) ? 'E' : 'W';
+    int lon_abs = abs(tile_lon);
 
     char ns = (tile_lat >= 0) ? 'N' : 'S';
     int  lat_abs = abs(tile_lat);
@@ -1181,8 +1137,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
             std::lock_guard<std::mutex> lock(copernicus_mutex);
             dem[indx].min_north = 0;
             dem[indx].max_north = -90;
-            dem[indx].min_west  = 0;
-            dem[indx].max_west  = 0;
+            dem[indx].min_lon   = 0;
+            dem[indx].max_lon   = 0;
         }
         return -ENOENT;
     }
@@ -1221,11 +1177,11 @@ int LoadCopernicus(int tile_lat, int tile_lon)
      * GeoTIFF layout : row 0 = north, col 0 = west (geographic)
      * dem[] layout   : data[x][y]
      *   x: 0 = min_north (south edge) … ippd-1 = max_north (north edge)
-     *   y: 0 = min_west  (east  edge) … ippd-1 = max_west  (west edge)
+     *   y: 0 = max_lon   (east  edge) … ippd-1 = min_lon   (west edge)
      *
      * Mapping: x = (ippd-1-r),  y = (ippd-1-c)
      *
-     * Note: bounds (min/max_north/west) were already set when the page was claimed.
+     * Note: bounds (min/max_north/lon) were already set when the page was claimed.
      * Each thread owns its own indx, so no lock is needed here.
      */
     for (int r = 0; r < ippd; r++) {
@@ -1268,32 +1224,15 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         else if (dem[indx].min_north < min_north)
             min_north = dem[indx].min_north;
 
-        if (max_west == -1)
-            max_west = dem[indx].max_west;
-        else {
-            if (abs((int)(dem[indx].max_west - max_west)) < 180) {
-                if (dem[indx].max_west > max_west) max_west = dem[indx].max_west;
-            } else {
-                if (dem[indx].max_west < max_west) max_west = dem[indx].max_west;
-            }
-        }
-
-        if (min_west == 360)
-            min_west = dem[indx].min_west;
-        else {
-            if (fabs(dem[indx].min_west - min_west) < 180.0) {
-                if (dem[indx].min_west < min_west) min_west = dem[indx].min_west;
-            } else {
-                if (dem[indx].min_west > min_west) min_west = dem[indx].min_west;
-            }
-        }
+        if (dem[indx].max_lon > max_lon) max_lon = dem[indx].max_lon;
+        if (dem[indx].min_lon < min_lon) min_lon = dem[indx].min_lon;
     }
 
-    spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}W → {:.0f}N {:.0f}W)",
+    spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
                  filename,
                  dem[indx].min_el, dem[indx].max_el,
-                 dem[indx].min_north, dem[indx].min_west,
-                 dem[indx].max_north, dem[indx].max_west);
+                 dem[indx].min_north, dem[indx].min_lon,
+                 dem[indx].max_north, dem[indx].max_lon);
 
     return 1;
 }
@@ -1303,7 +1242,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 */
 int LoadTopoData(bbox region)
 {
-    spdlog::info("Loading topo data for boundaries: ({:.6f}N, {:.6f}W) to ({:.6f}N, {:.6f}W)", 
+    spdlog::info("Loading topo data for boundaries: ({:.6f}N, {:.6f}E) to ({:.6f}N, {:.6f}E)",
         region.lower_right.lat,
         region.lower_right.lon,
         region.upper_left.lat,
@@ -1332,7 +1271,7 @@ int LoadTopoData(bbox region)
         for (int y = 0; y < tiles_lat; y++) {
             int tile_lon = r_min_lon + x;
             int tile_lat = r_min_lat + y;
-            spdlog::debug("Loading topo for tile {}N {}W to {}N {}W", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
+            spdlog::debug("Loading topo for tile {}N {}E to {}N {}E", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
             // Generate the filename string to load
             char basename[32], string[32];
             snprintf(basename, 16, "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);

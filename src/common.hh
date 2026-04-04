@@ -28,8 +28,8 @@
 struct dem {
 	float min_north;
 	float max_north;
-	float min_west;
-	float max_west;
+	float min_lon;   /* western edge, east-positive (negative = west hemisphere) */
+	float max_lon;   /* eastern edge, east-positive (positive = east hemisphere) */
 	long min_x, max_x, min_y, max_y;
 	int max_el;
 	int min_el;
@@ -89,8 +89,8 @@ extern int IPPD;
 
 extern double min_north;
 extern double max_north;
-extern double min_west;
-extern double max_west;
+extern double min_lon;   /* western-most loaded boundary */
+extern double max_lon;   /* eastern-most loaded boundary */
 extern int ippd;
 extern int MAXRAD;
 extern int mpi;

@@ -13,7 +13,7 @@ typedef struct _tile_t{
 	};
 	union{
 		double	xll;
-		double	max_west;
+		double	min_lon;
 	};
 	union{
 		double	yll;
@@ -21,7 +21,7 @@ typedef struct _tile_t{
 	};
 	union{
 		double	xur;
-		double	min_west;
+		double	max_lon;
 	};
 	union{
 		double	yur;

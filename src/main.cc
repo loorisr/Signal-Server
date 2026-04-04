@@ -58,7 +58,7 @@ char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL
 double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
-    min_north = 90, max_north = -90, min_west = 360, max_west = -1,
+    min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     westoffset=180, eastoffset=-180, delta=0, rxGain=0, antenna_rotation,
     antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
 
@@ -184,7 +184,7 @@ int PutMask(double lat, double lon, int value)
 
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -214,7 +214,7 @@ int OrMask(double lat, double lon, int value)
 
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -253,7 +253,7 @@ void PutSignal(double lat, double lon, unsigned char signal)
     //lookup x/y for this co-ord
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -282,7 +282,7 @@ unsigned char GetSignal(double lat, double lon)
 
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -308,9 +308,7 @@ double GetElevation(struct site location)
 
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (location.lat - dem[indx].min_north));
-        y = mpi -
-            (int)rint(yppd *
-                  (LonDiff(dem[indx].max_west, location.lon)));
+        y = mpi - (int)rint(yppd * (location.lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -338,7 +336,7 @@ int AddElevation(double lat, double lon, double height, int size)
 
     for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
         x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
             found = 1;
@@ -533,10 +531,10 @@ void ReadPath(struct site source, struct site destination)
                 lon2 = lon1 + arccos(num, den);
         }
 
-        while (lon2 < 0.0)
+        while (lon2 < -PI)
             lon2 += TWOPI;
 
-        while (lon2 > TWOPI)
+        while (lon2 > PI)
             lon2 -= TWOPI;
 
         lat2 = lat2 / DEG2RAD;
@@ -973,8 +971,8 @@ void do_allocs(void)
         dem[i].max_el = -32768;
         dem[i].min_north = 90;
         dem[i].max_north = -90;
-        dem[i].min_west = 360;
-        dem[i].max_west = -1;
+        dem[i].min_lon = 180.0;
+        dem[i].max_lon = -180.0;
     }
 }
 
@@ -1194,9 +1192,9 @@ int main(int argc, char *argv[])
     antenna_file[0] = '\0';
 
     tx_site[0].lat = 91.0;
-    tx_site[0].lon = 361.0;
+    tx_site[0].lon = 181.0;
     tx_site[1].lat = 91.0;
-    tx_site[1].lon = 361.0;
+    tx_site[1].lon = 181.0;
 
     /* Scan for command line arguments */
 
@@ -1429,9 +1427,6 @@ int main(int argc, char *argv[])
             z = x + 1;
             if (z <= y && argv[z][0]) {
                 tx_site[0].lon = ReadBearing(argv[z]);
-                tx_site[0].lon *= -1;
-                if (tx_site[0].lon < 0.0)
-                    tx_site[0].lon += 360.0;
             }
         }
         //Switch to Path Profile Mode if Rx co-ords specified
@@ -1448,9 +1443,6 @@ int main(int argc, char *argv[])
             z = x + 1;
             if (z <= y && argv[z][0]) {
                 tx_site[1].lon = ReadBearing(argv[z]);
-                tx_site[1].lon *= -1;
-                if (tx_site[1].lon < 0.0)
-                    tx_site[1].lon += 360.0;
             }
         }
 
@@ -1684,8 +1676,8 @@ int main(int argc, char *argv[])
         exit(EINVAL);
 
     }
-    if (tx_site[0].lon > 360 || tx_site[0].lon < 0) {
-        spdlog::error("Either the lon was missing or out of range!");
+    if (tx_site[0].lon > 180.0 || tx_site[0].lon < -180.0) {
+        spdlog::error("Either the lon was missing or out of range! (expected -180 to +180)");
         exit(EINVAL);
 
     }
@@ -1819,7 +1811,7 @@ int main(int argc, char *argv[])
         if (LonDiff(rxlon, max_lon) >= 0.0)
             max_lon = rxlon;
 
-        spdlog::debug("RX site location expanded plot bounds to {:.6f}N {:.6f}W to {:.6f}N {:.6f}W", min_lat, min_lon, max_lat, max_lon);
+        spdlog::debug("RX site location expanded plot bounds to {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", min_lat, min_lon, max_lat, max_lon);
     }
 
     bbox plot_bounds;
@@ -1846,7 +1838,7 @@ int main(int argc, char *argv[])
     yppd=ppd;
     samples_per_radian = ppd * (180.0 / PI);
 
-    width = (unsigned)(ippd * ReduceAngle(max_west - min_west));
+    width = (unsigned)(ippd * ReduceAngle(max_lon - min_lon));
     height = (unsigned)(ippd * ReduceAngle(max_north - min_north));
 
     dpp = 1 / ppd;
@@ -1875,19 +1867,18 @@ int main(int argc, char *argv[])
                 // cropLon is the circle radius in pixels at it's widest (east/west) 
                 cropLon*=dpp; // pixels to degrees
                 max_north=cropLat; // degrees
-                max_west=cropLon+tx_site[0].lon; // degrees west (positive)
+                min_lon = tx_site[0].lon - cropLon; // western crop boundary
                 cropLat-=tx_site[0].lat; // angle from tx to edge
 
-            
-                spdlog::debug("Cropping 1: max_west: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.5f} dpp {:.7f}",max_west,cropLat,cropLon,tx_site[0].lon,dpp);
+                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.5f} dpp {:.7f}",min_lon,cropLat,cropLon,tx_site[0].lon,dpp);
 
                 width=(int)((cropLon*ppd)*2);
                 height=(int)((cropLat*ppd)*2);
 
-                spdlog::debug("Cropping 2: max_west: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f} width %d",max_west,cropLat,cropLon,tx_site[0].lon,width);
+                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f} width %d",min_lon,cropLat,cropLon,tx_site[0].lon,width);
 
                 if (width > 3600 * 10 || cropLon < 0) {
-                    spdlog::error("FATAL BOUNDS! max_west: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",max_west,cropLat,cropLon,tx_site[0].lon);
+                    spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon);
                     return 0;
                 }
             }
@@ -1902,12 +1893,6 @@ int main(int argc, char *argv[])
                     return result;
         }
 
-
-        if (tx_site[0].lon > 0.0)
-                tx_site[0].lon *= -1;
-
-        if (tx_site[0].lon < -180.0)
-            tx_site[0].lon += 360;
 
         if (cropping) {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);

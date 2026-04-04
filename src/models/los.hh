@@ -29,7 +29,7 @@ enum PropModel {
 
 // Rectangular bounding box propagation range
 struct PropagationRange {
-    double min_west, max_west, min_north, max_north;
+    double min_lon, max_lon, min_north, max_north;
     double altitude;
     bool eastwest, los, use_threads;
     site source;

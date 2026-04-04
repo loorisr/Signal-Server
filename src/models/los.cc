@@ -86,7 +86,7 @@ namespace {
 
 		for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
 			x = (int)rint(ppd * (lat - dem[indx].min_north));
-			y = mpi - (int)rint(yppd * (LonDiff(dem[indx].max_west, lon)));
+			y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
 
 			if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
 				found = 1;
@@ -127,31 +127,31 @@ namespace {
 		}
 
         // Check if we're plotting a single line
-        if (v->min_north == v->max_north && v->min_west == v->max_west) {
+        if (v->min_north == v->max_north && v->min_lon == v->max_lon) {
             spdlog::warn("Propagation plot range is a single point!");
         }
 
         // If our min & max lon coords are the same, it's a vertical line
-        bool vertical = (v->min_west == v->max_west) ? true : false;
+        bool vertical = (v->min_lon == v->max_lon) ? true : false;
 
         // Calculate total number of points we are going to process
-        unsigned int totalPoints = vertical ? (int)((v->max_north - v->min_north) / dpp) : (int)((v->max_west - v->min_west) / dpp);
+        unsigned int totalPoints = vertical ? (int)((v->max_north - v->min_north) / dpp) : (int)((v->max_lon - v->min_lon) / dpp);
         progress.total.store(totalPoints);
 
         // Init the count
         progress.count.store(0);
 
-        spdlog::debug("Starting rangePropagation for {} range {:.6f}N {:.6f}W to {:.6f}N {:.6f}W, {} points at {:.8f} dpp [Segment {}]",
+        spdlog::debug("Starting rangePropagation for {} range {:.6f}N {:.6f}E to {:.6f}N {:.6f}E, {} points at {:.8f} dpp [Segment {}]",
             vertical ? "vertical" : "horizontal",
-            v->min_north, v->min_west, v->max_north, v->max_west, progress.total.load(), dpp, progress.id);
+            v->min_north, v->min_lon, v->max_north, v->max_lon, progress.total.load(), dpp, progress.id);
 
         // Init our varaibles for tracking position over the loop
         double lat = v->min_north;
-        double lon = v->min_west;
+        double lon = v->min_lon;
         int y = 0;
         // Iterate
 		do {
-			if (lon >= 360.0)
+			if (lon > 180.0)
 				lon -= 360.0;
 
 			site edge;
@@ -173,10 +173,10 @@ namespace {
 			if(vertical) {
                 lat = (double)v->min_north + (dpp * (double)y);
             } else {
-			    lon = (double)v->min_west + (dpp * (double)y);
+			    lon = (double)v->min_lon + (dpp * (double)y);
             }
 
-        } while ( vertical ? (lat < (double)v->max_north) : (LonDiff(lon, (double)v->max_west) <= 0.0) );
+        } while ( vertical ? (lat < (double)v->max_north) : (lon <= (double)v->max_lon) );
 
         if(v->use_threads) {
             free_elev();
@@ -824,9 +824,9 @@ void PlotLOSMap(struct site source, double altitude,
 	// Four sections start here
 	// Process north edge east/west, east edge north/south,
 	// south edge east/west, west edge north/south
-	double range_min_west[] = {min_west, min_west, min_west, max_west};
+	double range_min_lon[] = {min_lon, min_lon, min_lon, max_lon};
 	double range_min_north[] = {max_north, min_north, min_north, min_north};
-	double range_max_west[] = {max_west, min_west, max_west, max_west};
+	double range_max_lon[] = {max_lon, min_lon, max_lon, max_lon};
 	double range_max_north[] = {max_north, max_north, min_north, max_north};
 	PropagationRange *r = new PropagationRange[segments];
 
@@ -836,9 +836,9 @@ void PlotLOSMap(struct site source, double altitude,
 	for(int i = 0; i < segments; ++i) {
         r[i].los = true;
 
-		r[i].eastwest = (range_min_west[i] == range_max_west[i] ? false : true);
-		r[i].min_west = range_min_west[i];
-		r[i].max_west = range_max_west[i];
+		r[i].eastwest = (range_min_lon[i] == range_max_lon[i] ? false : true);
+		r[i].min_lon = range_min_lon[i];
+		r[i].max_lon = range_max_lon[i];
 		r[i].min_north = range_min_north[i];
 		r[i].max_north = range_max_north[i];
 
@@ -955,20 +955,20 @@ void PlotPropagation(struct site source, bbox bounds,
         double lon_min = bounds.lower_right.lon + (edge_width * i);
         double lon_max = bounds.lower_right.lon + (edge_width * (1+i));
         // Set top (on our max_north latitude)
-        top_range.min_west = lon_min;
-        top_range.max_west = lon_max;
+        top_range.min_lon = lon_min;
+        top_range.max_lon = lon_max;
         top_range.min_north = bounds.upper_left.lat;
         top_range.max_north = bounds.upper_left.lat;
         // Set bottom (on our min_north latitude)
-        bot_range.min_west = lon_min;
-        bot_range.max_west = lon_max;
+        bot_range.min_lon = lon_min;
+        bot_range.max_lon = lon_max;
         bot_range.min_north = bounds.lower_right.lat;
         bot_range.max_north = bounds.lower_right.lat;
         // Append to our vector
         ranges.push_back(top_range);
         ranges.push_back(bot_range);
         // Log
-        spdlog::debug("Added top & bottom segments from {:.6f}W to {:.6f}W", lon_min, lon_max);
+        spdlog::debug("Added top & bottom segments from {:.6f}E to {:.6f}E", lon_min, lon_max);
     }
 
     // Create our latitudal (left and right) ranges
@@ -982,14 +982,14 @@ void PlotPropagation(struct site source, bbox bounds,
         // Calculate the latitude start & stop for both ranges
         double lat_min = bounds.lower_right.lat + (edge_height * i);
         double lat_max = bounds.lower_right.lat + (edge_height * (i+1));
-        // Set left (on our max_west longitude)
-        left_range.min_west = bounds.upper_left.lon;
-        left_range.max_west = bounds.upper_left.lon;
+        // Set left (on our min_lon longitude)
+        left_range.min_lon = bounds.upper_left.lon;
+        left_range.max_lon = bounds.upper_left.lon;
         left_range.min_north = lat_min;
         left_range.max_north = lat_max;
-        // Set right (on our min_west longitude)
-        right_range.min_west = bounds.lower_right.lon;
-        right_range.max_west = bounds.lower_right.lon;
+        // Set right (on our max_lon longitude)
+        right_range.min_lon = bounds.lower_right.lon;
+        right_range.max_lon = bounds.lower_right.lon;
         right_range.min_north = lat_min;
         right_range.max_north = lat_max;
         // Append to our vector
@@ -1027,12 +1027,12 @@ void PlotPropagation(struct site source, bbox bounds,
         thread_progress[i].id = i;
         // Start a thread if we're using threads
         if (use_threads) {
-            spdlog::debug("Starting calc thread for edge segment {:.6f}N {:.6f}W to {:.6f}N {:.6f}W", ranges[i].min_north, ranges[i].min_west, ranges[i].max_north, ranges[i].max_west);
+            spdlog::debug("Starting calc thread for edge segment {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", ranges[i].min_north, ranges[i].min_lon, ranges[i].max_north, ranges[i].max_lon);
             //threads.push_back(std::thread(rangePropagation, i, &ranges[i]));
             futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &ranges[i] ) );
         }
         else {
-            spdlog::debug("Starting single-thread calc for edge segment {:.6f}N {:.6f}W to {:.6f}N {:.6f}W", ranges[i].min_north, ranges[i].min_west, ranges[i].max_north, ranges[i].max_west);
+            spdlog::debug("Starting single-thread calc for edge segment {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", ranges[i].min_north, ranges[i].min_lon, ranges[i].max_north, ranges[i].max_lon);
             rangePropagation(thread_progress[i], &ranges[i]);
         }
     }

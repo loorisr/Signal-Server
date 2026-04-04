@@ -55,7 +55,7 @@ int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
 
 char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
 
-double earthradius, max_range = 0.0, forced_erp, dpp, ppd, yppd,
+double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_west = 360, max_west = -1,
@@ -364,23 +364,6 @@ int AddElevation(double lat, double lon, double height, int size)
     return found;
 }
 
-double dist(double lat1, double lon1, double lat2, double lon2)
-{
-    //ENHANCED HAVERSINE FORMULA WITH RADIUS SLIDER
-    double dx, dy, dz;
-    int polarRadius=6357;
-    int equatorRadius=6378;
-    int delta = equatorRadius-polarRadius; // 21km
-    float earthRadius = equatorRadius - ((lat1/100) * delta);
-    lon1 -= lon2;
-    lon1 *= DEG2RAD, lat1 *= DEG2RAD, lat2 *= DEG2RAD;
- 
-    dz = sin(lat1) - sin(lat2);
-    dx = cos(lon1) * cos(lat1) - cos(lat2);
-    dy = sin(lon1) * cos(lat1);
-    return asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * earthRadius;
-}
-
 double Distance(struct site site1, struct site site2)
 {
     /* This function returns the great circle distance
@@ -465,8 +448,8 @@ double ElevationAngle(struct site source, struct site destination)
 
     register double a, b, dx;
 
-    a = GetElevation(destination) + destination.alt + earthradius;
-    b = GetElevation(source) + source.alt + earthradius;
+    a = GetElevation(destination) + destination.alt + EARTHRADIUS;
+    b = GetElevation(source) + source.alt + EARTHRADIUS;
 
     dx = Distance(source, destination) * 1000.0;
 
@@ -489,23 +472,22 @@ void ReadPath(struct site source, struct site destination)
     int c;
     double azimuth, distance, lat1, lon1, beta, den, num,
         lat2, lon2, total_distance, dx, dy, path_length,
-        miles_per_sample, samples_per_radian = 68755.0;
+        m_per_sample;
     struct site tempsite;
 
     lat1 = source.lat * DEG2RAD;
     lon1 = source.lon * DEG2RAD;
     lat2 = destination.lat * DEG2RAD;
     lon2 = destination.lon * DEG2RAD;
-    samples_per_radian = ppd * 57.295833;
     azimuth = Azimuth(source, destination) * DEG2RAD;
 
-    total_distance = Distance(source, destination);
+    total_distance = Distance(source, destination) * 1000.0;  /* km → meters */
 
-    if (total_distance > (30.0 / ppd)) {
+    if (total_distance > (30000.0 / ppd)) {
         dx = samples_per_radian * acos(cos(lon1 - lon2));
         dy = samples_per_radian * acos(cos(lat1 - lat2));
         path_length = sqrt((dx * dx) + (dy * dy));
-        miles_per_sample = total_distance / path_length;
+        m_per_sample = total_distance / path_length;
     }
 
     else {
@@ -513,7 +495,7 @@ void ReadPath(struct site source, struct site destination)
         dx = 0.0;
         dy = 0.0;
         path_length = 0.0;
-        miles_per_sample = 0.0;
+        m_per_sample = 0.0;
         total_distance = 0.0;
 
         lat1 = lat1 / DEG2RAD;
@@ -527,8 +509,8 @@ void ReadPath(struct site source, struct site destination)
 
     for (distance = 0.0, c = 0;
          (total_distance != 0.0 && distance <= total_distance
-          && c < ARRAYSIZE); c++, distance = miles_per_sample * (double)c) {
-        beta = distance / 6371.0;
+          && c < ARRAYSIZE); c++, distance = m_per_sample * (double)c) {
+        beta = distance / 6371000.0;  /* earth radius in meters */
         lat2 =
             asin(sin(lat1) * cos(beta) +
              cos(azimuth) * sin(beta) * cos(lat1));
@@ -603,7 +585,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 
     ReadPath(source, destination);
 
-    distance = Distance(source, destination) * 1000.0;
+    distance = Distance(source, destination) * 1000.0;  /* km → meters */
     source_alt = er + source.alt + GetElevation(source);
     destination_alt = er + destination.alt + GetElevation(destination);
     source_alt2 = source_alt * source_alt;
@@ -623,10 +605,10 @@ double ElevationAngle2(struct site source, struct site destination, double er)
        obstruction along the path between source and destination. */
 
     for (x = 2, block = 0; x < path.length && block == 0; x++) {
-        distance = path.distance[x] * 1000.0;
+        distance = path.distance[x];
 
         test_alt =
-            earthradius + (path.elevation[x] ==
+            EARTHRADIUS + (path.elevation[x] ==
                    0.0 ? path.elevation[x] : path.elevation[x] +
                    clutter);
 
@@ -736,12 +718,12 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
     char string[255], string_fpt6[255], string_f1[255];
 
     ReadPath(xmtr, rcvr);
-    h_r = GetElevation(rcvr) + rcvr.alt + earthradius;
+    h_r = GetElevation(rcvr) + rcvr.alt + EARTHRADIUS;
     h_r_f1 = h_r;
     h_r_fpt6 = h_r;
     h_r_orig = h_r;
-    h_t = GetElevation(xmtr) + xmtr.alt + earthradius;
-    d_tx = Distance(rcvr, xmtr) * 1000.0;
+    h_t = GetElevation(xmtr) + xmtr.alt + EARTHRADIUS;
+    d_tx = Distance(rcvr, xmtr) * 1000.0;  /* km → meters */
     cos_tx_angle =
         ((h_r * h_r) + (d_tx * d_tx) - (h_t * h_t)) / (2.0 * h_r * d_tx);
     cos_tx_angle_f1 = cos_tx_angle;
@@ -775,7 +757,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
         site_x.lon = path.lon[x];
         site_x.alt = 0.0;
 
-        h_x = GetElevation(site_x) + earthradius + clutter;
+        h_x = GetElevation(site_x) + EARTHRADIUS + clutter;
         d_x = Distance(rcvr, site_x) * 1000.0;
 
         /* Deal with the LOS path first. */
@@ -795,7 +777,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
                     "   %8.4f N,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
                     site_x.lat, site_x.lon,
                     d_x / 1000.0,
-                    h_x - earthradius);
+                    h_x - EARTHRADIUS);
             }
 
             else {
@@ -803,7 +785,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
                     "   %8.4f S,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
                     -site_x.lat, site_x.lon,
                     d_x / 1000.0,
-                    h_x - earthradius);
+                    h_x - EARTHRADIUS);
             }
         }
 
@@ -875,7 +857,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
         snprintf(string, 150,
              "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected.\n",
              rcvr.name,
-             h_r - GetElevation(rcvr) - earthradius);
+             h_r - GetElevation(rcvr) - EARTHRADIUS);
     }
 
     else
@@ -887,7 +869,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
             snprintf(string_fpt6, 150,
                  "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",
                  rcvr.name,
-                 h_r_fpt6 - GetElevation(rcvr) - earthradius,
+                 h_r_fpt6 - GetElevation(rcvr) - EARTHRADIUS,
                  fzone_clearance * 100.0, 37);
         }
 
@@ -900,7 +882,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
             snprintf(string_f1, 150,
                  "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",
                  rcvr.name,
-                 h_r_f1 - GetElevation(rcvr) - earthradius);
+                 h_r_f1 - GetElevation(rcvr) - EARTHRADIUS);
         }
 
         else
@@ -1185,8 +1167,6 @@ int main(int argc, char *argv[])
     fzone_clearance = 0.6;
     contour_threshold = 0;
     resample = 0;
-
-    earthradius = EARTHRADIUS;
     max_range = 1.0;
     prop_model = ITM_LR;
     lat = 0;
@@ -1863,7 +1843,8 @@ int main(int argc, char *argv[])
     }
 
     ppd=(double)ippd;
-    yppd=ppd; 
+    yppd=ppd;
+    samples_per_radian = ppd * (180.0 / PI);
 
     width = (unsigned)(ippd * ReduceAngle(max_west - min_west));
     height = (unsigned)(ippd * ReduceAngle(max_north - min_north));

@@ -102,7 +102,6 @@ extern int jgets;
 extern int width;
 extern int height;
 
-extern double earthradius;
 extern double north;
 extern double east;
 extern double south;
@@ -111,6 +110,7 @@ extern double max_range;
 extern double dpp;
 extern double ppd;
 extern double yppd;
+extern double samples_per_radian;
 extern double fzone_clearance;
 extern double clutter;
 extern double dBm;

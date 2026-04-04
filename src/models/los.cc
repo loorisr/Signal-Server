@@ -376,19 +376,19 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
     iCounter = 0;
 
     /* altitude limit of 10000 meters */
-    limit_alt = earthradius + 10000.0;
+    limit_alt = EARTHRADIUS + 10000.0;
     limit_alt2 = limit_alt * limit_alt;
 
-    tx_alt = earthradius + source.alt + path.elevation[0];
+    tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
     tx_alt2 = tx_alt * tx_alt;
 
-    for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range); x++) {
+    for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range * 1000.0); x++) {
 
         if (x > 0) {
-            distance = path.distance[x] * 1000.0;
+            distance = path.distance[x];
             distance2 = distance * distance;
 
-            rx_alt = earthradius + destination.alt + path.elevation[x];
+            rx_alt = EARTHRADIUS + destination.alt + path.elevation[x];
             rx_alt2 = rx_alt * rx_alt;
 
             /* Calculate the cosine of the elevation between
@@ -399,7 +399,7 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
             cos_angle = MIN(1.0, MAX(-1.0, cos_angle));
 
 
-            test_alt = earthradius + (path.elevation[x] == 0.0 ? path.elevation[x] : path.elevation[x] + clutter);
+            test_alt = EARTHRADIUS + (path.elevation[x] == 0.0 ? path.elevation[x] : path.elevation[x] + clutter);
             test_alt2 = test_alt * test_alt;
 
             /* Calculate the cosine of the elevation between
@@ -498,7 +498,7 @@ void PlotPropPath(
 	   calculation for overall path loss. */
 	//if(debug)
 	//	fprintf(stderr,"four_thirds_earth %.1f source.alt %.1f path.elevation[0] %.1f\n",four_thirds_earth,source.alt,path.elevation[0]);
-	for (y = 2; (y < (path.length - 1) && path.distance[y] <= max_range);
+	for (y = 2; (y < (path.length - 1) && path.distance[y] <= max_range * 1000.0);
 	     y++) {
 		/* Process this point only if it
 		   has not already been processed. */
@@ -507,7 +507,7 @@ void PlotPropPath(
 			(mask_value << 3) && can_process(path.lat[y], path.lon[y])) {
 		//if (can_process(path.lat[y], path.lon[y])) {
 
-			distance = path.distance[y] * 1000.0;
+			distance = path.distance[y];
 			xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
 			dest_alt2 = dest_alt * dest_alt;
@@ -530,7 +530,7 @@ void PlotPropPath(
 
 				for (x = 2, block = 0; (x < y && block == 0);
 				     x++) {
-					distance = path.distance[x] * 1000.0;
+					distance = path.distance[x];
 
 					test_alt =
 					    FOUR_THIRDS_EARTH +
@@ -584,7 +584,7 @@ void PlotPropPath(
 
 			/* Distance between elevation samples (meters) */
 
-			elev[1] = (path.distance[y] - path.distance[y - 1]) * 1000.0;
+			elev[1] = path.distance[y] - path.distance[y - 1];
 
 			if (path.elevation[y] < 1) {
 				path.elevation[y] = 1;
@@ -1225,10 +1225,9 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 		   tested and found to be free of obstructions. */
 
 		if ((GetMask(path.lat[y], path.lon[y]) & mask_value) == 0) {
-			distance = path.distance[y] * 1000.0;
-			tx_alt = earthradius + source.alt + path.elevation[0];
-			rx_alt =
-			    earthradius + destination.alt + path.elevation[y];
+			distance = path.distance[y];
+			tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
+			rx_alt = EARTHRADIUS + destination.alt + path.elevation[y];
 
 			/* Calculate the cosine of the elevation of the
 			   transmitter as seen at the temp rx point. */
@@ -1238,10 +1237,9 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 			     (tx_alt * tx_alt)) / (2.0 * rx_alt * distance);
 
 			for (x = y, block = 0; x >= 0 && block == 0; x--) {
-				distance =
-				    (path.distance[y] - path.distance[x]) * 1000.0;
+				distance = path.distance[y] - path.distance[x];
 				test_alt =
-				    earthradius + (path.elevation[x] ==
+				    EARTHRADIUS + (path.elevation[x] ==
 						   0.0 ? path.
 						   elevation[x] : path.
 						   elevation[x] + clutter);

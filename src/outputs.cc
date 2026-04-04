@@ -973,7 +973,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 	azimuth = Azimuth(source, destination);
 	angle1 = ElevationAngle(source, destination);
-	angle2 = ElevationAngle2(source, destination, earthradius);
+	angle2 = ElevationAngle2(source, destination, EARTHRADIUS);
 
 	if (got_azimuth_pattern || got_elevation_pattern) {
 		x = (int)rint(10.0 * (10.0 - angle2));
@@ -1030,7 +1030,7 @@ void PathReport(struct site source, struct site destination, char *name,
 	azimuth = Azimuth(destination, source);
 
 	angle1 = ElevationAngle(destination, source);
-	angle2 = ElevationAngle2(destination, source, earthradius);
+	angle2 = ElevationAngle2(destination, source, EARTHRADIUS);
 
 	fprintf(fd2, "Azimuth to %s: %.2f degrees grid\n", source.name, azimuth);
 
@@ -1211,7 +1211,7 @@ void PathReport(struct site source, struct site destination, char *name,
 		azimuth = rint(Azimuth(source, destination));
 
 		for (y = 2; y < (path.length - 1); y++) {	/* path.length-1 avoids LR error */
-			distance = path.distance[y] * 1000.0;
+			distance = path.distance[y];
 
 			source_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt +
@@ -1233,7 +1233,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 				for (x = 2, block = 0; x < y && block == 0; x++) {
 					distance =
-					    (path.distance[y] - path.distance[x]) * 1000.0;
+					    path.distance[y] - path.distance[x];
 					test_alt =
 					    FOUR_THIRDS_EARTH +
 					    path.elevation[x];
@@ -1276,7 +1276,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 			/* Distance between elevation samples (meters) */
 
-			elev[1] = (path.distance[y] - path.distance[y - 1]) * 1000.0;
+			elev[1] = path.distance[y] - path.distance[y - 1];
 
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
@@ -1615,13 +1615,13 @@ void SeriesData(struct site source, struct site destination, char *name,
 	azimuth = Azimuth(destination, source);
 	distance = Distance(destination, source);
 	refangle = ElevationAngle(destination, source);
-	b = GetElevation(destination) + destination.alt + earthradius;
+	b = GetElevation(destination) + destination.alt + EARTHRADIUS;
 
 	spdlog::debug("SeriesData: az = {}, dist = {}, ref = {}, b = {}", azimuth, distance, refangle, b);
 	
 	if (fresnel_plot) {
 		lambda = 299792458.0 / (LR.frq_mhz * 1e6);
-		d = path.distance[path.length - 1] * 1000.0;
+		d = path.distance[path.length - 1];
 	}
 
 	if (normalised) {
@@ -1663,8 +1663,8 @@ void SeriesData(struct site source, struct site destination, char *name,
 		if (x == 0)
 			terrain += destination.alt;	/* RX antenna spike */
 
-		a = terrain + earthradius;
-		cangle = Distance(destination, remote) * 1000.0 / earthradius;
+		a = terrain + EARTHRADIUS;
+		cangle = Distance(destination, remote) * 1000.0 / EARTHRADIUS;
 		c = b * sin(refangle * DEG2RAD + HALFPI) / sin(HALFPI -
 							       refangle *
 							       DEG2RAD -
@@ -1682,7 +1682,7 @@ void SeriesData(struct site source, struct site destination, char *name,
 
 		if ((LR.frq_mhz >= 20.0) && (LR.frq_mhz <= 100000.0)
 		    && fresnel_plot) {
-			d1 = path.distance[x] * 1000.0;
+			d1 = path.distance[x];
 			f_zone = -1.0 * sqrt(lambda * d1 * (d - d1) / d);
 			fpt6_zone = f_zone * fzone_clearance;
 		}

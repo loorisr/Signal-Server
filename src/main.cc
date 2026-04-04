@@ -1142,8 +1142,8 @@ int main(int argc, char *argv[])
 
     unsigned char ngs = 0;
 
-    char mapfile[255], clutter_file[255],antenna_file[255];
-    char *az_filename, *el_filename, *udt_file = NULL;
+    char mapfile[255], antenna_file[255];
+    char *az_filename, *el_filename = NULL;
 
     double altitude = 0.0, altitudeLR = 0.0;
 
@@ -1164,8 +1164,6 @@ int main(int argc, char *argv[])
         fprintf(stdout, "     -copernicus Directory containing Copernicus DEM GeoTIFF COG tiles\n");
         fprintf(stdout, "                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,\n");
         fprintf(stdout, "                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)\n");
-        fprintf(stdout, "     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'\n");
-        fprintf(stdout, "     -clt MODIS 17-class wide area clutter in ASCII grid format\n");
         fprintf(stdout, "     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette\n");
         fprintf(stdout, "Input:\n");
         fprintf(stdout,	"     -lat Tx Latitude (decimal degrees) -70/+70\n");
@@ -1232,11 +1230,9 @@ int main(int argc, char *argv[])
     metric = 0;
     copernicus_path[0] = 0;
     mapfile[0] = 0;
-    clutter_file[0] = 0;
     clutter = 0.0;
     forced_erp = -1.0;
     forced_freq = 0.0;
-    udt_file = NULL;
     color_file = NULL;
     path.length = 0;
     fzone_clearance = 0.6;
@@ -1298,14 +1294,6 @@ int main(int argc, char *argv[])
                     clutter = 0.0;
 
                 
-            }
-        }
-
-        if (strcmp(argv[x], "-clt") == 0) {
-            z = x + 1;
-
-            if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                strncpy(clutter_file, argv[z], 253);
             }
         }
 
@@ -1669,20 +1657,6 @@ int main(int argc, char *argv[])
             debug = 1;
         }
 
-    
-         /*UDT*/
-        if (strcmp(argv[x], "-udt") == 0) {
-            z = x + 1;
-
-            if (z <= y && argv[z][0]) {
-                udt_file = (char*) calloc(PATH_MAX+1, sizeof(char));
-                if( udt_file == NULL )
-                    return ENOMEM;
-                strncpy(udt_file, argv[z], 253);
-                udt_file[253] = '\0';
-            }
-        }
-
         /*Prop model */
 
         if (strcmp(argv[x], "-pm") == 0) {
@@ -1964,24 +1938,6 @@ int main(int argc, char *argv[])
 
     dpp = 1 / ppd;
     mpi = ippd-1; 
-
-    // User defined clutter file
-    if( udt_file != NULL && (result = LoadUDT(udt_file)) != 0 ){
-        spdlog::error("Error loading clutter file");
-        return result;
-    }
-
-    // Enrich with Clutter
-    if(strlen(clutter_file) > 1){
-        /*
-        Clutter tiles cover 16 x 12 degs but we only need a fraction of that area.
-        Limit by max_range / miles per degree (at equator)
-        */
-        if( (result = loadClutter(clutter_file,max_range/45,tx_site[0])) != 0 ){
-            spdlog::error("Error, invalid or clutter file not found");
-            return result;
-        }
-    }
 
     if (ppa == 0) {
         if (prop_model == LOS) {  // Model 2 = LOS

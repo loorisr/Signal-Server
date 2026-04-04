@@ -15,8 +15,6 @@ int LoadSignalColors(struct site xmtr);
 int LoadLossColors(struct site xmtr);
 int LoadDBMColors(struct site xmtr);
 int LoadTopoData(bbox region);
-int LoadUDT(char *filename);
-int loadClutter(char *filename, double radius, struct site tx);
 static const char AZ_FILE_SUFFIX[] = ".az";
 static const char EL_FILE_SUFFIX[] = ".el";
 

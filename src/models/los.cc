@@ -375,8 +375,8 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
     bStop = false;
     iCounter = 0;
 
-    /* altitude limit of 32808 feets or 10000 meters */
-    limit_alt = earthradius + 32808.0;
+    /* altitude limit of 10000 meters */
+    limit_alt = earthradius + 10000.0;
     limit_alt2 = limit_alt * limit_alt;
 
     tx_alt = earthradius + source.alt + path.elevation[0];
@@ -385,7 +385,7 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
     for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range); x++) {
 
         if (x > 0) {
-            distance = FEET_PER_MILE * path.distance[x];
+            distance = path.distance[x] * 1000.0;
             distance2 = distance * distance;
 
             rx_alt = earthradius + destination.alt + path.elevation[x];
@@ -479,19 +479,13 @@ void PlotPropPath(
 
 	for (x = 1; x < path.length - 1; x++)
 		elev[x + 2] =
-		    (path.elevation[x] ==
-		     0.0 ? path.elevation[x] * METERS_PER_FOOT : (clutter +
-								  path.
-								  elevation[x])
-		     * METERS_PER_FOOT);
-
+		    (path.elevation[x] == 0.0 ? path.elevation[x] : (clutter + path.elevation[x]));
 
 	/* Copy ending points without clutter */
 
-	elev[2] = path.elevation[0] * METERS_PER_FOOT;
+	elev[2] = path.elevation[0];
 
-	elev[path.length + 1] =
-	    path.elevation[path.length - 1] * METERS_PER_FOOT;
+	elev[path.length + 1] = path.elevation[path.length - 1];
 
 	/* Since the only energy the Longley-Rice model considers
 	   reaching the destination is based on what is scattered
@@ -513,7 +507,7 @@ void PlotPropPath(
 			(mask_value << 3) && can_process(path.lat[y], path.lon[y])) {
 		//if (can_process(path.lat[y], path.lon[y])) {
 
-			distance = FEET_PER_MILE * path.distance[y];
+			distance = path.distance[y] * 1000.0;
 			xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
 			dest_alt2 = dest_alt * dest_alt;
@@ -536,7 +530,7 @@ void PlotPropPath(
 
 				for (x = 2, block = 0; (x < y && block == 0);
 				     x++) {
-					distance = FEET_PER_MILE * path.distance[x];
+					distance = path.distance[x] * 1000.0;
 
 					test_alt =
 					    FOUR_THIRDS_EARTH +
@@ -588,11 +582,9 @@ void PlotPropPath(
 
 			elev[0] = y - 1;	/* (number of points - 1) */
 
-			/* Distance between elevation samples */
+			/* Distance between elevation samples (meters) */
 
-			elev[1] =
-			    METERS_PER_MILE * (path.distance[y] -
-					       path.distance[y - 1]);
+			elev[1] = (path.distance[y] - path.distance[y - 1]) * 1000.0;
 
 			if (path.elevation[y] < 1) {
 				path.elevation[y] = 1;
@@ -601,12 +593,11 @@ void PlotPropPath(
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
 			switch (prop_model) {
-			
+
                 case ITM_LR:
                     // Longley Rice ITM
-                    point_to_point_ITM(source.alt * METERS_PER_FOOT,
-                            destination.alt *
-                            METERS_PER_FOOT,
+                    point_to_point_ITM(source.alt,
+                            destination.alt,
                             LR.eps_dielect,
                             LR.sgm_conductivity,
                             LR.eno_ns_surfref,
@@ -614,85 +605,69 @@ void PlotPropPath(
                             LR.pol, LR.conf, LR.rel,
                             loss, strmode, errnum);
                     break;
-                
+
                 case HATA:
                     //HATA 1, 2 & 3
                     loss =
-                        HATApathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-                            (path.elevation[y] * METERS_PER_FOOT) +	 (destination.alt * METERS_PER_FOOT), dkm, pmenv);
+                        HATApathLoss(LR.frq_mhz, source.alt,
+                            path.elevation[y] + destination.alt, dkm, pmenv);
                     break;
-                
+
                 case ECC33:
                     // ECC33
                     loss =
-                        ECC33pathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-                            (path.elevation[y] *
-                            METERS_PER_FOOT) +
-                            (destination.alt *
-                            METERS_PER_FOOT), dkm,
-                            pmenv);
+                        ECC33pathLoss(LR.frq_mhz, source.alt,
+                            path.elevation[y] + destination.alt, dkm, pmenv);
                     break;
-                
+
                 case SUI:
                     // SUI
                     loss =
-                        SUIpathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-                            (path.elevation[y] *
-                            METERS_PER_FOOT) +
-                            (destination.alt *
-                            METERS_PER_FOOT), dkm, pmenv);
+                        SUIpathLoss(LR.frq_mhz, source.alt,
+                            path.elevation[y] + destination.alt, dkm, pmenv);
                     break;
-                
+
                 case COST231_HATA:
                     // COST231-Hata
                     loss =
-                        COST231pathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-                            (path.elevation[y] *
-                            METERS_PER_FOOT) +
-                                (destination.alt *
-                                METERS_PER_FOOT), dkm,
-                                pmenv);
+                        COST231pathLoss(LR.frq_mhz, source.alt,
+                            path.elevation[y] + destination.alt, dkm, pmenv);
                     break;
-                
+
                 case ITU_R:
                     // ITU-R P.525 Free space path loss
                     loss = FSPLpathLoss(LR.frq_mhz, dkm, false);
                     break;
-                
+
                 case ITWOM_3:
                     // ITWOM 3.0
-                    point_to_point(source.alt * METERS_PER_FOOT,
-                            destination.alt *
-                            METERS_PER_FOOT, LR.eps_dielect,
+                    point_to_point(source.alt,
+                            destination.alt,
+                            LR.eps_dielect,
                             LR.sgm_conductivity,
-
                             LR.eno_ns_surfref, LR.frq_mhz,
                             LR.radio_climate, LR.pol,
                             LR.conf, LR.rel, loss, strmode,
                             errnum);
                     break;
-                
+
                 case ERICSSON:
                     // Ericsson
                     loss =
-                        EricssonpathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-                            (path.elevation[y] *
-                            METERS_PER_FOOT) +
-                                (destination.alt *
-                                METERS_PER_FOOT), dkm,
-                                pmenv);
+                        EricssonpathLoss(LR.frq_mhz, source.alt,
+                            path.elevation[y] + destination.alt, dkm, pmenv);
                     break;
-                
+
                 case PLANE_EARTH:
                     // Plane earth
-                    loss =	PlaneEarthLoss(dkm, source.alt * METERS_PER_FOOT, (path.elevation[y] * METERS_PER_FOOT) + (destination.alt * METERS_PER_FOOT));
+                    loss = PlaneEarthLoss(dkm, source.alt, path.elevation[y] + destination.alt);
                     break;
-                
+
                 case ELGI_V_U:
                     // Egli VHF/UHF
-                    loss = EgliPathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT, (path.elevation[y] * METERS_PER_FOOT) + (destination.alt * METERS_PER_FOOT),dkm);
+                    loss = EgliPathLoss(LR.frq_mhz, source.alt, path.elevation[y] + destination.alt, dkm);
                     break;
-                
+
                 case SOIL:
                     // Soil
                     loss = SoilPathLoss(LR.frq_mhz, dkm, LR.eps_dielect);
@@ -700,9 +675,8 @@ void PlotPropPath(
 
                 default:
                     spdlog::warn("Defaulting to ITM propagation model");
-                    point_to_point_ITM(source.alt * METERS_PER_FOOT,
-                            destination.alt *
-                            METERS_PER_FOOT,
+                    point_to_point_ITM(source.alt,
+                            destination.alt,
                             LR.eps_dielect,
                             LR.sgm_conductivity,
                             LR.eno_ns_surfref,
@@ -713,8 +687,7 @@ void PlotPropPath(
 
 			if (knifeedge == 1 && prop_model > 1) {
 				diffloss =
-				    ked(LR.frq_mhz,
-					destination.alt * METERS_PER_FOOT, dkm);
+				    ked(LR.frq_mhz, destination.alt, dkm);
 				loss += (diffloss);	// ;)
 			}
 			//Key stage. Link dB for p2p is returned as 'loss'.
@@ -932,18 +905,13 @@ void PlotPropagation(struct site source, bbox bounds,
 				sprintf(plotType, "field strength");
 		}
 	}
-	spdlog::debug("Plotting {} contours of \"{}\" out to a radius of {:.2f} {} with Rx antenna(s) at {:.2f} {} AGL",
-            plotType,
-			source.name,
-			metric ? max_range * KM_PER_MILE : max_range,
-			metric ? "kilometers" : "miles",
-			metric ? altitude * METERS_PER_FOOT : altitude,
-			metric ? "meters" : "feet");
+	spdlog::debug("Plotting {} contours of \"{}\" out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
+            plotType, source.name, max_range, altitude);
 
 	if (clutter > 0.0)
-        spdlog::debug("Using {:.2f} {} of ground clutter", metric ? clutter * METERS_PER_FOOT : clutter, metric ? "meters" : "feet");
+        spdlog::debug("Using {:.2f} meters of ground clutter", clutter);
 
-    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} ft AGL", source.lat, source.lon, source.alt);
+    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
 
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
     double plot_height = bounds.upper_left.lat - bounds.lower_right.lat;
@@ -1090,13 +1058,6 @@ void PlotPropagationRadius(struct site source, double range,
                             bool use_threads, uint8_t segments)
 {
 
-    // Convert our imperial units to metric if needed
-    if (metric)
-    {
-        range *= KM_PER_MILE;
-        altitude *= METERS_PER_FOOT;
-    }
-
     // Ensure segments is a logical value
     if ((segments % 2 != 0) && (segments % 3 != 0))
     {
@@ -1131,10 +1092,10 @@ void PlotPropagationRadius(struct site source, double range,
 
     // Optional clutter debug print
 	if (clutter > 0.0)
-        spdlog::debug("Using {:.2f} {} of ground clutter", metric ? clutter * METERS_PER_FOOT : clutter, metric ? "meters" : "feet");
+        spdlog::debug("Using {:.2f} meters of ground clutter", clutter);
 
     // TX site location print
-    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} ft AGL", source.lat, source.lon, source.alt);
+    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
 
     // Get bounding box of plot
     bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
@@ -1264,7 +1225,7 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 		   tested and found to be free of obstructions. */
 
 		if ((GetMask(path.lat[y], path.lon[y]) & mask_value) == 0) {
-			distance = FEET_PER_MILE * path.distance[y];
+			distance = path.distance[y] * 1000.0;
 			tx_alt = earthradius + source.alt + path.elevation[0];
 			rx_alt =
 			    earthradius + destination.alt + path.elevation[y];
@@ -1278,8 +1239,7 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 
 			for (x = y, block = 0; x >= 0 && block == 0; x--) {
 				distance =
-				    FEET_PER_MILE * (path.distance[y] -
-					      path.distance[x]);
+				    (path.distance[y] - path.distance[x]) * 1000.0;
 				test_alt =
 				    earthradius + (path.elevation[x] ==
 						   0.0 ? path.

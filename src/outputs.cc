@@ -966,21 +966,10 @@ void PathReport(struct site source, struct site destination, char *name,
 		}
 	}
 
-	if (metric) {
-		fprintf(fd2, "Ground elevation: %.2f meters AMSL\n",
-			METERS_PER_FOOT * GetElevation(source));
-		fprintf(fd2,
-			"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
-			METERS_PER_FOOT * source.alt,
-			METERS_PER_FOOT * (source.alt + GetElevation(source)));
-	}
-
-	else {
-		fprintf(fd2, "Ground elevation: %.2f feet AMSL\n",
-			GetElevation(source));
-		fprintf(fd2, "Antenna height: %.2f feet AGL / %.2f feet AMSL\n",
-			source.alt, source.alt + GetElevation(source));
-	}
+	fprintf(fd2, "Ground elevation: %.2f meters AMSL\n", GetElevation(source));
+	fprintf(fd2,
+		"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
+		source.alt, source.alt + GetElevation(source));
 
 	azimuth = Azimuth(source, destination);
 	angle1 = ElevationAngle(source, destination);
@@ -996,14 +985,8 @@ void PathReport(struct site source, struct site destination, char *name,
 		patterndB = 20.0 * log10(pattern);
 	}
 
-	if (metric)
-		fprintf(fd2, "Distance to %s: %.2f kilometers\n",
-			destination.name, KM_PER_MILE * Distance(source,
-								 destination));
-
-	else
-		fprintf(fd2, "Distance to %s: %.2f miles\n", destination.name,
-			Distance(source, destination));
+	fprintf(fd2, "Distance to %s: %.2f kilometers\n",
+		destination.name, Distance(source, destination));
 
 	fprintf(fd2, "Azimuth to %s: %.2f degrees grid\n", destination.name,
 		azimuth);
@@ -1036,31 +1019,13 @@ void PathReport(struct site source, struct site destination, char *name,
 		}
 	}
 
-	if (metric) {
-		fprintf(fd2, "Ground elevation: %.2f meters AMSL\n",
-			METERS_PER_FOOT * GetElevation(destination));
-		fprintf(fd2,
-			"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
-			METERS_PER_FOOT * destination.alt,
-			METERS_PER_FOOT * (destination.alt +
-					   GetElevation(destination)));
-	}
+	fprintf(fd2, "Ground elevation: %.2f meters AMSL\n", GetElevation(destination));
+	fprintf(fd2,
+		"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
+		destination.alt, destination.alt + GetElevation(destination));
 
-	else {
-		fprintf(fd2, "Ground elevation: %.2f feet AMSL\n",
-			GetElevation(destination));
-		fprintf(fd2, "Antenna height: %.2f feet AGL / %.2f feet AMSL\n",
-			destination.alt,
-			destination.alt + GetElevation(destination));
-	}
-
-	if (metric)
-		fprintf(fd2, "Distance to %s: %.2f kilometers\n", source.name,
-			KM_PER_MILE * Distance(source, destination));
-
-	else
-		fprintf(fd2, "Distance to %s: %.2f miles\n", source.name,
-			Distance(source, destination));
+	fprintf(fd2, "Distance to %s: %.2f kilometers\n", source.name,
+		Distance(source, destination));
 
 	azimuth = Azimuth(destination, source);
 
@@ -1235,22 +1200,18 @@ void PathReport(struct site source, struct site destination, char *name,
 
 		for (x = 1; x < path.length - 1; x++)
 			elev[x + 2] =
-			    METERS_PER_FOOT * (path.elevation[x] ==
-					       0.0 ? path.
-					       elevation[x] : (clutter +
-							       path.
-							       elevation[x]));
+			    (path.elevation[x] ==
+			     0.0 ? path.elevation[x] : (clutter + path.elevation[x]));
 
 		/* Copy ending points without clutter */
 
-		elev[2] = path.elevation[0] * METERS_PER_FOOT;
-		elev[path.length + 1] =
-		    path.elevation[path.length - 1] * METERS_PER_FOOT;
+		elev[2] = path.elevation[0];
+		elev[path.length + 1] = path.elevation[path.length - 1];
 
 		azimuth = rint(Azimuth(source, destination));
 
 		for (y = 2; y < (path.length - 1); y++) {	/* path.length-1 avoids LR error */
-			distance = FEET_PER_MILE * path.distance[y];
+			distance = path.distance[y] * 1000.0;
 
 			source_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt +
@@ -1272,8 +1233,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 				for (x = 2, block = 0; x < y && block == 0; x++) {
 					distance =
-					    FEET_PER_MILE * (path.distance[y] -
-						      path.distance[x]);
+					    (path.distance[y] - path.distance[x]) * 1000.0;
 					test_alt =
 					    FOUR_THIRDS_EARTH +
 					    path.elevation[x];
@@ -1314,27 +1274,17 @@ void PathReport(struct site source, struct site destination, char *name,
 
 			elev[0] = y - 1;	/* (number of points - 1) */
 
-			/* Distance between elevation samples */
+			/* Distance between elevation samples (meters) */
 
-			elev[1] =
-			    METERS_PER_MILE * (path.distance[y] -
-					       path.distance[y - 1]);
+			elev[1] = (path.distance[y] - path.distance[y - 1]) * 1000.0;
 
-			/*
-			   point_to_point(elev, source.alt*METERS_PER_FOOT,
-			   destination.alt*METERS_PER_FOOT, LR.eps_dielect,
-			   LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
-			   LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
-			   strmode, errnum);
-			 */
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
 			switch (propmodel) {
 			case 1:
 				// Longley Rice ITM
-				point_to_point_ITM(source.alt * METERS_PER_FOOT,
-						   destination.alt *
-						   METERS_PER_FOOT,
+				point_to_point_ITM(source.alt,
+						   destination.alt,
 						   LR.eps_dielect,
 						   LR.sgm_conductivity,
 						   LR.eno_ns_surfref,
@@ -1345,29 +1295,25 @@ void PathReport(struct site source, struct site destination, char *name,
 			case 3:
 				//HATA 1, 2 & 3
 				loss =
-				    HATApathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-						 (path.elevation[y] * METERS_PER_FOOT) +
-						 (destination.alt * METERS_PER_FOOT), dkm, pmenv);
+				    HATApathLoss(LR.frq_mhz, source.alt,
+						 path.elevation[y] + destination.alt, dkm, pmenv);
 				break;
 			case 4:
 				// COST231-HATA
 				loss =
-				    ECC33pathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-						  (path.elevation[y] * METERS_PER_FOOT) +
-						  (destination.alt * METERS_PER_FOOT), dkm, pmenv);
+				    ECC33pathLoss(LR.frq_mhz, source.alt,
+						  path.elevation[y] + destination.alt, dkm, pmenv);
 				break;
 			case 5:
 				// SUI
 				loss =
-				    SUIpathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-						(path.elevation[y] * METERS_PER_FOOT) +
-						(destination.alt * METERS_PER_FOOT), dkm, pmenv);
+				    SUIpathLoss(LR.frq_mhz, source.alt,
+						path.elevation[y] + destination.alt, dkm, pmenv);
 				break;
 			case 6:
 				loss =
-				    COST231pathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-						    (path.elevation[y] * METERS_PER_FOOT) +
-						    (destination.alt * METERS_PER_FOOT), dkm,pmenv);
+				    COST231pathLoss(LR.frq_mhz, source.alt,
+						    path.elevation[y] + destination.alt, dkm, pmenv);
 				break;
 			case 7:
 				// ITU-R P.525 Free space path loss
@@ -1375,9 +1321,9 @@ void PathReport(struct site source, struct site destination, char *name,
 				break;
 			case 8:
 				// ITWOM 3.0
-				point_to_point(source.alt * METERS_PER_FOOT,
-					       destination.alt *
-					       METERS_PER_FOOT, LR.eps_dielect,
+				point_to_point(source.alt,
+					       destination.alt,
+					       LR.eps_dielect,
 					       LR.sgm_conductivity,
 					       LR.eno_ns_surfref, LR.frq_mhz,
 					       LR.radio_climate, LR.pol,
@@ -1387,17 +1333,14 @@ void PathReport(struct site source, struct site destination, char *name,
 			case 9:
 				// Ericsson
 				loss =
-				    EricssonpathLoss(LR.frq_mhz, source.alt * METERS_PER_FOOT,
-						     (path.elevation[y] * METERS_PER_FOOT) +
-						     (destination.alt *
-						      METERS_PER_FOOT), dkm,
+				    EricssonpathLoss(LR.frq_mhz, source.alt,
+						     path.elevation[y] + destination.alt, dkm,
 						     pmenv);
 				break;
 
 			default:
-				point_to_point_ITM(source.alt * METERS_PER_FOOT,
-						   destination.alt *
-						   METERS_PER_FOOT,
+				point_to_point_ITM(source.alt,
+						   destination.alt,
 						   LR.eps_dielect,
 						   LR.sgm_conductivity,
 						   LR.eno_ns_surfref,
@@ -1618,16 +1561,10 @@ void PathReport(struct site source, struct site destination, char *name,
 			destination.name, source.name, Azimuth(destination,
 							       source), 176);
 
-		if (metric)
-			fprintf(fd,
-				"set xlabel \"Distance Between %s and %s (%.2f kilometers)\"\n",
-				destination.name, source.name,
-				KM_PER_MILE * Distance(destination, source));
-		else
-			fprintf(fd,
-				"set xlabel \"Distance Between %s and %s (%.2f miles)\"\n",
-				destination.name, source.name,
-				Distance(destination, source));
+		fprintf(fd,
+			"set xlabel \"Distance Between %s and %s (%.2f kilometers)\"\n",
+			destination.name, source.name,
+			Distance(destination, source));
 
 		if (got_azimuth_pattern || got_elevation_pattern)
 			fprintf(fd,
@@ -1683,8 +1620,8 @@ void SeriesData(struct site source, struct site destination, char *name,
 	spdlog::debug("SeriesData: az = {}, dist = {}, ref = {}, b = {}", azimuth, distance, refangle, b);
 	
 	if (fresnel_plot) {
-		lambda = 9.8425e8 / (LR.frq_mhz * 1e6);
-		d = FEET_PER_MILE * path.distance[path.length - 1];
+		lambda = 299792458.0 / (LR.frq_mhz * 1e6);
+		d = path.distance[path.length - 1] * 1000.0;
 	}
 
 	if (normalised) {
@@ -1727,7 +1664,7 @@ void SeriesData(struct site source, struct site destination, char *name,
 			terrain += destination.alt;	/* RX antenna spike */
 
 		a = terrain + earthradius;
-		cangle = FEET_PER_MILE * Distance(destination, remote) / earthradius;
+		cangle = Distance(destination, remote) * 1000.0 / earthradius;
 		c = b * sin(refangle * DEG2RAD + HALFPI) / sin(HALFPI -
 							       refangle *
 							       DEG2RAD -
@@ -1745,7 +1682,7 @@ void SeriesData(struct site source, struct site destination, char *name,
 
 		if ((LR.frq_mhz >= 20.0) && (LR.frq_mhz <= 100000.0)
 		    && fresnel_plot) {
-			d1 = FEET_PER_MILE * path.distance[x];
+			d1 = path.distance[x] * 1000.0;
 			f_zone = -1.0 * sqrt(lambda * d1 * (d - d1) / d);
 			fpt6_zone = f_zone * fzone_clearance;
 		}
@@ -1764,60 +1701,21 @@ void SeriesData(struct site source, struct site destination, char *name,
 		else
 			r = 0.0;
 
-		if (metric) {
-			if (METERS_PER_FOOT * height > 0) {
-				fprintf(fd, "%.3f %.3f\n",
-					KM_PER_MILE * path.distance[x],
-					METERS_PER_FOOT * height);
-			}
-
-			if (fd1 != NULL && x > 0 && x < path.length - 2)
-				fprintf(fd1, "%.3f %.3f\n",
-					KM_PER_MILE * path.distance[x],
-					METERS_PER_FOOT * (terrain ==
-							   0.0 ? height
-							   : (height +
-							      clutter)));
-
-			fprintf(fd2, "%.3f %.3f\n",
-				KM_PER_MILE * path.distance[x],
-				METERS_PER_FOOT * r);
-			fprintf(fd5, "%.3f %.3f\n",
-				KM_PER_MILE * path.distance[x],
-				METERS_PER_FOOT * (height - terrain));
-
-		}
-
-		else {
+		if (height > 0) {
 			fprintf(fd, "%.3f %.3f\n", path.distance[x], height);
-
-			if (fd1 != NULL && x > 0 && x < path.length - 2)
-				fprintf(fd1, "%.3f %.3f\n", path.distance[x],
-					(terrain ==
-					 0.0 ? height : (height + clutter)));
-
-			fprintf(fd2, "%.3f %.3f\n", path.distance[x], r);
-			fprintf(fd5, "%.3f %.3f\n", path.distance[x],
-				height - terrain);
 		}
+
+		if (fd1 != NULL && x > 0 && x < path.length - 2)
+			fprintf(fd1, "%.3f %.3f\n", path.distance[x],
+				(terrain == 0.0 ? height : (height + clutter)));
+
+		fprintf(fd2, "%.3f %.3f\n", path.distance[x], r);
+		fprintf(fd5, "%.3f %.3f\n", path.distance[x], height - terrain);
 
 		if ((LR.frq_mhz >= 20.0) && (LR.frq_mhz <= 100000.0)
 		    && fresnel_plot) {
-			if (metric) {
-				fprintf(fd3, "%.3f %.3f\n",
-					KM_PER_MILE * path.distance[x],
-					METERS_PER_FOOT * f_zone);
-				fprintf(fd4, "%.3f %.3f\n",
-					KM_PER_MILE * path.distance[x],
-					METERS_PER_FOOT * fpt6_zone);
-			}
-
-			else {
-				fprintf(fd3, "%.3f %.3f\n", path.distance[x],
-					f_zone);
-				fprintf(fd4, "%.3f %.3f\n", path.distance[x],
-					fpt6_zone);
-			}
+			fprintf(fd3, "%.3f %.3f\n", path.distance[x], f_zone);
+			fprintf(fd4, "%.3f %.3f\n", path.distance[x], fpt6_zone);
 
 			if (f_zone < minheight)
 				minheight = f_zone;
@@ -1844,36 +1742,12 @@ void SeriesData(struct site source, struct site destination, char *name,
 	else
 		r = 0.0;
 
-	if (metric) {
-		fprintf(fd, "%.3f %.3f",
-			KM_PER_MILE * path.distance[path.length - 1],
-			METERS_PER_FOOT * r);
-		fprintf(fd2, "%.3f %.3f",
-			KM_PER_MILE * path.distance[path.length - 1],
-			METERS_PER_FOOT * r);
-	}
-
-	else {
-		fprintf(fd, "%.3f %.3f", path.distance[path.length - 1], r);
-		fprintf(fd2, "%.3f %.3f", path.distance[path.length - 1], r);
-	}
+	fprintf(fd, "%.3f %.3f", path.distance[path.length - 1], r);
+	fprintf(fd2, "%.3f %.3f", path.distance[path.length - 1], r);
 
 	if ((LR.frq_mhz >= 20.0) && (LR.frq_mhz <= 100000.0) && fresnel_plot) {
-		if (metric) {
-			fprintf(fd3, "%.3f %.3f",
-				KM_PER_MILE * path.distance[path.length - 1],
-				METERS_PER_FOOT * r);
-			fprintf(fd4, "%.3f %.3f",
-				KM_PER_MILE * path.distance[path.length - 1],
-				METERS_PER_FOOT * r);
-		}
-
-		else {
-			fprintf(fd3, "%.3f %.3f",
-				path.distance[path.length - 1], r);
-			fprintf(fd4, "%.3f %.3f",
-				path.distance[path.length - 1], r);
-		}
+		fprintf(fd3, "%.3f %.3f", path.distance[path.length - 1], r);
+		fprintf(fd4, "%.3f %.3f", path.distance[path.length - 1], r);
 	}
 
 	if (r > maxheight)

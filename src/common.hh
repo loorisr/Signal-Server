@@ -17,17 +17,12 @@
 
 // Multiplier to convert decimal degrees to radians
 #define DEG2RAD		1.74532925199e-02
-// Radius of the earth, in ft
-#define	EARTHRADIUS	20902230.97
-// Other common conversion multipliers
-#define	METERS_PER_MILE 1609.344
-#define	METERS_PER_FOOT 0.3048
-#define	KM_PER_MILE	1.609344
-#define	FEET_PER_MILE	5280.0
+// Radius of the earth, in meters
+#define	EARTHRADIUS	6371000.0
 #define FOUR_THIRDS	1.3333333333333
 #define KM_PER_DEG_LAT 110.754
 
-#define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS);
+#define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS)
 //#define MAX(x,y)((x)>(y)?(x):(y))
 
 struct dem {
@@ -134,7 +129,6 @@ extern char gpsav;
 
 extern unsigned char got_elevation_pattern;
 extern unsigned char got_azimuth_pattern;
-extern unsigned char metric;
 extern unsigned char dbm;
 extern unsigned char geotiff;
 extern unsigned char write_ppm;

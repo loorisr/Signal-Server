@@ -66,7 +66,7 @@ int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
     loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0;
 
-unsigned char got_elevation_pattern, got_azimuth_pattern, metric = 0, dbm = 0;
+unsigned char got_elevation_pattern, got_azimuth_pattern, dbm = 0;
 unsigned char geotiff = 0;
 unsigned char json = 0;
 unsigned char write_ppm = 0;
@@ -319,7 +319,7 @@ double GetElevation(struct site location)
     }
 
     if (found)
-        elevation = 3.28084 * dem[indx].data[x][y];
+        elevation = (double)dem[indx].data[x][y];
     else
         elevation = -5000.0;
 
@@ -384,7 +384,7 @@ double dist(double lat1, double lon1, double lat2, double lon2)
 double Distance(struct site site1, struct site site2)
 {
     /* This function returns the great circle distance
-       in miles between any two site locations. */
+       in kilometers between any two site locations. */
 
     double lat1, lon1, lat2, lon2, distance;
 
@@ -394,7 +394,7 @@ double Distance(struct site site1, struct site site2)
     lon2 = site2.lon * DEG2RAD;
 
     distance =
-        3959.0 * acos(sin(lat1) * sin(lat2) +
+        6371.0 * acos(sin(lat1) * sin(lat2) +
               cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
 
     return distance;
@@ -468,7 +468,7 @@ double ElevationAngle(struct site source, struct site destination)
     a = GetElevation(destination) + destination.alt + earthradius;
     b = GetElevation(source) + source.alt + earthradius;
 
-    dx = FEET_PER_MILE * Distance(source, destination);
+    dx = Distance(source, destination) * 1000.0;
 
     /* Apply the Law of Cosines */
 
@@ -528,7 +528,7 @@ void ReadPath(struct site source, struct site destination)
     for (distance = 0.0, c = 0;
          (total_distance != 0.0 && distance <= total_distance
           && c < ARRAYSIZE); c++, distance = miles_per_sample * (double)c) {
-        beta = distance / 3959.0;
+        beta = distance / 6371.0;
         lat2 =
             asin(sin(lat1) * cos(beta) +
              cos(azimuth) * sin(beta) * cos(lat1));
@@ -603,7 +603,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 
     ReadPath(source, destination);
 
-    distance = FEET_PER_MILE * Distance(source, destination);
+    distance = Distance(source, destination) * 1000.0;
     source_alt = er + source.alt + GetElevation(source);
     destination_alt = er + destination.alt + GetElevation(destination);
     source_alt2 = source_alt * source_alt;
@@ -623,7 +623,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
        obstruction along the path between source and destination. */
 
     for (x = 2, block = 0; x < path.length && block == 0; x++) {
-        distance = FEET_PER_MILE * path.distance[x];
+        distance = path.distance[x] * 1000.0;
 
         test_alt =
             earthradius + (path.elevation[x] ==
@@ -741,24 +741,18 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
     h_r_fpt6 = h_r;
     h_r_orig = h_r;
     h_t = GetElevation(xmtr) + xmtr.alt + earthradius;
-    d_tx = FEET_PER_MILE * Distance(rcvr, xmtr);
+    d_tx = Distance(rcvr, xmtr) * 1000.0;
     cos_tx_angle =
         ((h_r * h_r) + (d_tx * d_tx) - (h_t * h_t)) / (2.0 * h_r * d_tx);
     cos_tx_angle_f1 = cos_tx_angle;
     cos_tx_angle_fpt6 = cos_tx_angle;
 
     if (f)
-        lambda = 9.8425e8 / (f * 1e6);
+        lambda = 299792458.0 / (f * 1e6);
 
     if (clutter > 0.0) {
         fprintf(outfile, "Terrain has been raised by");
-
-        if (metric)
-            fprintf(outfile, " %.2f meters",
-                METERS_PER_FOOT * clutter);
-        else
-            fprintf(outfile, " %.2f feet", clutter);
-
+        fprintf(outfile, " %.2f meters", clutter);
         fprintf(outfile, " to account for ground clutter.\n\n");
     }
 
@@ -782,7 +776,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
         site_x.alt = 0.0;
 
         h_x = GetElevation(site_x) + earthradius + clutter;
-        d_x = FEET_PER_MILE * Distance(rcvr, site_x);
+        d_x = Distance(rcvr, site_x) * 1000.0;
 
         /* Deal with the LOS path first. */
 
@@ -797,35 +791,19 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
                     rcvr.name, xmtr.name);
 
             if (site_x.lat >= 0.0) {
-                if (metric)
-                    fprintf(outfile,
-                        "   %8.4f N,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                        site_x.lat, site_x.lon,
-                        KM_PER_MILE * (d_x / FEET_PER_MILE),
-                        METERS_PER_FOOT * (h_x -
-                                   earthradius));
-                else
-                    fprintf(outfile,
-                        "   %8.4f N,%9.4f W, %5.2f miles, %6.2f feet AMSL\n",
-                        site_x.lat, site_x.lon,
-                        d_x / FEET_PER_MILE,
-                        h_x - earthradius);
+                fprintf(outfile,
+                    "   %8.4f N,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
+                    site_x.lat, site_x.lon,
+                    d_x / 1000.0,
+                    h_x - earthradius);
             }
 
             else {
-                if (metric)
-                    fprintf(outfile,
-                        "   %8.4f S,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                        -site_x.lat, site_x.lon,
-                        KM_PER_MILE * (d_x / FEET_PER_MILE),
-                        METERS_PER_FOOT * (h_x -
-                                   earthradius));
-                else
-                    fprintf(outfile,
-                        "   %8.4f S,%9.4f W, %5.2f miles, %6.2f feet AMSL\n",
-                        -site_x.lat, site_x.lon,
-                        d_x / FEET_PER_MILE,
-                        h_x - earthradius);
+                fprintf(outfile,
+                    "   %8.4f S,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
+                    -site_x.lat, site_x.lon,
+                    d_x / 1000.0,
+                    h_x - earthradius);
             }
         }
 
@@ -894,17 +872,10 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
     }
 
     if (h_r > h_r_orig) {
-        if (metric)
-            snprintf(string, 150,
-                 "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected.\n",
-                 rcvr.name,
-                 METERS_PER_FOOT * (h_r - GetElevation(rcvr) -
-                            earthradius));
-        else
-            snprintf(string, 150,
-                 "\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear all obstructions detected.\n",
-                 rcvr.name,
-                 h_r - GetElevation(rcvr) - earthradius);
+        snprintf(string, 150,
+             "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected.\n",
+             rcvr.name,
+             h_r - GetElevation(rcvr) - earthradius);
     }
 
     else
@@ -913,22 +884,11 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
 
     if (f) {
         if (h_r_fpt6 > h_r_orig) {
-            if (metric)
-                snprintf(string_fpt6, 150,
-                     "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",
-                     rcvr.name,
-                     METERS_PER_FOOT * (h_r_fpt6 -
-                                GetElevation(rcvr) -
-                                earthradius),
-                     fzone_clearance * 100.0, 37);
-
-            else
-                snprintf(string_fpt6, 150,
-                     "\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear %.0f%c of the first Fresnel zone.\n",
-                     rcvr.name,
-                     h_r_fpt6 - GetElevation(rcvr) -
-                     earthradius, fzone_clearance * 100.0,
-                     37);
+            snprintf(string_fpt6, 150,
+                 "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",
+                 rcvr.name,
+                 h_r_fpt6 - GetElevation(rcvr) - earthradius,
+                 fzone_clearance * 100.0, 37);
         }
 
         else
@@ -937,21 +897,10 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
                  fzone_clearance * 100.0, 37);
 
         if (h_r_f1 > h_r_orig) {
-            if (metric)
-                snprintf(string_f1, 150,
-                     "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",
-                     rcvr.name,
-                     METERS_PER_FOOT * (h_r_f1 -
-                                GetElevation(rcvr) -
-                                earthradius));
-
-            else
-                snprintf(string_f1, 150,
-                     "\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear the first Fresnel zone.\n",
-                     rcvr.name,
-                     h_r_f1 - GetElevation(rcvr) -
-                     earthradius);
-
+            snprintf(string_f1, 150,
+                 "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",
+                 rcvr.name,
+                 h_r_f1 - GetElevation(rcvr) - earthradius);
         }
 
         else
@@ -1172,8 +1121,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "     -rlo (Optional) Rx Longitude for PPA (decimal degrees) -180/+180\n");
         fprintf(stdout,	"     -f Tx Frequency (MHz) 20MHz to 100GHz (LOS after 20GHz)\n");
         fprintf(stdout,	"     -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14dBi = 0dBd\n");
-        fprintf(stdout, "     -gc Random ground clutter (feet/meters)\n");
-        fprintf(stdout, "     -m Metric units of measurement\n");
+        fprintf(stdout, "     -gc Random ground clutter (meters)\n");
         fprintf(stdout, "     -te Terrain code 1-6 (optional - 1. Water, 2. Marsh, 3. Farmland,\n");
         fprintf(stdout, "          4. Mountain, 5. Desert, 6. Urban\n");
         fprintf(stdout,	"     -terdic Terrain dielectric value 2-80 (optional)\n");
@@ -1189,7 +1137,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "     -o basename (Output file basename - required, min 5 chars)\n");
         fprintf(stdout,	"     -dbm Plot Rxd signal power instead of field strength in dBuV/m\n");
         fprintf(stdout, "     -rt Rx Threshold (dB / dBm / dBuV/m)\n");
-        fprintf(stdout, "     -R Radius (miles/kilometers)\n");
+        fprintf(stdout, "     -R Radius (kilometers)\n");
         fprintf(stdout,	"     -res Pixels per tile. 300/600/1200/3600 (Optional)\n");
         fprintf(stdout,	"     -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,\n");
         fprintf(stdout,	"          5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,\n");
@@ -1227,7 +1175,6 @@ int main(int argc, char *argv[])
     y = argc - 1;
     dbm = 0;
     gpsav = 0;
-    metric = 0;
     copernicus_path[0] = 0;
     mapfile[0] = 0;
     clutter = 0.0;
@@ -1415,10 +1362,6 @@ int main(int argc, char *argv[])
 
             if (z <= y && argv[z][0])	/* A minus argument is legal here */
                 sscanf(argv[z], "%d", &contour_threshold);
-        }
-
-        if (strcmp(argv[x], "-m") == 0) {
-            metric = 1;
         }
 
         if (strcmp(argv[x], "-hd") == 0) {
@@ -1819,15 +1762,6 @@ int main(int argc, char *argv[])
         spdlog::error("Cannot resample higher than a factor of 10");
         exit(EINVAL);	
     }
-    if (metric) {
-        altitudeLR /= METERS_PER_FOOT;	/* 10ft * 0.3 = 3.3m */
-        max_range /= KM_PER_MILE;	/* 10 / 1.6 = 7.5 */
-        altitude /= METERS_PER_FOOT;
-        tx_site[0].alt /= METERS_PER_FOOT;	/* Feet to metres */
-        tx_site[1].alt /= METERS_PER_FOOT;	/* Feet to metres */
-        clutter /= METERS_PER_FOOT;	/* Feet to metres */
-    }
-
     /* Ensure a trailing '/' is present in copernicus_path */
 
     if (copernicus_path[0]) {
@@ -1845,12 +1779,10 @@ int main(int argc, char *argv[])
     }
 
     spdlog::info("-------------------------------- Plot Information --------------------------------");
-    spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} ft AGL", tx_site[0].lat, tx_site[0].lon, tx_site[0].alt);
-    spdlog::info("    Plot parameters: {:.2f}-mile radius, resolution of {} ppd", max_range, ippd);
+    spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} m AGL", tx_site[0].lat, tx_site[0].lon, tx_site[0].alt);
+    spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range, ippd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
     spdlog::info("    Map segments: {}", segments);
-    if (metric)
-        spdlog::info("    Metric mode");
     if (use_threads)
         spdlog::info("    Using threaded processing");
     else
@@ -1877,10 +1809,10 @@ int main(int argc, char *argv[])
     double m_per_deg_lat = 111132.92 - (559.82 * cos(2 * tx_lat_rad)) + (1.175 * cos(4 * tx_lat_rad)) - (0.0023 * cos(6 * tx_lat_rad));
 
     // Calculate angular distance from the above numbers
-    double dist_deg_lon = (max_range * KM_PER_MILE * 1000) / m_per_deg_lon;
-    double dist_deg_lat = (max_range * KM_PER_MILE * 1000) / m_per_deg_lat;
+    double dist_deg_lon = (max_range * 1000.0) / m_per_deg_lon;
+    double dist_deg_lat = (max_range * 1000.0) / m_per_deg_lat;
 
-    spdlog::debug("Radius of {:.3f} mi is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
+    spdlog::debug("Radius of {:.3f} km is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
 
     // Calculate our plot bounds based on these numbers
     min_lon = tx_site[0].lon - dist_deg_lon;

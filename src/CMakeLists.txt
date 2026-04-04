@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Optimization
-set(CMAKE_CXX_FLAGS "-O3 -march=native -ffast-math -Wno-switch -Wno-unused-parameter -Wno-empty-body")
+set(CMAKE_CXX_FLAGS "-O3 -march=native -ffast-math")
 
 # Compiler warnings
 if (MSVC)
@@ -52,6 +52,7 @@ add_library(fspl STATIC models/fspl.cc)
 add_library(hata STATIC models/hata.cc)
 add_library(itwom3.0 STATIC models/itwom3.0.cc)
 add_library(los STATIC models/los.cc models/egli.cc)
+target_link_libraries(los PUBLIC cost ecc33 ericsson fspl hata itwom3.0 pel soil sui)
 add_library(pel STATIC models/pel.cc)
 add_library(soil STATIC models/soil.cc)
 add_library(sui STATIC models/sui.cc)

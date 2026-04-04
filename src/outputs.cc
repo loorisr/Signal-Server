@@ -10,13 +10,6 @@
 #include "main.hh"
 #include "inputs.hh"
 #include "models/los.hh"
-#include "models/cost.hh"
-#include "models/ecc33.hh"
-#include "models/ericsson.hh"
-#include "models/fspl.hh"
-#include "models/hata.hh"
-#include "models/itwom3.0.hh"
-#include "models/sui.hh"
 #include "image.hh"
 
 void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
@@ -1197,75 +1190,9 @@ void PathReport(struct site source, struct site destination, char *name,
 
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
-			switch (propmodel) {
-			case 1:
-				// Longley Rice ITM
-				point_to_point_ITM(source.alt,
-						   destination.alt,
-						   LR.eps_dielect,
-						   LR.sgm_conductivity,
-						   LR.eno_ns_surfref,
-						   LR.frq_mhz, LR.radio_climate,
-						   LR.pol, LR.conf, LR.rel,
-						   loss, strmode, errnum);
-				break;
-			case 3:
-				//HATA 1, 2 & 3
-				loss =
-				    HATApathLoss(LR.frq_mhz, source.alt,
-						 path.elevation[y] + destination.alt, dkm, pmenv);
-				break;
-			case 4:
-				// COST231-HATA
-				loss =
-				    ECC33pathLoss(LR.frq_mhz, source.alt,
-						  path.elevation[y] + destination.alt, dkm, pmenv);
-				break;
-			case 5:
-				// SUI
-				loss =
-				    SUIpathLoss(LR.frq_mhz, source.alt,
-						path.elevation[y] + destination.alt, dkm, pmenv);
-				break;
-			case 6:
-				loss =
-				    COST231pathLoss(LR.frq_mhz, source.alt,
-						    path.elevation[y] + destination.alt, dkm, pmenv);
-				break;
-			case 7:
-				// ITU-R P.525 Free space path loss
-				loss = FSPLpathLoss(LR.frq_mhz, dkm, false);
-				break;
-			case 8:
-				// ITWOM 3.0
-				point_to_point(source.alt,
-					       destination.alt,
-					       LR.eps_dielect,
-					       LR.sgm_conductivity,
-					       LR.eno_ns_surfref, LR.frq_mhz,
-					       LR.radio_climate, LR.pol,
-					       LR.conf, LR.rel, loss, strmode,
-					       errnum);
-				break;
-			case 9:
-				// Ericsson
-				loss =
-				    EricssonpathLoss(LR.frq_mhz, source.alt,
-						     path.elevation[y] + destination.alt, dkm,
-						     pmenv);
-				break;
-
-			default:
-				point_to_point_ITM(source.alt,
-						   destination.alt,
-						   LR.eps_dielect,
-						   LR.sgm_conductivity,
-						   LR.eno_ns_surfref,
-						   LR.frq_mhz, LR.radio_climate,
-						   LR.pol, LR.conf, LR.rel,
-						   loss, strmode, errnum);
-
-			}
+			loss = computeLoss(propmodel, source.alt, destination.alt,
+			                   path.elevation[y] + destination.alt, dkm, pmenv,
+			                   strmode, errnum);
 
 			if (block)
 				elevation =

@@ -1023,7 +1023,7 @@ int main(int argc, char *argv[])
     char mapfile[255], antenna_file[255];
     char *az_filename, *el_filename = NULL;
 
-    double altitude = 0.0, altitudeLR = 0.0;
+    double altitudeLR = 0.0;
 
     spdlog::info(ss_block);
 

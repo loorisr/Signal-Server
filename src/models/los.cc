@@ -448,9 +448,66 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
     }
 }
 
+double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
+                   double dkm, int pmenv, char *strmode, int &errnum)
+{
+    double loss = 0.0;
+
+    switch (model) {
+    case ITM_LR:
+        point_to_point_ITM(tx_alt, rx_alt,
+                           LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
+                           LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
+                           loss, strmode, errnum);
+        break;
+    case HATA:
+        loss = HATApathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
+        break;
+    case ECC33:
+        loss = ECC33pathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
+        break;
+    case SUI:
+        loss = SUIpathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
+        break;
+    case COST231_HATA:
+        loss = COST231pathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
+        break;
+    case ITU_R:
+        loss = FSPLpathLoss(LR.frq_mhz, dkm, false);
+        break;
+    case ITWOM_3:
+        point_to_point(tx_alt, rx_alt,
+                       LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
+                       LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
+                       loss, strmode, errnum);
+        break;
+    case ERICSSON:
+        loss = EricssonpathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
+        break;
+    case PLANE_EARTH:
+        loss = PlaneEarthLoss(dkm, tx_alt, rx_terrain_alt);
+        break;
+    case ELGI_V_U:
+        loss = EgliPathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm);
+        break;
+    case SOIL:
+        loss = SoilPathLoss(LR.frq_mhz, dkm, LR.eps_dielect);
+        break;
+    default:
+        spdlog::warn("Defaulting to ITM propagation model");
+        point_to_point_ITM(tx_alt, rx_alt,
+                           LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
+                           LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
+                           loss, strmode, errnum);
+        break;
+    }
+
+    return loss;
+}
+
 /**
  * Calculate propagation for the points on a line between two coordinates
- * 
+ *
  * @param source - the source site object
  * @param destination - the destination site object
 */
@@ -592,98 +649,9 @@ void PlotPropPath(
 
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
-			switch (prop_model) {
-
-                case ITM_LR:
-                    // Longley Rice ITM
-                    point_to_point_ITM(source.alt,
-                            destination.alt,
-                            LR.eps_dielect,
-                            LR.sgm_conductivity,
-                            LR.eno_ns_surfref,
-                            LR.frq_mhz, LR.radio_climate,
-                            LR.pol, LR.conf, LR.rel,
-                            loss, strmode, errnum);
-                    break;
-
-                case HATA:
-                    //HATA 1, 2 & 3
-                    loss =
-                        HATApathLoss(LR.frq_mhz, source.alt,
-                            path.elevation[y] + destination.alt, dkm, pmenv);
-                    break;
-
-                case ECC33:
-                    // ECC33
-                    loss =
-                        ECC33pathLoss(LR.frq_mhz, source.alt,
-                            path.elevation[y] + destination.alt, dkm, pmenv);
-                    break;
-
-                case SUI:
-                    // SUI
-                    loss =
-                        SUIpathLoss(LR.frq_mhz, source.alt,
-                            path.elevation[y] + destination.alt, dkm, pmenv);
-                    break;
-
-                case COST231_HATA:
-                    // COST231-Hata
-                    loss =
-                        COST231pathLoss(LR.frq_mhz, source.alt,
-                            path.elevation[y] + destination.alt, dkm, pmenv);
-                    break;
-
-                case ITU_R:
-                    // ITU-R P.525 Free space path loss
-                    loss = FSPLpathLoss(LR.frq_mhz, dkm, false);
-                    break;
-
-                case ITWOM_3:
-                    // ITWOM 3.0
-                    point_to_point(source.alt,
-                            destination.alt,
-                            LR.eps_dielect,
-                            LR.sgm_conductivity,
-                            LR.eno_ns_surfref, LR.frq_mhz,
-                            LR.radio_climate, LR.pol,
-                            LR.conf, LR.rel, loss, strmode,
-                            errnum);
-                    break;
-
-                case ERICSSON:
-                    // Ericsson
-                    loss =
-                        EricssonpathLoss(LR.frq_mhz, source.alt,
-                            path.elevation[y] + destination.alt, dkm, pmenv);
-                    break;
-
-                case PLANE_EARTH:
-                    // Plane earth
-                    loss = PlaneEarthLoss(dkm, source.alt, path.elevation[y] + destination.alt);
-                    break;
-
-                case ELGI_V_U:
-                    // Egli VHF/UHF
-                    loss = EgliPathLoss(LR.frq_mhz, source.alt, path.elevation[y] + destination.alt, dkm);
-                    break;
-
-                case SOIL:
-                    // Soil
-                    loss = SoilPathLoss(LR.frq_mhz, dkm, LR.eps_dielect);
-                    break;
-
-                default:
-                    spdlog::warn("Defaulting to ITM propagation model");
-                    point_to_point_ITM(source.alt,
-                            destination.alt,
-                            LR.eps_dielect,
-                            LR.sgm_conductivity,
-                            LR.eno_ns_surfref,
-                            LR.frq_mhz, LR.radio_climate,
-                            LR.pol, LR.conf, LR.rel,
-                            loss, strmode, errnum);
-			}
+			loss = computeLoss(prop_model, source.alt, destination.alt,
+			                   path.elevation[y] + destination.alt, dkm, pmenv,
+			                   strmode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {
 				diffloss =

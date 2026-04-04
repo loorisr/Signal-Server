@@ -46,6 +46,7 @@
 
 #include <chrono>
 #include <thread>
+#include <unordered_map>
 
 #include <spdlog/spdlog.h>
 
@@ -66,10 +67,10 @@ int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
     loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0;
 
-unsigned char got_elevation_pattern, got_azimuth_pattern, dbm = 0;
-unsigned char geotiff = 0;
-unsigned char json = 0;
-unsigned char write_ppm = 0;
+bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
+bool geotiff = false;
+bool json = false;
+bool write_ppm = false;
 
 bool to_stdout = false, cropping = true;
 
@@ -77,6 +78,7 @@ __thread double *elev;
 __thread struct path path;
 struct site tx_site[2];
 struct dem *dem;
+std::unordered_map<int32_t, int> dem_map;
 
 struct LR LR;
 struct region region;
@@ -171,6 +173,41 @@ void *dec2dms(double decimal, char *string)
     return (string);
 }
 
+/* Encode integer tile coordinates into a unique key.
+ * ilat ∈ [-90,89], ilon ∈ [-180,179]
+ * Packed into a single int32: (ilat+90 << 9) | (ilon+180)  (17 bits). */
+static inline int32_t dem_key(int ilat, int ilon)
+{
+    return ((ilat + 90) << 9) | (ilon + 180);
+}
+
+/* Look up the DEM tile that contains (lat, lon).
+ * Tries the primary tile (floor-based), then the 4 adjacent tiles to handle
+ * floating-point imprecision near tile edges (e.g. 44.9999... near 45.0).
+ * Returns the dem[] index and sets x_out/y_out, or returns -1 if not found. */
+static int find_dem_indx(double lat, double lon, int &x_out, int &y_out)
+{
+    int ilat = (int)floor(lat);
+    int ilon = (int)floor(lon);
+
+    static const int dlat[5] = {0, +1, -1,  0,  0};
+    static const int dlon[5] = {0,  0,  0, +1, -1};
+
+    for (int t = 0; t < 5; t++) {
+        auto it = dem_map.find(dem_key(ilat + dlat[t], ilon + dlon[t]));
+        if (it == dem_map.end()) continue;
+        int indx = it->second;
+        int x = (int)rint(ppd  * (lat - dem[indx].min_north));
+        int y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
+        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi) {
+            x_out = x;
+            y_out = y;
+            return indx;
+        }
+    }
+    return -1;
+}
+
 int PutMask(double lat, double lon, int value)
 {
     /* Lines, text, markings, and coverage areas are stored in a
@@ -179,26 +216,11 @@ int PutMask(double lat, double lon, int value)
        bits in the mask based on the latitude and longitude of the
        area pointed to. */
 
-    int x = 0, y = 0, indx;
-    char found;
-
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found) {
-        dem[indx].mask[x][y] = value;
-        return ((int)dem[indx].mask[x][y]);
-    }
-
-    else
-        return -1;
+    int x, y;
+    int indx = find_dem_indx(lat, lon, x, y);
+    if (indx < 0) return -1;
+    dem[indx].mask[x][y] = value;
+    return (int)dem[indx].mask[x][y];
 }
 
 int OrMask(double lat, double lon, int value)
@@ -209,26 +231,11 @@ int OrMask(double lat, double lon, int value)
        the mask based on the latitude and longitude of the area
        pointed to. */
 
-    int x = 0, y = 0, indx;
-    char found;
-
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found) {
-        dem[indx].mask[x][y] |= value;
-        return ((int)dem[indx].mask[x][y]);
-    }
-
-    else
-        return -1;
+    int x, y;
+    int indx = find_dem_indx(lat, lon, x, y);
+    if (indx < 0) return -1;
+    dem[indx].mask[x][y] |= value;
+    return (int)dem[indx].mask[x][y];
 }
 
 int GetMask(double lat, double lon)
@@ -241,34 +248,16 @@ int GetMask(double lat, double lon)
 
 void PutSignal(double lat, double lon, unsigned char signal)
 {
-    int x = 0, y = 0, indx;
-    char found;
-
     /* This function writes a signal level (0-255)
        at the specified location for later recall. */
 
     if (signal > hottest)	// dBm, dBuV
         hottest = signal;
 
-    //lookup x/y for this co-ord
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found) {		// Write values to file
+    int x, y;
+    int indx = find_dem_indx(lat, lon, x, y);
+    if (indx >= 0)
         dem[indx].signal[x][y] = signal;
-        // return (dem[indx].signal[x][y]);
-        return;
-    }
-    else
-      // return 0;
-      return;
 }
 
 unsigned char GetSignal(double lat, double lon)
@@ -277,23 +266,10 @@ unsigned char GetSignal(double lat, double lon)
        specified location that was previously written by the
        complimentary PutSignal() function. */
 
-    int x = 0, y = 0, indx;
-    char found;
-
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found)
-        return (dem[indx].signal[x][y]);
-    else
-        return 0;
+    int x, y;
+    int indx = find_dem_indx(lat, lon, x, y);
+    if (indx < 0) return 0;
+    return dem[indx].signal[x][y];
 }
 
 double GetElevation(struct site location)
@@ -302,26 +278,10 @@ double GetElevation(struct site location)
        represented by the digital elevation model data in memory.
        Function returns -5000.0 for locations not found in memory. */
 
-    char found;
-    int x = 0, y = 0, indx;
-    double elevation;
-
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (location.lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (location.lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found)
-        elevation = (double)dem[indx].data[x][y];
-    else
-        elevation = -5000.0;
-
-    return elevation;
+    int x, y;
+    int indx = find_dem_indx(location.lat, location.lon, x, y);
+    if (indx < 0) return -5000.0;
+    return (double)dem[indx].data[x][y];
 }
 
 int AddElevation(double lat, double lon, double height, int size)
@@ -331,35 +291,24 @@ int AddElevation(double lat, double lon, double height, int size)
        in memory.  Does nothing and returns 0 for locations
        not found in memory. */
 
-    char found;
-    int i,j,x = 0, y = 0, indx;
+    int i, j, x, y;
+    int indx = find_dem_indx(lat, lon, x, y);
+    if (indx < 0) return 0;
 
-    for (indx = 0, found = 0; indx < MAXPAGES && found == 0;) {
-        x = (int)rint(ppd * (lat - dem[indx].min_north));
-        y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
-
-        if (x >= 0 && x <= mpi && y >= 0 && y <= mpi)
-            found = 1;
-        else
-            indx++;
-    }
-
-    if (found && size<2)
+    if (size < 2)
         dem[indx].data[x][y] += (short)rint(height);
 
     // Make surrounding area bigger for wide area landcover. Should enhance 3x3 pixels including c.p
-    if (found && size>1){
-        for(i=size*-1; i <= size; i=i+1){
-            for(j=size*-1; j <= size; j=j+1){
-                if(x+j >= 0 && x+j < IPPD && y+i >= 0 && y+i < IPPD)
+    if (size > 1) {
+        for (i = size*-1; i <= size; i++) {
+            for (j = size*-1; j <= size; j++) {
+                if (x+j >= 0 && x+j < IPPD && y+i >= 0 && y+i < IPPD)
                     dem[indx].data[x+j][y+i] += (short)rint(height);
             }
-
         }
     }
 
-
-    return found;
+    return 1;
 }
 
 double Distance(struct site site1, struct site site2)
@@ -1153,7 +1102,7 @@ int main(int argc, char *argv[])
     do_allocs();
 
     y = argc - 1;
-    dbm = 0;
+    dbm = false;
     gpsav = 0;
     copernicus_path[0] = 0;
     mapfile[0] = 0;
@@ -1360,18 +1309,18 @@ int main(int argc, char *argv[])
         }
 
         if (strcmp(argv[x], "-dbm") == 0)
-            dbm = 1;
+            dbm = true;
 
         if (strcmp(argv[x], "-geotiff") == 0) {
-            geotiff = 1;
+            geotiff = true;
         }
 
         if (strcmp(argv[x], "-json") == 0) {
-            json = 1;
+            json = true;
         }
 
         if (strcmp(argv[x], "-ppm") == 0) {
-            write_ppm = 1;
+            write_ppm = true;
         }
 
         if (strcmp(argv[x], "-copernicus") == 0) {

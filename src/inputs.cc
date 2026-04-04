@@ -282,8 +282,8 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 	rotation = 0.0;
 
-	got_azimuth_pattern = 0;
-	got_elevation_pattern = 0;
+	got_azimuth_pattern = false;
+	got_elevation_pattern = false;
 
 	/* Load .az antenna pattern file */
 
@@ -415,7 +415,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 		azimuth_pattern[360] = azimuth_pattern[0];
 
-		got_azimuth_pattern = 255;
+		got_azimuth_pattern = true;
 	}
 
 	/* Read and process .el file */
@@ -586,7 +586,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 			}
 		}
 
-		got_elevation_pattern = 255;
+		got_elevation_pattern = true;
 
 		for (x = 0; x <= 360; x++) {
 			for (y = 0; y <= 1000; y++) {
@@ -1208,6 +1208,9 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     {
         std::lock_guard<std::mutex> lock(copernicus_mutex);
+
+        /* Register tile in O(1) lookup map */
+        dem_map[((int(dem[indx].min_north) + 90) << 9) | (int(dem[indx].min_lon) + 180)] = indx;
 
         /* Update global elevation bounds */
         if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;

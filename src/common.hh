@@ -1,6 +1,9 @@
 #ifndef _COMMON_HH_
 #define _COMMON_HH_
 
+#include <unordered_map>
+#include <cstdint>
+
 #define GAMMA 		2.5
 
 #ifndef PI
@@ -127,13 +130,14 @@ extern char string[];
 extern char copernicus_path[];
 extern char gpsav;
 
-extern unsigned char got_elevation_pattern;
-extern unsigned char got_azimuth_pattern;
-extern unsigned char dbm;
-extern unsigned char geotiff;
-extern unsigned char write_ppm;
+extern bool got_elevation_pattern;
+extern bool got_azimuth_pattern;
+extern bool dbm;
+extern bool geotiff;
+extern bool write_ppm;
 
 extern struct dem *dem;
+extern std::unordered_map<int32_t, int> dem_map;
 extern __thread struct path path;
 extern struct LR LR;
 extern struct region region;

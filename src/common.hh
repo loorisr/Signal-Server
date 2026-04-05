@@ -91,8 +91,10 @@ extern int ARRAYSIZE;
 
 extern double min_north;
 extern double max_north;
-extern double min_lon;   /* western-most loaded boundary */
-extern double max_lon;   /* eastern-most loaded boundary */
+extern double min_lon;
+extern double max_lon;
+extern double min_lat;
+extern double max_lat;
 extern int ippd;
 extern int MAXRAD;
 extern int mpi;
@@ -126,7 +128,7 @@ extern double cropLat;
 extern double cropLon;
 
 extern char string[];
-extern char copernicus_path[];
+extern char DEM_path[];
 extern char gpsav;
 
 extern bool got_elevation_pattern;

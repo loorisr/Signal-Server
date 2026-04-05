@@ -51,12 +51,13 @@ int MAXPAGES = 4*4;
 int ippd = 1200;
 int ARRAYSIZE = (MAXPAGES * ippd) + 10;
 
-char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
+char DEM_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
 
 double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
+    min_lat = 90.0, max_lat = -90.0,
     westoffset=180, eastoffset=-180, delta=0, rxGain=0, antenna_rotation,
     antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
 
@@ -139,48 +140,11 @@ double LonDiff(double lon1, double lon2)
     return diff;
 }
 
-void *dec2dms(double decimal, char *string)
-{
-    /* Converts decimal degrees to degrees, minutes, seconds,
-       (DMS) and returns the result as a character string. */
-
-        char sign;
-    int degrees, minutes, seconds;
-    double a, b, c, d;
-
-    if (decimal < 0.0) {
-        decimal = -decimal;
-        sign = -1;
-    }
-
-    else
-        sign = 1;
-
-    a = floor(decimal);
-    b = 60.0 * (decimal - a);
-    c = floor(b);
-    d = 60.0 * (b - c);
-
-    degrees = (int)a;
-    minutes = (int)c;
-    seconds = (int)d;
-
-    if (seconds < 0)
-        seconds = 0;
-
-    if (seconds > 59)
-        seconds = 59;
-
-    string[0] = 0;
-    snprintf(string, 250, "%d%c %d\' %d\"", degrees * sign, 176, minutes,
-         seconds);
-    return (string);
-}
-
 /* Look up the DEM tile that contains (lat, lon).
  * Tries the primary tile (floor-based), then the 4 adjacent tiles to handle
  * floating-point imprecision near tile edges (e.g. 44.9999... near 45.0).
  * Returns the dem[] index and sets x_out/y_out, or returns -1 if not found. */
+ // to improve
 static int find_dem_indx(double lat, double lon, int &x_out, int &y_out)
 {
     int ilat = (int)floor(lat);
@@ -282,32 +246,6 @@ double GetElevation(struct site location)
     return (double)dem[indx].data[x][y];
 }
 
-int AddElevation(double lat, double lon, double height, int size)
-{
-    /* This function adds a user-defined terrain feature
-       (in meters AGL) to the digital elevation model data
-       in memory.  Does nothing and returns 0 for locations
-       not found in memory. */
-
-    int i, j, x, y;
-    int indx = find_dem_indx(lat, lon, x, y);
-    if (indx < 0) return 0;
-
-    if (size < 2)
-        dem[indx].data[x][y] += (short)rint(height);
-
-    // Make surrounding area bigger for wide area landcover. Should enhance 3x3 pixels including c.p
-    if (size > 1) {
-        for (i = size*-1; i <= size; i++) {
-            for (j = size*-1; j <= size; j++) {
-                if (x+j >= 0 && x+j < ippd && y+i >= 0 && y+i < ippd)
-                    dem[indx].data[x+j][y+i] += (short)rint(height);
-            }
-        }
-    }
-
-    return 1;
-}
 
 double Distance(struct site site1, struct site site2)
 {
@@ -1013,10 +951,9 @@ int main(int argc, char *argv[])
 
     PropModel prop_model;
 
-    double min_lat, min_lon, max_lat, max_lon, rxlat, rxlon;
+    double rxlat, rxlon;
 
     bool use_threads = true;
-
     bool use_radial = false;
 
     unsigned char ngs = 0;
@@ -1041,7 +978,7 @@ int main(int argc, char *argv[])
         spdlog::info("Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile");
         spdlog::info("");
         spdlog::info("Data:");
-        spdlog::info("     -copernicus Directory containing Copernicus DEM GeoTIFF COG tiles");
+        spdlog::info("     -dem Directory containing Copernicus DEM GeoTIFF COG tiles");
         spdlog::info("                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,");
         spdlog::info("                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)");
         spdlog::info("     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette");
@@ -1103,7 +1040,7 @@ int main(int argc, char *argv[])
     y = argc - 1;
     dbm = false;
     gpsav = 0;
-    copernicus_path[0] = 0;
+    DEM_path[0] = 0;
     mapfile[0] = 0;
     clutter = 0.0;
     forced_erp = -1.0;
@@ -1320,12 +1257,12 @@ int main(int argc, char *argv[])
             write_ppm = true;
         }
 
-        if (strcmp(argv[x], "-copernicus") == 0) {
+        if (strcmp(argv[x], "-dem") == 0) {
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                strncpy(copernicus_path, argv[z], 253);
-                copernicus_path[253] = '\0';
+                strncpy(DEM_path, argv[z], 253);
+                DEM_path[253] = '\0';
             }
         }
         
@@ -1673,15 +1610,15 @@ int main(int argc, char *argv[])
         spdlog::error("Cannot resample higher than a factor of 10");
         exit(EINVAL);	
     }
-    /* Ensure a trailing '/' is present in copernicus_path */
+    /* Ensure a trailing '/' is present in DEM_path */
 
-    if (copernicus_path[0]) {
-        x = strlen(copernicus_path);
+    if (DEM_path[0]) {
+        x = strlen(DEM_path);
 
-        if (copernicus_path[x - 1] != '/' && x != 0) {
+        if (DEM_path[x - 1] != '/' && x != 0) {
             spdlog::debug("Appending / to Copernicus directory");
-            copernicus_path[x] = '/';
-            copernicus_path[x + 1] = 0;
+            DEM_path[x] = '/';
+            DEM_path[x + 1] = 0;
         }
     }
 
@@ -1704,7 +1641,7 @@ int main(int argc, char *argv[])
     }
     spdlog::info("");
     spdlog::info("    Directories:");
-    spdlog::info("        Copernicus: {}", copernicus_path);
+    spdlog::info("        DEM: {}", DEM_path);
     spdlog::info(VERT_SEP);
 
     /**
@@ -1820,6 +1757,7 @@ int main(int argc, char *argv[])
                     spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon);
                     return 0;
                 }
+	            spdlog::info("cropping min_lon {}", min_lon);
             }
 
             // Write bitmap

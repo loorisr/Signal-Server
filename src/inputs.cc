@@ -956,7 +956,7 @@ int LoadDBMColors(struct site xmtr)
  * @param tile_lon  East-positive western edge of tile (e.g. 4 for 4E–5E,
  *                  -73 for 73W–72W). min_lon = tile_lon, max_lon = tile_lon + 1.
  *
- * Filename built from copernicus_path:
+ * Filename built from DEM_path:
  *   ippd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
  *   otherwise  → Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif
  *
@@ -1014,7 +1014,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
              "Copernicus_DSM_COG_%s_%c%02d_00_%c%03d_00_DEM.tif",
              res_str, ns, lat_abs, ew, lon_abs);
 
-    /* Try current working directory first, then copernicus_path */
+    /* Try current working directory first, then DEM_path */
     char path_plus_name[PATH_MAX];
     strncpy(path_plus_name, filename, sizeof(path_plus_name) - 1);
     path_plus_name[sizeof(path_plus_name) - 1] = '\0';
@@ -1022,7 +1022,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     GDALDatasetH ds = GDALOpen(path_plus_name, GA_ReadOnly);
     if (ds == NULL) {
         snprintf(path_plus_name, sizeof(path_plus_name),
-                 "%s%s", copernicus_path, filename);
+                 "%s%s", DEM_path, filename);
         ds = GDALOpen(path_plus_name, GA_ReadOnly);
     }
     if (ds == NULL) {

@@ -469,11 +469,14 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 		fd = stdout;
 
 	}
+	spdlog::info("DoRxdPwr min_lon {}", min_lon);
 
 	north = (double)max_north - dpp;
 	south = (double)min_north;	/* No bottom legend */
-	west = min_lon;
-	east = max_lon - dpp;
+	west = (double)min_lon;
+	east = (double)(max_lon - dpp);
+
+	spdlog::info("N/S/E/W: {}/{}/{}/{}", north, south, east, west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			(filename != NULL ? mapfile : "to stdout"), width, height);

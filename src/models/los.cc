@@ -119,8 +119,9 @@ namespace {
     */
 	void* rangePropagation(progress_t &progress, void *parameters)
 	{
-        // Create propagationRange opbject based on our parameters
+        // Create propagationRange object based on our parameters
 		PropagationRange *v = (PropagationRange*)parameters;
+
 		if(v->use_threads) {
 			alloc_elev();
 			alloc_path();
@@ -185,17 +186,16 @@ namespace {
 		return NULL;
 	}
 
-    void* radiusPropagation(progress_t &/*progress*/, void *parameters)
+    void* radiusPropagation(progress_t &progress, void *parameters)
     {
         // Create a prop radius from our parameters
         PropagationRadius *r = (PropagationRadius*)parameters;
-
         // Thread buffer allocation
         if(r->use_threads) {
 			alloc_elev();
 			alloc_path();
 		}
-        spdlog::info("r");
+
         // Check if our start & stop angles are the same
         if (r->start_angle_rad == r->stop_angle_rad)
         {
@@ -208,9 +208,11 @@ namespace {
         // Get the amount in radians to increment per iteration
         double rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;
 
+        progress.total.store(r->points);
+
+        progress.count.store(0);
         // Iterate
         double rad = r->start_angle_rad;
-        spdlog::info("r1");
         for (int i = 0; i < r->points; i++)
         {
             // Get coordinates of point on circle
@@ -221,8 +223,7 @@ namespace {
             edge.lon = point.lon;
             edge.alt = r->altitude;
 
-
-            spdlog::info("coord {:.6f} {:.6f} {:.6f}", edge.lat, edge.lon, edge.alt);
+            //spdlog::info("coord {:.6f} {:.6f} {:.6f}", edge.lat, edge.lon, edge.alt);
             
             // Plot
             if (r->los)
@@ -244,7 +245,6 @@ namespace {
         if(r->use_threads) {
             free_elev();
             free_path();
-            spdlog::info("t");
 		}
 
         return NULL;
@@ -1033,8 +1033,6 @@ void PlotPropagationRadius(struct site source, double range,
         spdlog::error("Segment number must be an multiple of either 2 or 3!");
         exit(1);
     }
-    
-    spdlog::error("ok1");
 
     static __thread unsigned char mask_value = 1;
 
@@ -1057,7 +1055,6 @@ void PlotPropagationRadius(struct site source, double range,
 			range,
 			altitude
     );
-    spdlog::error("ok2");
 
     // Optional clutter debug print
 	if (clutter > 0.0)
@@ -1090,7 +1087,6 @@ void PlotPropagationRadius(struct site source, double range,
     // Create our ranges
     std::vector<PropagationRadius> radii;
 
-    spdlog::error("ok3");
     // Iterate through our segments
     for (int i = 0; i < segments; i++)
     {
@@ -1125,7 +1121,6 @@ void PlotPropagationRadius(struct site source, double range,
         exit(1);
     }
 
-    spdlog::error("vector of radii ({}) segment count {}", radii.size(), segments);
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(segments);
 
@@ -1134,7 +1129,6 @@ void PlotPropagationRadius(struct site source, double range,
         init_processed();
     }
 
-    spdlog::error("ok5");
     // Iterate over the final list of ranges
     for (size_t i = 0; i < radii.size(); i++) {
         // Set the segment id
@@ -1150,14 +1144,14 @@ void PlotPropagationRadius(struct site source, double range,
         }
     }
 
-    spdlog::error("ok6");
-    // Wait for threads to finish
+    // Wait for futures to finish
 	if(use_threads)
     {
         spdlog::debug("Waiting for threads to finish...");
-        finishThreads();
+        for (auto& f : futures)
+            f.get();
+        futures.clear();
     }
-    spdlog::error("ok7");
 
     // Clean up our radii
 	for(size_t i = 0; i < radii.size(); i++){

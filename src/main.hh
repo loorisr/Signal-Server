@@ -24,14 +24,12 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
 
 int ReduceAngle(double angle);
 double LonDiff(double lon1, double lon2);
-void *dec2dms(double decimal, char *string);
 int PutMask(double lat, double lon, int value);
 int OrMask(double lat, double lon, int value);
 int GetMask(double lat, double lon);
 void PutSignal(double lat, double lon, unsigned char signal);
 unsigned char GetSignal(double lat, double lon);
 double GetElevation(struct site location);
-int AddElevation(double lat, double lon, double height, int size);
 double Distance(struct site site1, struct site site2);
 double Azimuth(struct site source, struct site destination);
 double ElevationAngle(struct site source, struct site destination);

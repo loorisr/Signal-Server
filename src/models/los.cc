@@ -185,6 +185,7 @@ namespace {
 
             // Increment
             rad += rps;
+            progress.count++;
         }
 
         // Double check we covered the whole range

@@ -151,7 +151,7 @@ double LonDiff(double lon1, double lon2)
  * Returns true and sets x_out/y_out when the point is inside the array. */
 static bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 {
-    if (!dem_data) return false;
+    //if (!dem_data) return false;
     int x = (int)rint(ppd  * (lat - dem_min_lat));
     int y = (int)rint(yppd * (lon - dem_min_lon));
     if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px) return false;

@@ -31,7 +31,7 @@ enum PropModel {
 struct PropagationRange {
     double min_lon, max_lon, min_north, max_north;
     double altitude;
-    bool eastwest, los, use_threads;
+    bool eastwest, los;
     site source;
     unsigned char mask_value;
     PropModel prop_model;
@@ -43,7 +43,7 @@ struct PropagationRadius {
     double start_angle_rad, stop_angle_rad;
     double radius;
     double altitude;
-    bool los, use_threads;
+    bool los;
     site source;
     unsigned char mask_value;
     PropModel prop_model;
@@ -62,12 +62,7 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value);
 void PlotPropPath(struct site source, struct site destination, unsigned char mask_value, PropModel propmodel, int knifeedge,
                   int pmenv);
 
-void PlotLOSMap(struct site source, double altitude, bool use_threads, uint8_t segments);
-
-void PlotPropagation(struct site source, bbox bounds, 
-                    double altitude,
-		            PropModel propmodel, int knifeedge, int pmenv, 
-                    bool use_threads, uint8_t segments);
+void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
 
 /// @brief Plot propagation using a center point and circular radius. This plots around a circle instead of a rectangular bounding box and is theoretically more efficient.
 /// @param source source transmitter
@@ -75,12 +70,11 @@ void PlotPropagation(struct site source, bbox bounds,
 /// @param altitude altitude in ft or m
 /// @param plot_filename output plot filename
 /// @param prop_model propagation model to use
-/// @param use_threads whether to use multithreading
-/// @param segments segments to split the plot circle into (must be a multiple of 2 or 3)
+/// @param number_threads number_threads to split the plot circle into (must be a multiple of 2 or 3)
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude,
                             PropModel prop_model, int knifeedge, int pmenv, 
-                            bool use_threads, uint8_t segments);
+                            uint8_t number_threads);
 
 void PlotPath(struct site source, struct site destination, char mask_value);
 

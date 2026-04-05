@@ -78,10 +78,8 @@ namespace {
         // Create propagationRange object based on our parameters
 		PropagationRange *v = (PropagationRange*)parameters;
 
-		if(v->use_threads) {
-			alloc_elev();
-			alloc_path();
-		}
+		alloc_elev();
+		alloc_path();
 
         // Check if we're plotting a single line
         if (v->min_north == v->max_north && v->min_lon == v->max_lon) {
@@ -135,10 +133,9 @@ namespace {
 
         } while ( vertical ? (lat < (double)v->max_north) : (lon <= (double)v->max_lon) );
 
-        if(v->use_threads) {
-            free_elev();
-            free_path();
-		}
+        free_elev();
+        free_path();
+		
 		return NULL;
 	}
 
@@ -147,10 +144,9 @@ namespace {
         // Create a prop radius from our parameters
         PropagationRadius *r = (PropagationRadius*)parameters;
         // Thread buffer allocation
-        if(r->use_threads) {
-			alloc_elev();
-			alloc_path();
-		}
+        
+		alloc_elev();
+		alloc_path();
 
         // Check if our start & stop angles are the same
         if (r->start_angle_rad == r->stop_angle_rad)
@@ -198,10 +194,8 @@ namespace {
         }
 
         // Free the buffers we made earlier
-        if(r->use_threads) {
-            free_elev();
-            free_path();
-		}
+        free_elev();
+        free_path();
 
         return NULL;
     }
@@ -733,7 +727,7 @@ void PlotPropPath(
 }
 
 void PlotLOSMap(struct site source, double altitude,
-		bool use_threads, uint8_t segments)
+		uint8_t number_threads)
 {
 	/* This function performs a 360 degree sweep around the
 	   transmitter site (source location), and plots the
@@ -753,12 +747,12 @@ void PlotLOSMap(struct site source, double altitude,
 	double range_min_north[] = {max_north, min_north, min_north, min_north};
 	double range_max_lon[] = {max_lon, min_lon, max_lon, max_lon};
 	double range_max_north[] = {max_north, max_north, min_north, max_north};
-	PropagationRange *r = new PropagationRange[segments];
+	PropagationRange *r = new PropagationRange[number_threads];
 
     // Size our progress vector appropriately
-    thread_progress = std::vector<progress_t>(segments);
+    thread_progress = std::vector<progress_t>(number_threads);
 
-	for(int i = 0; i < segments; ++i) {
+	for(int i = 0; i < number_threads; ++i) {
         r[i].los = true;
 
 		r[i].eastwest = (range_min_lon[i] == range_max_lon[i] ? false : true);
@@ -767,7 +761,6 @@ void PlotLOSMap(struct site source, double altitude,
 		r[i].min_north = range_min_north[i];
 		r[i].max_north = range_max_north[i];
 
-		r[i].use_threads = use_threads;
 		r[i].altitude = altitude;
 		r[i].source = source;
 		r[i].mask_value = mask_value;
@@ -775,15 +768,10 @@ void PlotLOSMap(struct site source, double altitude,
         // Set the segment id
         thread_progress[i].id = i;
 
-		if(use_threads)
-			//threads.push_back(std::thread(rangePropagation, i, &r[i]));
-            futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &r[i] ) );
-		else
-			rangePropagation(thread_progress[i], &r[i]);
+		futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &r[i] ) );
 	}
 
-	if(use_threads)
-		finishThreads();
+	finishThreads();
 
 	delete[] r;
 
@@ -800,191 +788,13 @@ void PlotLOSMap(struct site source, double altitude,
 		mask_value = 32;
 	}
 }
-
-/// @brief Plot propagation from a source using a bounding box and the specified plot parameters
-/// @param source source site
-/// @param bounds bounding box
-/// @param altitude antenna altitude
-/// @param prop_model propagation model to use
-/// @param knifeedge whether to use knife edge propagation
-/// @param pmenv 
-/// @param use_threads whether to use threads or not
-/// @param segments number of segments to divide the plot by
-void PlotPropagation(struct site source, bbox bounds,
-                    double altitude,
-		            PropModel prop_model, int knifeedge, int pmenv, bool
-		            use_threads, uint8_t segments)
-{
-	if (debug) cnt_PlotPropagation++;
-	static __thread unsigned char mask_value = 1;
-
-    char plotType[32];
-	
-	if (LR.erp == 0.0 && debug)
-		sprintf(plotType, "path loss");
-	else {
-		if (debug) {
-			if (dbm)
-				sprintf(plotType, "signal power level");
-			else
-				sprintf(plotType, "field strength");
-		}
-	}
-	spdlog::debug("Plotting {} contours of \"{}\" out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
-            plotType, source.name, max_range, altitude);
-
-	if (clutter > 0.0)
-        spdlog::debug("Using {:.2f} meters of ground clutter", clutter);
-
-    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
-
-    double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
-    double plot_height = bounds.upper_left.lat - bounds.lower_right.lat;
-
-    /**
-     * EXAMPLE - 6 segments
-     * 
-     * We divide our area into as follows:
-     * __|__1__|__2__|__
-     *   |           |
-     * 6 |           | 3
-     * __|___________|__
-     *   |  5  |  4  |
-     * 
-    */
-
-    // NUM_SECTIONS must always be a multiple of 2 and greater than 4, because we have to divide a 4-sided rectangle equally
-    uint8_t lon_edge_segments = (segments / 4);   // Our longitudal edges (top & bottom) will get the greater of the two segment counts
-    uint8_t lat_edge_segments = (segments / 2) - lon_edge_segments; // Our latitudal edges are whatever is left over
-
-    // Calculate the widths of each segment
-    double edge_width = plot_width / lon_edge_segments;
-    double edge_height = plot_height / lat_edge_segments;
-
-	spdlog::debug("With {} sections, our {:.6f} x {:.6f} area will be divided into {} x {} edge segments of size {:.6f} x {:.6f} deg", 
-        segments, plot_width, plot_height, lon_edge_segments, lat_edge_segments, edge_width, edge_height
-    );
-	
-    // Array to hold our edge ranges
-    std::vector<PropagationRange> ranges;
-
-    // Create our longitudal (top and bottom edge) ranges
-    for (int i = 0; i < lon_edge_segments; i++) {
-        // Create two ranges for the top & bottom edges which will share longitude values
-        PropagationRange top_range;
-        PropagationRange bot_range;
-        // We're not doing an LOS plot
-        top_range.los = false;
-        bot_range.los = false;
-        // Calculate the longitudes for both ranges
-        double lon_min = bounds.lower_right.lon + (edge_width * i);
-        double lon_max = bounds.lower_right.lon + (edge_width * (1+i));
-        // Set top (on our max_north latitude)
-        top_range.min_lon = lon_min;
-        top_range.max_lon = lon_max;
-        top_range.min_north = bounds.upper_left.lat;
-        top_range.max_north = bounds.upper_left.lat;
-        // Set bottom (on our min_north latitude)
-        bot_range.min_lon = lon_min;
-        bot_range.max_lon = lon_max;
-        bot_range.min_north = bounds.lower_right.lat;
-        bot_range.max_north = bounds.lower_right.lat;
-        // Append to our vector
-        ranges.push_back(top_range);
-        ranges.push_back(bot_range);
-        // Log
-        spdlog::debug("Added top & bottom segments from {:.6f}E to {:.6f}E", lon_min, lon_max);
-    }
-
-    // Create our latitudal (left and right) ranges
-    for (int i = 0; i < lat_edge_segments; i++) {
-        // Create two ranges for the left & right edges since they share latitude values
-        PropagationRange left_range;
-        PropagationRange right_range;
-        // We're not doing an LOS plot
-        left_range.los = false;
-        right_range.los = false;
-        // Calculate the latitude start & stop for both ranges
-        double lat_min = bounds.lower_right.lat + (edge_height * i);
-        double lat_max = bounds.lower_right.lat + (edge_height * (i+1));
-        // Set left (on our min_lon longitude)
-        left_range.min_lon = bounds.upper_left.lon;
-        left_range.max_lon = bounds.upper_left.lon;
-        left_range.min_north = lat_min;
-        left_range.max_north = lat_max;
-        // Set right (on our max_lon longitude)
-        right_range.min_lon = bounds.lower_right.lon;
-        right_range.max_lon = bounds.lower_right.lon;
-        right_range.min_north = lat_min;
-        right_range.max_north = lat_max;
-        // Append to our vector
-        ranges.push_back(left_range);
-        ranges.push_back(right_range);
-        // Log
-        spdlog::debug("Added left & right segments from {:.6f}N to {:.6f}N", lat_min, lat_max);
-    }
-
-    // Make sure we didn't do anythng wrong
-    if (ranges.size() != segments) {
-        spdlog::error("Our vector of ranges ({}) does not match expected segment count {}", ranges.size(), segments);
-        exit(1);
-    }
-
-    // Size our progress vector appropriately
-    thread_progress = std::vector<progress_t>(segments);
-    
-    // Init our vector for storing processing progress
-    if (!has_init_processed) {
-        init_processed();
-    }
-
-    // Iterate over the final list of ranges
-    for (size_t i = 0; i < ranges.size(); i++) {
-        // Set common variables
-        ranges[i].use_threads = use_threads;
-        ranges[i].altitude = altitude;
-        ranges[i].source = source;
-        ranges[i].mask_value = mask_value;
-        ranges[i].prop_model = prop_model;
-        ranges[i].knifeedge = knifeedge;
-        ranges[i].pmenv = pmenv;
-        // Set the segment id
-        thread_progress[i].id = i;
-        // Start a thread if we're using threads
-        if (use_threads) {
-            spdlog::debug("Starting calc thread for edge segment {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", ranges[i].min_north, ranges[i].min_lon, ranges[i].max_north, ranges[i].max_lon);
-            //threads.push_back(std::thread(rangePropagation, i, &ranges[i]));
-            futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &ranges[i] ) );
-        }
-        else {
-            spdlog::debug("Starting single-thread calc for edge segment {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", ranges[i].min_north, ranges[i].min_lon, ranges[i].max_north, ranges[i].max_lon);
-            rangePropagation(thread_progress[i], &ranges[i]);
-        }
-    }
-
-	// Wait for threads to finish
-	if(use_threads)
-    {
-        spdlog::debug("Waiting for threads to finish...");
-        //finishThreads();
-        finishProgress();
-    }
-
-	for(size_t i = 0; i < ranges.size(); i++){
-		ranges.erase(ranges.begin() + i);
-	}
-
-	if (mask_value < 30)
-		mask_value++;
-}
-
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude, PropModel prop_model, int knifeedge, int pmenv,
-                            bool use_threads, uint8_t segments)
+                            uint8_t number_threads)
 {
 
-    // Ensure segments is a logical value
-    if ((segments % 2 != 0) && (segments % 3 != 0))
+    // Ensure number_threads is a logical value
+    if ((number_threads % 2 != 0) && (number_threads % 3 != 0))
     {
         spdlog::error("Segment number must be an multiple of either 2 or 3!");
         exit(1);
@@ -1035,16 +845,16 @@ void PlotPropagationRadius(struct site source, double range,
     int circle_pixels = (int)ceil(radius_px * 6.283);
 
     // Calculte the size of each angular degree section, in rads
-    double section_size_rad = 360.0 / segments * DEG2RAD;
+    double section_size_rad = 360.0 / number_threads * DEG2RAD;
 
     // Calculate the number of points/pixels in each segment
-    int section_pixels = (int)(circle_pixels / segments);
+    int section_pixels = (int)(circle_pixels / number_threads);
 
     // Create our ranges
     std::vector<PropagationRadius> radii;
 
-    // Iterate through our segments
-    for (int i = 0; i < segments; i++)
+    // Iterate through our number_threads
+    for (int i = 0; i < number_threads; i++)
     {
         // Create a new radius
         PropagationRadius propRadius;
@@ -1052,7 +862,6 @@ void PlotPropagationRadius(struct site source, double range,
         propRadius.source = source;
         propRadius.radius = range;
         propRadius.points = section_pixels;
-        propRadius.use_threads = use_threads;
         propRadius.altitude = altitude;
         propRadius.mask_value = mask_value;
         propRadius.prop_model = prop_model;
@@ -1068,17 +877,17 @@ void PlotPropagationRadius(struct site source, double range,
         radii.push_back(propRadius);
     }
 
-	spdlog::debug("With {} segments and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) segments", 
-                    segments, circle_pixels, section_size_rad / DEG2RAD, section_pixels);
+	spdlog::debug("With {} number_threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) number_threads", 
+                    number_threads, circle_pixels, section_size_rad / DEG2RAD, section_pixels);
 
     // Make sure we didn't do anythng wrong
-    if (radii.size() != segments) {
-        spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), segments);
+    if (radii.size() != number_threads) {
+        spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), number_threads);
         exit(1);
     }
 
     // Size our progress vector appropriately
-    thread_progress = std::vector<progress_t>(segments);
+    thread_progress = std::vector<progress_t>(number_threads);
 
     // Init our vector for storing processing progress
     if (!has_init_processed) {
@@ -1089,25 +898,17 @@ void PlotPropagationRadius(struct site source, double range,
     for (size_t i = 0; i < radii.size(); i++) {
         // Set the segment id
         thread_progress[i].id = i;
-        // Start a thread if we're using threads
-        if (use_threads) {
-            spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad / DEG2RAD, radii[i].stop_angle_rad / DEG2RAD);
-            futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
-        }
-        else {
-            spdlog::debug("Starting single-thread calc for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad / DEG2RAD, radii[i].stop_angle_rad / DEG2RAD);
-            radiusPropagation(thread_progress[i], &radii[i]);
-        }
+        // Start a thread
+        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad / DEG2RAD, radii[i].stop_angle_rad / DEG2RAD);
+        futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
+
     }
 
     // Wait for futures to finish
-	if(use_threads)
-    {
-        spdlog::debug("Waiting for threads to finish...");
-        for (auto& f : futures)
-            f.get();
-        futures.clear();
-    }
+    spdlog::debug("Waiting for threads to finish...");
+    for (auto& f : futures)
+        f.get();
+    futures.clear();
 
     // Clean up our radii
 	for(size_t i = 0; i < radii.size(); i++){

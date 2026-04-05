@@ -892,14 +892,11 @@ int main(int argc, char *argv[])
 
     int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
       pmenv = 1, result,
-      segments = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
+      number_threads = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
 
     PropModel prop_model;
 
     double rxlat, rxlon;
-
-    bool use_threads = true;
-    bool use_radial = false;
 
     unsigned char ngs = 0;
 
@@ -944,7 +941,7 @@ int main(int argc, char *argv[])
         spdlog::info("          6. Maritime temperate (Land) 7. Maritime temperate (Sea)");
         spdlog::info("     -rel Reliability for ITM model (% of 'time') 1 to 99 (optional, default 50%)");
         spdlog::info("     -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)");
-        spdlog::info("     -segments Number of segments to divide the plot rectangle into (must be even and > 4)");
+        spdlog::info("     -number_threads Number of number_threads to divide the plot rectangle into (must be even and > 4)");
         spdlog::info("     -hd Use HD mode (30m), per defaut 90m");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
@@ -972,8 +969,6 @@ int main(int argc, char *argv[])
         spdlog::info("     -t Terrain greyscale background");
         spdlog::info("     -dbg Verbose debug messages");
         spdlog::info("     -ng Normalise Path Profile graph");
-        spdlog::info("     -nothreads Turn off threaded processing");
-        spdlog::info("     -rp Use experimental radial processing");
 
         return 1;
     }
@@ -1431,18 +1426,6 @@ int main(int argc, char *argv[])
             normalise = 1;
         }
 
-        //Disable threads
-        if (strcmp(argv[x], "-nothreads") == 0) {
-            z = x + 1;
-            use_threads = false;
-        }
-
-        // Enable radial processing
-        if (strcmp(argv[x], "-rp") == 0) {
-            z = x + 1;
-            use_radial = true;
-        }
-
         // Reliability % for ITM model
         if (strcmp(argv[x], "-rel") == 0) {
             z = x + 1;
@@ -1474,12 +1457,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Segments to divide plot by
-        if (strcmp(argv[x], "-segments") == 0) {
+        // number_threads to divide plot by
+        if (strcmp(argv[x], "-number_threads") == 0) {
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                sscanf(argv[z], "%d", &segments);
+                sscanf(argv[z], "%d", &number_threads);
             }
         }
     }
@@ -1567,23 +1550,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (segments % 2 != 0 || segments < 4) {
-        spdlog::error("Number of segments must be even and greater than 4");
+    if (number_threads % 2 != 0 || number_threads < 4) {
+        spdlog::error("Number of number_threads must be even and greater than 4");
     }
 
     spdlog::info("-------------------------------- Plot Information --------------------------------");
     spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} m AGL", tx_site[0].lat, tx_site[0].lon, tx_site[0].alt);
     spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range, ippd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
-    spdlog::info("    Map segments: {}", segments);
-    if (use_threads)
-        spdlog::info("    Using threaded processing");
-    else
-        spdlog::warn("    Not using threaded processing");
-    if (use_radial)
-    {
-        spdlog::info("    Using experimental radial processing");
-    }
+    spdlog::info("    Map number_threads: {}", number_threads);
     spdlog::info("");
     spdlog::info("    Directories:");
     spdlog::info("        DEM: {}", DEM_path);
@@ -1668,20 +1643,12 @@ int main(int argc, char *argv[])
     if (ppa == 0) {
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
-            PlotLOSMap(tx_site[0], altitudeLR, use_threads, segments);
+            PlotLOSMap(tx_site[0], altitudeLR, number_threads);
             DoLOS(mapfile, ngs, tx_site);
         } else {
             // 90% of effort here
-            if (use_radial)
-            {
-                PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, pmenv, use_threads, (uint8_t)segments);
-                spdlog::debug("Finished PlotPropagationRadius()");
-            }
-            else
-            {
-                PlotPropagation(tx_site[0], plot_bounds, altitudeLR, prop_model, knifeedge, pmenv, use_threads, (uint8_t)segments);
-                spdlog::debug("Finished PlotPropagation()");
-            }
+            PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, pmenv, (uint8_t)number_threads);
+            spdlog::debug("Finished PlotPropagationRadius()");
 
             if (cropping) {
                 // CROPPING Factor determined in propPathLoss().

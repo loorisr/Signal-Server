@@ -18,87 +18,6 @@ extern char *color_file;
 
 extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
 
-
-int LoadSDF_SDF(char *name)
-{
-	/* This function reads uncompressed ss Data Files (.sdf)
-	   into the flat DEM arrays.
-	   NOTE: On error, this function returns a negative errno */
-
-	int x, y, data = 0, minlat, minlon, maxlat, maxlon, j;
-	char line[20], jline[20], sdf_file[255], path_plus_name[PATH_MAX];
-
-	for (x = 0; name[x] != '.' && name[x] != 0 && x < 250; x++) sdf_file[x] = name[x];
-	sdf_file[x] = 0;
-
-	if (sscanf(sdf_file, "%d_%d_%d_%d", &minlat, &maxlat, &minlon, &maxlon) != 4) return -EINVAL;
-
-	sdf_file[x] = '.';
-	sdf_file[x + 1] = 's';
-	sdf_file[x + 2] = 'd';
-	sdf_file[x + 3] = 'f';
-	sdf_file[x + 4] = 0;
-
-	strncpy(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-	FILE *fd = fopen(path_plus_name, "rb");
-	if (fd == NULL) {
-		strncat(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-		fd = fopen(path_plus_name, "rb");
-		if (fd == NULL) return -errno;
-	}
-
-	/* Read header: max_lon, min_north, min_lon, max_north */
-	float hdr_max_lon, hdr_min_north, hdr_min_lon, hdr_max_north;
-	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_max_lon)   == EOF) { fclose(fd); return -errno; }
-	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_min_north) == EOF) { fclose(fd); return -errno; }
-	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_min_lon)   == EOF) { fclose(fd); return -errno; }
-	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_max_north) == EOF) { fclose(fd); return -errno; }
-
-	int tile_lat = (int)hdr_min_north;
-	int tile_lon = (int)hdr_min_lon;
-	int gx_base  = (tile_lat - dem_min_lat) * ippd;
-	int gy_base  = (tile_lon - dem_min_lon) * ippd;
-
-	spdlog::debug("Loading SDF \"{}\"...", path_plus_name);
-
-	int tile_min_el = 32768, tile_max_el = -32768;
-
-	for (x = 0; x < ippd; x++) {
-		int gx = gx_base + x;
-		for (y = 0; y < ippd; y++) {
-			for (j = 0; j < jgets; j++) {
-				if (fgets(jline, sizeof(jline), fd) == NULL) { fclose(fd); return -EIO; }
-			}
-			if (fgets(line, sizeof(line), fd) != NULL) data = atoi(line);
-
-			int gy = gy_base + y;
-			dem_data[gx][gy]   = (short)data;
-			dem_signal[gx][gy] = 0;
-			dem_mask[gx][gy]   = 0;
-
-			if (data > tile_max_el) tile_max_el = data;
-			if (data < tile_min_el) tile_min_el = data;
-		}
-	}
-
-	fclose(fd);
-
-	if (tile_min_el < min_elevation) min_elevation = tile_min_el;
-	if (tile_max_el > max_elevation) max_elevation = tile_max_el;
-
-	if (max_north == -90 || hdr_max_north > max_north) max_north = hdr_max_north;
-	if (min_north ==  90 || hdr_min_north < min_north) min_north = hdr_min_north;
-	if (hdr_max_lon > max_lon) max_lon = hdr_max_lon;
-	if (hdr_min_lon < min_lon) min_lon = hdr_min_lon;
-
-	spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
-				path_plus_name, tile_min_el, tile_max_el,
-				hdr_min_north, hdr_min_lon, hdr_max_north, hdr_max_lon);
-
-	return 1;
-}
-
-
 int LoadPAT(char *az_filename, char *el_filename)
 {
 	/* This function reads and processes antenna pattern (.az
@@ -1047,12 +966,6 @@ int LoadTopoData(bbox region)
             int tile_lon = r_min_lon + x;
             int tile_lat = r_min_lat + y;
             spdlog::debug("Loading topo for tile {}N {}E to {}N {}E", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
-            // Generate the filename string to load
-            char basename[32], string[32];
-            snprintf(basename, 16, "%d_%d_%d_%d", tile_lat, tile_lat + 1, tile_lon, tile_lon + 1);
-            strcpy(string, basename);
-            if (ippd == 3600) strcat(string, "-hd");
-            //int success = LoadSDF_SDF(tile_lat, tile_lon);
             int success = LoadCopernicus(tile_lat, tile_lon);
             if (success < 0 && success != -ENOENT) {
                 return -success;

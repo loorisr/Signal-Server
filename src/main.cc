@@ -51,7 +51,7 @@ int MAXPAGES = 4*4;
 int ippd = 1200;
 int ARRAYSIZE = (MAXPAGES * ippd) + 10;
 
-char DEM_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
+char DEM_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
 
 double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
     fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,

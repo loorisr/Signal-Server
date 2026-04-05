@@ -32,7 +32,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include <zlib.h>
 
 #include "main.hh"
 #include "common.hh"
@@ -42,7 +41,6 @@
 #include "models/los.hh"
 #include "models/pel.hh"
 #include "image.hh"
-#include "logos.hh"
 
 #include <chrono>
 #include <thread>
@@ -51,8 +49,8 @@
 #include <spdlog/spdlog.h>
 
 int MAXPAGES = 4*4;
-int IPPD = 1200;
-int ARRAYSIZE = (MAXPAGES * IPPD) + 10;
+int ippd = 1200;
+int ARRAYSIZE = (MAXPAGES * ippd) + 10;
 
 char copernicus_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL,  sdf_path[255];
 
@@ -63,9 +61,16 @@ double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
     westoffset=180, eastoffset=-180, delta=0, rxGain=0, antenna_rotation,
     antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
 
-int ippd, mpi, max_elevation = -32768, min_elevation = 32768,
+int mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
     loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0;
+
+std::atomic<int> cnt_point_to_point_ITM{0};
+std::atomic<int> cnt_point_to_point{0};
+std::atomic<int> cnt_computeLoss{0};
+std::atomic<int> cnt_PlotPropPath{0};
+std::atomic<int> cnt_ReadPath{0};
+std::atomic<int> cnt_PlotPropagation{0};
 
 bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
@@ -302,7 +307,7 @@ int AddElevation(double lat, double lon, double height, int size)
     if (size > 1) {
         for (i = size*-1; i <= size; i++) {
             for (j = size*-1; j <= size; j++) {
-                if (x+j >= 0 && x+j < IPPD && y+i >= 0 && y+i < IPPD)
+                if (x+j >= 0 && x+j < ippd && y+i >= 0 && y+i < ippd)
                     dem[indx].data[x+j][y+i] += (short)rint(height);
             }
         }
@@ -415,7 +420,7 @@ double ElevationAngle(struct site source, struct site destination)
 */
 void ReadPath(struct site source, struct site destination)
 {
-    
+    if (debug) cnt_ReadPath++;
     int c;
     double azimuth, distance, lat1, lon1, beta, den, num,
         lat2, lon2, total_distance, dx, dy, path_length,
@@ -852,7 +857,7 @@ void free_dem(void)
     int j;
 
     for (i = 0; i < MAXPAGES; i++) {
-        for (j = 0; j < IPPD; j++) {
+        for (j = 0; j < ippd; j++) {
             delete [] dem[i].data[j];
             delete [] dem[i].mask[j];
             delete [] dem[i].signal[j];
@@ -888,13 +893,13 @@ void alloc_dem(void)
 
     dem = new struct dem[MAXPAGES];
     for (i = 0; i < MAXPAGES; i++) {
-        dem[i].data = new short *[IPPD];
-        dem[i].mask = new unsigned char *[IPPD];
-        dem[i].signal = new unsigned char *[IPPD];
-        for (j = 0; j < IPPD; j++) {
-            dem[i].data[j] = new short[IPPD];
-            dem[i].mask[j] = new unsigned char[IPPD];
-            dem[i].signal[j] = new unsigned char[IPPD];
+        dem[i].data = new short *[ippd];
+        dem[i].mask = new unsigned char *[ippd];
+        dem[i].signal = new unsigned char *[ippd];
+        for (j = 0; j < ippd; j++) {
+            dem[i].data[j] = new short[ippd];
+            dem[i].mask[j] = new unsigned char[ippd];
+            dem[i].signal[j] = new unsigned char[ippd];
         }
     }
 }
@@ -1007,7 +1012,7 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now();
 
     int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
-      haf = 0, pmenv = 1, result,
+      pmenv = 1, result,
       segments = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
 
     PropModel prop_model;
@@ -1024,8 +1029,6 @@ int main(int argc, char *argv[])
     char *az_filename, *el_filename = NULL;
 
     double altitudeLR = 0.0;
-
-    spdlog::info(ss_block);
 
     spdlog::info("Version {}.{} ({} {})", VER_MAJ, VER_MIN, GIT_BRANCH, GIT_COMMIT_HASH);
     spdlog::info("    Compile date: {} {}", __DATE__, __TIME__);
@@ -1091,7 +1094,6 @@ int main(int argc, char *argv[])
         spdlog::info("     -t Terrain greyscale background");
         spdlog::info("     -dbg Verbose debug messages");
         spdlog::info("     -ng Normalise Path Profile graph");
-        spdlog::info("     -haf Halve 1 or 2 (optional)");
         spdlog::info("     -nothreads Turn off threaded processing");
         spdlog::info("     -rp Use experimental radial processing");
 
@@ -1120,8 +1122,7 @@ int main(int argc, char *argv[])
     lat = 0;
     lon = 0;
     txh = 0;
-    ngs = 1;	
-    ippd = IPPD;		// default resolution
+    ngs = 1;			// default resolution
 
     sscanf("0.1", "%lf", &altitudeLR);
 
@@ -1298,11 +1299,10 @@ int main(int argc, char *argv[])
             free_path();
             free_dem();
             //MAXPAGES = 32;  // was 16
-            IPPD = 3600;
             ippd = 3600;
-            ARRAYSIZE = (MAXPAGES * IPPD) + 10;
+            ARRAYSIZE = (MAXPAGES * ippd) + 10;
             do_allocs();
-            spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, IPPD);
+            spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, ippd);
         }
 
         if (strcmp(argv[x], "-t") == 0) {
@@ -1552,13 +1552,6 @@ int main(int argc, char *argv[])
             z = x + 1;
             normalise = 1;
         }
-        //Halve the problem
-        if (strcmp(argv[x], "-haf") == 0) {
-            z = x + 1;
-            if (z <= y && argv[z][0]) {
-                sscanf(argv[z], "%d", &haf);
-            }
-        }
 
         //Disable threads
         if (strcmp(argv[x], "-nothreads") == 0) {
@@ -1768,7 +1761,7 @@ int main(int argc, char *argv[])
     plot_bounds.lower_right = {min_lat, min_lon};
     plot_bounds.upper_left = {max_lat, max_lon};
 
-    spdlog::debug("Calculated plot bounaries: {:.6f}N {:.6f}W to {:.6f}N {:.6f}W", 
+    spdlog::debug("Calculated plot boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
         plot_bounds.lower_right.lat, 
         plot_bounds.lower_right.lon, 
         plot_bounds.upper_left.lat, 
@@ -1803,12 +1796,12 @@ int main(int argc, char *argv[])
             // 90% of effort here
             if (use_radial)
             {
-                PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
+                PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, pmenv, use_threads, (uint8_t)segments);
                 spdlog::debug("Finished PlotPropagationRadius()");
             }
             else
             {
-                PlotPropagation(tx_site[0], plot_bounds, altitudeLR, prop_model, knifeedge, haf, pmenv, use_threads, (uint8_t)segments);
+                PlotPropagation(tx_site[0], plot_bounds, altitudeLR, prop_model, knifeedge, pmenv, use_threads, (uint8_t)segments);
                 spdlog::debug("Finished PlotPropagation()");
             }
 
@@ -1820,12 +1813,12 @@ int main(int argc, char *argv[])
                 min_lon = tx_site[0].lon - cropLon; // western crop boundary
                 cropLat-=tx_site[0].lat; // angle from tx to edge
 
-                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.5f} dpp {:.7f}",min_lon,cropLat,cropLon,tx_site[0].lon,dpp);
+                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} dpp {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon,dpp);
 
                 width=(int)((cropLon*ppd)*2);
                 height=(int)((cropLat*ppd)*2);
 
-                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f} width %d",min_lon,cropLat,cropLon,tx_site[0].lon,width);
+                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} width {:d}",min_lon,cropLat,cropLon,tx_site[0].lon,width);
 
                 if (width > 3600 * 10 || cropLon < 0) {
                     spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon);
@@ -1883,6 +1876,16 @@ int main(int argc, char *argv[])
     auto end_time = std::chrono::steady_clock::now();
     double elapsed_s = std::chrono::duration<double>(end_time - start_time).count();
     fprintf(stderr, "Execution time: %.3f seconds\n", elapsed_s);
+
+    if (debug) {
+        fprintf(stderr, "--- Function call counters ---\n");
+        fprintf(stderr, "  point_to_point_ITM : %d\n", cnt_point_to_point_ITM.load());
+        fprintf(stderr, "  point_to_point     : %d\n", cnt_point_to_point.load());
+        fprintf(stderr, "  computeLoss        : %d\n", cnt_computeLoss.load());
+        fprintf(stderr, "  PlotPropPath       : %d\n", cnt_PlotPropPath.load());
+        fprintf(stderr, "  ReadPath           : %d\n", cnt_ReadPath.load());
+        fprintf(stderr, "  PlotPropagation    : %d\n", cnt_PlotPropagation.load());
+    }
 
     return 0;
 }

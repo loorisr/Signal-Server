@@ -41,9 +41,7 @@ add_library(image STATIC image.cc)
 add_library(image-ppm STATIC image-ppm.cc)
 add_library(inputs STATIC inputs.cc)
 add_library(outputs STATIC outputs.cc)
-add_library(tiles STATIC tiles.cc)
 add_library(geo STATIC geo.cc)
-
 add_library(cost STATIC models/cost.cc)
 add_library(ecc33 STATIC models/ecc33.cc)
 add_library(egli STATIC models/egli.cc)
@@ -60,7 +58,6 @@ add_library(sui STATIC models/sui.cc)
 # external libraries
 find_library(dl dl)
 find_library(pthread pthread)
-find_library(z z)
 
 # Spdlog
 find_package(spdlog REQUIRED)
@@ -82,7 +79,6 @@ target_link_libraries(signalserver
 			PUBLIC image-ppm
 			PUBLIC inputs
 			PUBLIC outputs
-			PUBLIC tiles
 			PUBLIC cost
 			PUBLIC ecc33
 			PUBLIC egli
@@ -96,7 +92,6 @@ target_link_libraries(signalserver
 			PUBLIC sui
 			PUBLIC dl
 			PUBLIC pthread
-			PUBLIC z
             PUBLIC spdlog::spdlog
             PUBLIC geo
             PUBLIC GDAL::GDAL

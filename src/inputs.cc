@@ -10,11 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <zlib.h>
 
 #include "common.hh"
 #include "main.hh"
-#include "tiles.hh"
 
 extern char *color_file;
 
@@ -102,7 +100,7 @@ int LoadSDF_SDF(char *name)
 		}
 
 		/*
-			 Here X lines of DEM will be read until IPPD is reached.
+			 Here X lines of DEM will be read until ippd is reached.
 			 Each .sdf tile contains 1200x1200 = 1.44M 'points'
 			 Each point is sampled for 1200 resolution!
 		 */

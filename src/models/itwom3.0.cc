@@ -2375,6 +2375,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 
 *****************************************************************************/
 {
+	if (debug) cnt_point_to_point_ITM++;
 	prop_type prop;
 	propv_type propv;
 	propa_type propa;
@@ -2492,6 +2493,7 @@ void point_to_point(double tht_m, double rht_m, double eps_dielect,
 
 *****************************************************************************/
 {
+	if (debug) cnt_point_to_point++;
 	prop_type prop;
 	propv_type propv;
 	propa_type propa;

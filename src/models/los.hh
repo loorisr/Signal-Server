@@ -66,7 +66,7 @@ void PlotLOSMap(struct site source, double altitude, bool use_threads, uint8_t s
 
 void PlotPropagation(struct site source, bbox bounds, 
                     double altitude,
-		            PropModel propmodel, int knifeedge, int haf, int pmenv, 
+		            PropModel propmodel, int knifeedge, int pmenv, 
                     bool use_threads, uint8_t segments);
 
 /// @brief Plot propagation using a center point and circular radius. This plots around a circle instead of a rectangular bounding box and is theoretically more efficient.
@@ -79,7 +79,7 @@ void PlotPropagation(struct site source, bbox bounds,
 /// @param segments segments to split the plot circle into (must be a multiple of 2 or 3)
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude,
-                            PropModel prop_model, int knifeedge, int haf, int pmenv, 
+                            PropModel prop_model, int knifeedge, int pmenv, 
                             bool use_threads, uint8_t segments);
 
 void PlotPath(struct site source, struct site destination, char mask_value);

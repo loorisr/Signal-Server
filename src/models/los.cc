@@ -451,6 +451,7 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
                    double dkm, int pmenv, char *strmode, int &errnum)
 {
+    if (debug) cnt_computeLoss++;
     double loss = 0.0;
 
     switch (model) {
@@ -512,15 +513,15 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
  * @param destination - the destination site object
 */
 void PlotPropPath(
-    struct site source, 
+    struct site source,
     struct site destination,
-	unsigned char mask_value, 
+	unsigned char mask_value,
     PropModel prop_model,
-	int knifeedge, 
+	int knifeedge,
     int pmenv
 )
 {
-
+	if (debug) cnt_PlotPropPath++;
 	int x, y, ifs, ofs, errnum;
 	char block = 0, strmode[100];
 	double loss, azimuth, pattern = 0.0,
@@ -850,15 +851,15 @@ void PlotLOSMap(struct site source, double altitude,
 /// @param altitude antenna altitude
 /// @param prop_model propagation model to use
 /// @param knifeedge whether to use knife edge propagation
-/// @param haf 
 /// @param pmenv 
 /// @param use_threads whether to use threads or not
 /// @param segments number of segments to divide the plot by
-void PlotPropagation(struct site source, bbox bounds, 
+void PlotPropagation(struct site source, bbox bounds,
                     double altitude,
-		            PropModel prop_model, int knifeedge, int /*haf*/, int pmenv, bool
+		            PropModel prop_model, int knifeedge, int pmenv, bool
 		            use_threads, uint8_t segments)
 {
+	if (debug) cnt_PlotPropagation++;
 	static __thread unsigned char mask_value = 1;
 
     char plotType[32];
@@ -1022,7 +1023,7 @@ void PlotPropagation(struct site source, bbox bounds,
 }
 
 void PlotPropagationRadius(struct site source, double range, 
-                            double altitude, PropModel prop_model, int knifeedge, int /*haf*/, int pmenv,
+                            double altitude, PropModel prop_model, int knifeedge, int pmenv,
                             bool use_threads, uint8_t segments)
 {
 

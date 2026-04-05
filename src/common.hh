@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <cstdint>
+#include <atomic>
 
 #define GAMMA 		2.5
 
@@ -88,7 +89,6 @@ struct bbox {
 
 extern int MAXPAGES;
 extern int ARRAYSIZE;
-extern int IPPD;
 
 extern double min_north;
 extern double max_north;
@@ -143,5 +143,12 @@ extern struct LR LR;
 extern struct region region;
 
 extern int debug;
+
+extern std::atomic<int> cnt_point_to_point_ITM;
+extern std::atomic<int> cnt_point_to_point;
+extern std::atomic<int> cnt_computeLoss;
+extern std::atomic<int> cnt_PlotPropPath;
+extern std::atomic<int> cnt_ReadPath;
+extern std::atomic<int> cnt_PlotPropagation;
 
 #endif /* _COMMON_HH_ */

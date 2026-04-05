@@ -164,7 +164,7 @@ double GetElevation(struct site location)
 double Distance(struct site site1, struct site site2)
 {
     /* This function returns the great circle distance
-       in kilometers between any two site locations. */
+       in meters between any two site locations. */
 
     double lat1, lon1, lat2, lon2, distance;
 
@@ -174,7 +174,7 @@ double Distance(struct site site1, struct site site2)
     lon2 = site2.lon * DEG2RAD;
 
     distance =
-        6371.0 * acos(sin(lat1) * sin(lat2) +
+        6371000.0 * acos(sin(lat1) * sin(lat2) +
               cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
 
     return distance;
@@ -248,7 +248,7 @@ double ElevationAngle(struct site source, struct site destination)
     a = GetElevation(destination) + destination.alt + EARTHRADIUS;
     b = GetElevation(source) + source.alt + EARTHRADIUS;
 
-    dx = Distance(source, destination) * 1000.0;
+    dx = Distance(source, destination);
 
     /* Apply the Law of Cosines */
 
@@ -278,7 +278,7 @@ void ReadPath(struct site source, struct site destination)
     lon2 = destination.lon * DEG2RAD;
     azimuth = Azimuth(source, destination) * DEG2RAD;
 
-    total_distance = Distance(source, destination) * 1000.0;  /* km → meters */
+    total_distance = Distance(source, destination);  
 
     if (total_distance > (30000.0 / ppd)) {
         dx = samples_per_radian * acos(cos(lon1 - lon2));
@@ -382,7 +382,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 
     ReadPath(source, destination);
 
-    distance = Distance(source, destination) * 1000.0;  /* km → meters */
+    distance = Distance(source, destination); 
     source_alt = er + source.alt + GetElevation(source);
     destination_alt = er + destination.alt + GetElevation(destination);
     source_alt2 = source_alt * source_alt;
@@ -520,7 +520,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
     h_r_fpt6 = h_r;
     h_r_orig = h_r;
     h_t = GetElevation(xmtr) + xmtr.alt + EARTHRADIUS;
-    d_tx = Distance(rcvr, xmtr) * 1000.0;  /* km → meters */
+    d_tx = Distance(rcvr, xmtr); 
     cos_tx_angle =
         ((h_r * h_r) + (d_tx * d_tx) - (h_t * h_t)) / (2.0 * h_r * d_tx);
     cos_tx_angle_f1 = cos_tx_angle;
@@ -555,7 +555,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
         site_x.alt = 0.0;
 
         h_x = GetElevation(site_x) + EARTHRADIUS + clutter;
-        d_x = Distance(rcvr, site_x) * 1000.0;
+        d_x = Distance(rcvr, site_x);
 
         /* Deal with the LOS path first. */
 

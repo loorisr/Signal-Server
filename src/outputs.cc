@@ -15,8 +15,7 @@
 void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format based on the content of flags held in the mask[][]
-	   array (only).  The image created is rotated counter-clockwise
+	   (PPM) format.  The image created is rotated counter-clockwise
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
@@ -1361,7 +1360,7 @@ void SeriesData(struct site source, struct site destination, char *name,
 			terrain += destination.alt;	/* RX antenna spike */
 
 		a = terrain + EARTHRADIUS;
-		cangle = Distance(destination, remote) * 1000.0 / EARTHRADIUS;
+		cangle = Distance(destination, remote) / EARTHRADIUS;
 		c = b * sin(refangle * DEG2RAD + HALFPI) / sin(HALFPI -
 							       refangle *
 							       DEG2RAD -

@@ -23,7 +23,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 	char mapfile[255];
 	unsigned red, green, blue, terrain = 0;
 	unsigned char found;
-	int indx, x, y, z, x0 = 0, y0 = 0, loss, match;
+	int x, y, z, x0 = 0, y0 = 0, loss, match;
 	double lat, lon, conversion, one_over_gamma;
 	FILE *fd;
 	image_ctx_t ctx;
@@ -81,22 +81,12 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			for (indx = 0, found = 0;
-			     indx < MAXPAGES && found == 0;) {
-				x0 = (int)rint(ppd *
-					       (lat -
-						(double)dem[indx].min_north));
-				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
-
-				if (x0 >= 0 && x0 <= mpi && y0 >= 0
-				    && y0 <= mpi)
-					found = 1;
-				else
-					indx++;
-			}
+			x0 = (int)rint(ppd * (lat - dem_min_lat));
+				y0 = (int)rint(ppd * (lon - dem_min_lon));
+				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
 			if (found) {
-				loss = (dem[indx].signal[x0][y0]);
+				loss = (dem_signal[x0][y0]);
 
 				match = 255;
 
@@ -132,8 +122,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 						else {
 							/* Display land or sea elevation */
 
-							if (dem[indx].
-							    data[x0][y0] == 0)
+							if (dem_data[x0][y0] == 0)
 								ADD_PIXEL(&ctx, 
 									0, 0,
 									170);
@@ -141,7 +130,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 								terrain =
 								    (unsigned)
 								    (0.5 +
-								     pow((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								     pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 								ADD_PIXEL(&ctx, 
 									terrain,
 									terrain,
@@ -161,8 +150,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 
 						else {	/* terrain / sea-level */
 
-							if (dem[indx].
-							    data[x0][y0] == 0)
+							if (dem_data[x0][y0] == 0)
 								ADD_PIXEL(&ctx, 
 									0, 0,
 									170);
@@ -171,7 +159,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 								terrain =
 								    (unsigned)
 								    (0.5 +
-								     pow((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								     pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 								ADD_PIXEL(&ctx, 
 									terrain,
 									terrain,
@@ -219,7 +207,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	unsigned char found;
-	int indx, x, y, z = 1, x0 = 0, y0 = 0, signal, match;
+	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
 	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
@@ -277,22 +265,12 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			for (indx = 0, found = 0;
-			     indx < MAXPAGES && found == 0;) {
-				x0 = (int)rint(ppd *
-					       (lat -
-						(double)dem[indx].min_north));
-				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
-
-				if (x0 >= 0 && x0 <= mpi && y0 >= 0
-				    && y0 <= mpi)
-					found = 1;
-				else
-					indx++;
-			}
+			x0 = (int)rint(ppd * (lat - dem_min_lat));
+				y0 = (int)rint(ppd * (lon - dem_min_lon));
+				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
 			if (found) {
-				signal = (dem[indx].signal[x0][y0]) - 100;
+				signal = (dem_signal[x0][y0]) - 100;
 				match = 255;
 
 				red = 0;
@@ -326,8 +304,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 						else {
 							/* Display land or sea elevation */
 
-							if (dem[indx].
-							    data[x0][y0] == 0)
+							if (dem_data[x0][y0] == 0)
 								ADD_PIXEL(&ctx, 
 									0, 0,
 									170);
@@ -335,7 +312,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 								terrain =
 								    (unsigned)
 								    (0.5 +
-								     pow((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								     pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 								ADD_PIXEL(&ctx, 
 									terrain,
 									terrain,
@@ -361,9 +338,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 									255,
 									255);
 							else {
-								if (dem[indx].
-								    data[x0][y0]
-								    == 0)
+								if (dem_data[x0][y0] == 0)
 									ADD_PIXEL(&ctx, 
 									     0,
 									     0,
@@ -376,7 +351,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 									    (0.5
 									     +
 									     pow
-									     ((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+									     ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 									ADD_PIXEL(&ctx, 
 									     terrain,
 									     terrain,
@@ -425,7 +400,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	unsigned char found;
-	int indx, x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
+	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
 	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
@@ -487,26 +462,12 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			for (indx = 0, found = 0;
-			     indx < MAXPAGES && found == 0;) {
-
-				x0 = (int)rint((ppd *
-					      (lat -
-						(double)dem[indx].min_north))); 
-				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
-
-
-				if (x0 >= 0 && x0 <= mpi && y0 >= 0
-				    && y0 <= mpi)
-					found = 1;
-				else
-					indx++;
-
-
-			}
+			x0 = (int)rint(ppd * (lat - dem_min_lat));
+				y0 = (int)rint(ppd * (lon - dem_min_lon));
+				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
 			if (found) {
-				dBm = (dem[indx].signal[x0][y0]) - 200;
+				dBm = (dem_signal[x0][y0]) - 200;
 				match = 255;
 
 				red = 0;
@@ -539,8 +500,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 						else {
 							/* Display land or sea elevation */
 
-							if (dem[indx].
-							    data[x0][y0] == 0)
+							if (dem_data[x0][y0] == 0)
 								ADD_PIXEL(&ctx,
 									0, 0,
 									170);
@@ -548,7 +508,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 								terrain =
 								    (unsigned)
 								    (0.5 +
-								     pow((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								     pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 								ADD_PIXEL(&ctx,
 									terrain,
 									terrain,
@@ -574,9 +534,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 									255,
 									255); // WHITE
 							else {
-								if (dem[indx].
-								    data[x0][y0]
-								    == 0)
+								if (dem_data[x0][y0] == 0)
 									ADD_PIXEL(&ctx, 
 									     0,
 									     0,
@@ -589,7 +547,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 									    (0.5
 									     +
 									     pow
-									     ((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+									     ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 									ADD_PIXEL(&ctx, 
 									     terrain,
 									     terrain,
@@ -639,7 +597,7 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 	char mapfile[255];
 	unsigned terrain;
 	unsigned char found, mask;
-	int indx, x, y, x0 = 0, y0 = 0;
+	int x, y, x0 = 0, y0 = 0;
 	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
 	image_ctx_t ctx;
@@ -692,22 +650,12 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			for (indx = 0, found = 0;
-			     indx < MAXPAGES && found == 0;) {
-				x0 = (int)rint(ppd *
-					       (lat -
-						(double)dem[indx].min_north));
-				y0 = mpi - (int)rint(ppd * (lon - (double)dem[indx].min_lon));
-
-				if (x0 >= 0 && x0 <= mpi && y0 >= 0
-				    && y0 <= mpi)
-					found = 1;
-				else
-					indx++;
-			}
+			x0 = (int)rint(ppd * (lat - dem_min_lat));
+				y0 = (int)rint(ppd * (lon - dem_min_lon));
+				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
 			if (found) {
-				mask = dem[indx].mask[x0][y0];
+				mask = dem_mask[x0][y0];
 
 				if (mask & 2)
 					/* Text Labels: Red */
@@ -815,8 +763,7 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 								255, 255, 255);
 						else {
 							/* Sea-level: Medium Blue */
-							if (dem[indx].
-							    data[x0][y0] == 0)
+							if (dem_data[x0][y0] == 0)
 								ADD_PIXEL(&ctx, 
 									0, 0,
 									170);
@@ -825,7 +772,7 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 								terrain =
 								    (unsigned)
 								    (0.5 +
-								     pow((double)(dem[indx].data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								     pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
 								ADD_PIXEL(&ctx, 
 									terrain,
 									terrain,

@@ -22,22 +22,14 @@ extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
 int LoadSDF_SDF(char *name)
 {
 	/* This function reads uncompressed ss Data Files (.sdf)
-		 containing digital elevation model data into memory.
-		 Elevation data, maximum and minimum elevations, and
-		 quadrangle limits are stored in the first available
-		 dem[] structure.
-		 NOTE: On error, this function returns a negative errno */
+	   into the flat DEM arrays.
+	   NOTE: On error, this function returns a negative errno */
 
-	int x, y, data = 0, indx, minlat, minlon, maxlat, maxlon, j;
-	char found, free_page = 0, line[20], jline[20], sdf_file[255], path_plus_name[PATH_MAX];
-
-	FILE *fd;
+	int x, y, data = 0, minlat, minlon, maxlat, maxlon, j;
+	char line[20], jline[20], sdf_file[255], path_plus_name[PATH_MAX];
 
 	for (x = 0; name[x] != '.' && name[x] != 0 && x < 250; x++) sdf_file[x] = name[x];
-
 	sdf_file[x] = 0;
-
-	/* Parse filename for minimum latitude and longitude values */
 
 	if (sscanf(sdf_file, "%d_%d_%d_%d", &minlat, &maxlat, &minlon, &maxlon) != 4) return -EINVAL;
 
@@ -47,118 +39,63 @@ int LoadSDF_SDF(char *name)
 	sdf_file[x + 3] = 'f';
 	sdf_file[x + 4] = 0;
 
-	/* Is it already in memory? */
-
-	for (indx = 0, found = 0; indx < MAXPAGES && found == 0; indx++) {
-		if (minlat == dem[indx].min_north && minlon == dem[indx].min_lon && maxlat == dem[indx].max_north &&
-				maxlon == dem[indx].max_lon)
-			found = 1;
+	strncpy(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
+	FILE *fd = fopen(path_plus_name, "rb");
+	if (fd == NULL) {
+		strncat(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
+		fd = fopen(path_plus_name, "rb");
+		if (fd == NULL) return -errno;
 	}
 
-	/* Is room available to load it? */
+	/* Read header: max_lon, min_north, min_lon, max_north */
+	float hdr_max_lon, hdr_min_north, hdr_min_lon, hdr_max_north;
+	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_max_lon)   == EOF) { fclose(fd); return -errno; }
+	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_min_north) == EOF) { fclose(fd); return -errno; }
+	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_min_lon)   == EOF) { fclose(fd); return -errno; }
+	if (fgets(line, 19, fd) == NULL || sscanf(line, "%f", &hdr_max_north) == EOF) { fclose(fd); return -errno; }
 
-	if (found == 0) {
-		for (indx = 0, free_page = 0; indx < MAXPAGES && free_page == 0; indx++)
-			if (dem[indx].max_north == -90) free_page = 1;
-	}
+	int tile_lat = (int)hdr_min_north;
+	int tile_lon = (int)hdr_min_lon;
+	int gx_base  = (tile_lat - dem_min_lat) * ippd;
+	int gy_base  = (tile_lon - dem_min_lon) * ippd;
 
-	indx--;
+	spdlog::debug("Loading SDF \"{}\"...", path_plus_name);
 
-	if (free_page && found == 0 && indx >= 0 && indx < MAXPAGES) {
-		/* Search for SDF file in current working directory first */
+	int tile_min_el = 32768, tile_max_el = -32768;
 
-		strncpy(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-
-		if ((fd = fopen(path_plus_name, "rb")) == NULL) {
-			/* Next, try loading SDF file from path specified
-				 in $HOME/.ss_path file or by -d argument */
-
-			//strncpy(path_plus_name, sdf_path, sizeof(path_plus_name) - 1);
-			strncat(path_plus_name, sdf_file, sizeof(path_plus_name) - 1);
-            //spdlog::debug("Trying to load SDF file {}", path_plus_name);
-			if ((fd = fopen(path_plus_name, "rb")) == NULL) {
-				return -errno;
+	for (x = 0; x < ippd; x++) {
+		int gx = gx_base + x;
+		for (y = 0; y < ippd; y++) {
+			for (j = 0; j < jgets; j++) {
+				if (fgets(jline, sizeof(jline), fd) == NULL) { fclose(fd); return -EIO; }
 			}
+			if (fgets(line, sizeof(line), fd) != NULL) data = atoi(line);
+
+			int gy = gy_base + y;
+			dem_data[gx][gy]   = (short)data;
+			dem_signal[gx][gy] = 0;
+			dem_mask[gx][gy]   = 0;
+
+			if (data > tile_max_el) tile_max_el = data;
+			if (data < tile_min_el) tile_min_el = data;
 		}
-
-		spdlog::debug("Loading SDF \"{}\" into page {}...", path_plus_name, indx + 1);
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].max_lon) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].min_north) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].min_lon) == EOF) return -errno;
-		}
-
-		if (fgets(line, 19, fd) != NULL) {
-			if (sscanf(line, "%f", &dem[indx].max_north) == EOF) return -errno;
-		}
-
-		/*
-			 Here X lines of DEM will be read until ippd is reached.
-			 Each .sdf tile contains 1200x1200 = 1.44M 'points'
-			 Each point is sampled for 1200 resolution!
-		 */
-		for (x = 0; x < ippd; x++) {
-			for (y = 0; y < ippd; y++) {
-				for (j = 0; j < jgets; j++) {
-					if (fgets(jline, sizeof(jline), fd) == NULL) return -EIO;
-				}
-
-				if (fgets(line, sizeof(line), fd) != NULL) {
-					data = atoi(line);
-				}
-
-				dem[indx].data[x][y] = data;
-				dem[indx].signal[x][y] = 0;
-				dem[indx].mask[x][y] = 0;
-
-				if (data > dem[indx].max_el) dem[indx].max_el = data;
-
-				if (data < dem[indx].min_el) dem[indx].min_el = data;
-			}
-
-		}
-
-		fclose(fd);
-
-		if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
-
-		if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
-
-		if (max_north == -90)
-			max_north = dem[indx].max_north;
-
-		else if (dem[indx].max_north > max_north)
-			max_north = dem[indx].max_north;
-
-		if (min_north == 90)
-			min_north = dem[indx].min_north;
-
-		else if (dem[indx].min_north < min_north)
-			min_north = dem[indx].min_north;
-
-		if (dem[indx].max_lon > max_lon) max_lon = dem[indx].max_lon;
-		if (dem[indx].min_lon < min_lon) min_lon = dem[indx].min_lon;
-
-		tile_lut[int(dem[indx].min_north) + 90][int(dem[indx].min_lon) + 180] = (int16_t)indx;
-
-		spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
-					path_plus_name,
-					dem[indx].min_el, dem[indx].max_el,
-					dem[indx].min_north, dem[indx].min_lon,
-					dem[indx].max_north, dem[indx].max_lon);
-
-		return 1;
 	}
 
-	else
-		return 0;
+	fclose(fd);
+
+	if (tile_min_el < min_elevation) min_elevation = tile_min_el;
+	if (tile_max_el > max_elevation) max_elevation = tile_max_el;
+
+	if (max_north == -90 || hdr_max_north > max_north) max_north = hdr_max_north;
+	if (min_north ==  90 || hdr_min_north < min_north) min_north = hdr_min_north;
+	if (hdr_max_lon > max_lon) max_lon = hdr_max_lon;
+	if (hdr_min_lon < min_lon) min_lon = hdr_min_lon;
+
+	spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
+				path_plus_name, tile_min_el, tile_max_el,
+				hdr_min_north, hdr_min_lon, hdr_max_north, hdr_max_lon);
+
+	return 1;
 }
 
 
@@ -966,47 +903,11 @@ static std::mutex copernicus_mutex;
 
 int LoadCopernicus(int tile_lat, int tile_lon)
 {
-    int indx;
-    char found = 0, free_page = 0;
-
-    {
-        std::lock_guard<std::mutex> lock(copernicus_mutex);
-
-        /* Already in memory? */
-        for (indx = 0; indx < MAXPAGES && found == 0; indx++) {
-            if (tile_lat     == (int)dem[indx].min_north &&
-                tile_lat + 1 == (int)dem[indx].max_north &&
-                tile_lon     == (int)dem[indx].min_lon   &&
-                tile_lon + 1 == (int)dem[indx].max_lon)
-                found = 1;
-        }
-        if (found) return 0;
-
-        /* Find a free page */
-        for (indx = 0; indx < MAXPAGES && free_page == 0; indx++)
-            if (dem[indx].max_north == -90) free_page = 1;
-        indx--;
-
-        if (!free_page || indx < 0 || indx >= MAXPAGES) {
-            spdlog::error("LoadCopernicus: no free DEM page available");
-            return -ENOMEM;
-        }
-
-        /* Claim this page immediately so other threads won't pick the same slot */
-        dem[indx].min_north = (float)tile_lat;
-        dem[indx].max_north = (float)(tile_lat + 1);
-        dem[indx].min_lon   = (float)tile_lon;
-        dem[indx].max_lon   = (float)(tile_lon + 1);
-    }
-
-    /* Build the Copernicus filename.
-     * tile_lon is the east-positive western edge of the tile. */
+    /* Build the Copernicus filename. */
     char ew = (tile_lon >= 0) ? 'E' : 'W';
-    int lon_abs = abs(tile_lon);
-
+    int  lon_abs = abs(tile_lon);
     char ns = (tile_lat >= 0) ? 'N' : 'S';
     int  lat_abs = abs(tile_lat);
-
     const char *res_str = (ippd == 3600) ? "10" : "30";
 
     char filename[64];
@@ -1021,25 +922,15 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     GDALDatasetH ds = GDALOpen(path_plus_name, GA_ReadOnly);
     if (ds == NULL) {
-        snprintf(path_plus_name, sizeof(path_plus_name),
-                 "%s%s", DEM_path, filename);
+        snprintf(path_plus_name, sizeof(path_plus_name), "%s%s", DEM_path, filename);
         ds = GDALOpen(path_plus_name, GA_ReadOnly);
     }
     if (ds == NULL) {
         spdlog::debug("LoadCopernicus: file not found: {}", filename);
-        /* Release the claimed page so other tiles can use it */
-        {
-            std::lock_guard<std::mutex> lock(copernicus_mutex);
-            dem[indx].min_north = 0;
-            dem[indx].max_north = -90;
-            dem[indx].min_lon   = 0;
-            dem[indx].max_lon   = 0;
-        }
         return -ENOENT;
     }
 
-    spdlog::debug("LoadCopernicus: loading \"{}\" into page {}...",
-                  path_plus_name, indx + 1);
+    spdlog::debug("LoadCopernicus: loading \"{}\"...", path_plus_name);
 
     GDALRasterBandH band = GDALGetRasterBand(ds, 1);
     int nodata_valid = 0;
@@ -1048,7 +939,6 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int src_x = GDALGetRasterXSize(ds);
     int src_y = GDALGetRasterYSize(ds);
 
-    /* Read and resample to ippd×ippd using float to handle any source type */
     float *buf = new float[ippd * ippd];
     CPLErr err = (CPLErr)GDALRasterIO(band, GF_Read,
                                       0, 0, src_x, src_y,
@@ -1059,43 +949,36 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     if (err != CE_None) {
         spdlog::error("LoadCopernicus: RasterIO failed for {}", path_plus_name);
         delete[] buf;
-        /* Release the claimed page */
-        {
-            std::lock_guard<std::mutex> lock(copernicus_mutex);
-            dem[indx].max_north = -90;
-        }
         return -EIO;
     }
 
-    /* Fill dem page.
+    /* Compute global pixel offset for this tile.
+     * x increases northward: tile row 0 (south edge) maps to gx_base.
+     * y increases westward:  tile col 0 (west  edge) maps to gy_base + (ippd-1).
      *
-     * GeoTIFF layout : row 0 = north, col 0 = west (geographic)
-     * dem[] layout   : data[x][y]
-     *   x: 0 = min_north (south edge) … ippd-1 = max_north (north edge)
-     *   y: 0 = max_lon   (east  edge) … ippd-1 = min_lon   (west edge)
-     *
-     * Mapping: x = (ippd-1-r),  y = (ippd-1-c)
-     *
-     * Note: bounds (min/max_north/lon) were already set when the page was claimed.
-     * Each thread owns its own indx, so no lock is needed here.
+     * GeoTIFF layout: row 0 = north, col 0 = west.
+     * Flat array:
+     *   x = gx_base + (ippd-1-r)   — row r=0 (north) → highest x in tile
+     *   y = gy_base + (ippd-1-c)   — col c=0 (west)  → highest y in tile
      */
+    int gx_base = (tile_lat - dem_min_lat) * ippd;
+    int gy_base = (tile_lon - dem_min_lon) * ippd;
+
+    int tile_min_el = 32768, tile_max_el = -32768;
+
     for (int r = 0; r < ippd; r++) {
-        int x = ippd - 1 - r;
+        int gx = gx_base + (ippd - 1 - r);
         for (int c = 0; c < ippd; c++) {
-            int y = ippd - 1 - c;
+            int gy = gy_base + c;
             float fval = buf[r * ippd + c];
-            short val;
-            if (nodata_valid && fval == (float)nodata_val)
-                val = 0;
-            else
-                val = (short)roundf(fval);
+            short val = (nodata_valid && fval == (float)nodata_val) ? 0 : (short)roundf(fval);
 
-            dem[indx].data[x][y]   = val;
-            dem[indx].signal[x][y] = 0;
-            dem[indx].mask[x][y]   = 0;
+            dem_data[gx][gy]   = val;
+            dem_signal[gx][gy] = 0;
+            dem_mask[gx][gy]   = 0;
 
-            if (val > dem[indx].max_el) dem[indx].max_el = val;
-            if (val < dem[indx].min_el) dem[indx].min_el = val;
+            if (val > tile_max_el) tile_max_el = val;
+            if (val < tile_min_el) tile_min_el = val;
         }
     }
 
@@ -1104,33 +987,24 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     {
         std::lock_guard<std::mutex> lock(copernicus_mutex);
 
-        /* Register tile in lookup table */
-        tile_lut[int(dem[indx].min_north) + 90][int(dem[indx].min_lon) + 180] = (int16_t)indx;
+        if (tile_min_el < min_elevation) min_elevation = tile_min_el;
+        if (tile_max_el > max_elevation) max_elevation = tile_max_el;
 
-        /* Update global elevation bounds */
-        if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;
-        if (dem[indx].max_el > max_elevation) max_elevation = dem[indx].max_el;
+        float f_max_north = (float)(tile_lat + 1);
+        float f_min_north = (float)tile_lat;
+        float f_max_lon   = (float)(tile_lon + 1);
+        float f_min_lon   = (float)tile_lon;
 
-        /* Update global geographic bounds (same logic as LoadSDF_SDF) */
-        if (max_north == -90)
-            max_north = dem[indx].max_north;
-        else if (dem[indx].max_north > max_north)
-            max_north = dem[indx].max_north;
-
-        if (min_north == 90)
-            min_north = dem[indx].min_north;
-        else if (dem[indx].min_north < min_north)
-            min_north = dem[indx].min_north;
-
-        if (dem[indx].max_lon > max_lon) max_lon = dem[indx].max_lon;
-        if (dem[indx].min_lon < min_lon) min_lon = dem[indx].min_lon;
+        if (max_north == -90 || f_max_north > max_north) max_north = f_max_north;
+        if (min_north ==  90 || f_min_north < min_north) min_north = f_min_north;
+        if (f_max_lon > max_lon) max_lon = f_max_lon;
+        if (f_min_lon < min_lon) min_lon = f_min_lon;
     }
 
     spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
-                 filename,
-                 dem[indx].min_el, dem[indx].max_el,
-                 dem[indx].min_north, dem[indx].min_lon,
-                 dem[indx].max_north, dem[indx].max_lon);
+                 filename, tile_min_el, tile_max_el,
+                 (float)tile_lat, (float)tile_lon,
+                 (float)(tile_lat + 1), (float)(tile_lon + 1));
 
     return 1;
 }
@@ -1163,6 +1037,9 @@ int LoadTopoData(bbox region)
         spdlog::error("Our plot area gave us {} x {} tiles which is invalid!", tiles_lat, tiles_lon);
         exit(1);
     }
+
+    /* Allocate flat DEM arrays now that the bounding box is known */
+    alloc_dem(r_min_lat, r_min_lon, tiles_lat, tiles_lon);
 
     // Load the data
     for (int x = 0; x < tiles_lon; x++) {

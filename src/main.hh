@@ -42,7 +42,7 @@ void free_path(void);
 void free_dem(void);
 void alloc_elev(void);
 void alloc_path(void);
-void alloc_dem(void);
+void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon);
 void do_allocs(void);
 
 #endif /* _MAIN_HH_ */

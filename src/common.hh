@@ -28,18 +28,6 @@
 #define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS)
 //#define MAX(x,y)((x)>(y)?(x):(y))
 
-struct dem {
-	float min_north;
-	float max_north;
-	float min_lon;   /* western edge, east-positive (negative = west hemisphere) */
-	float max_lon;   /* eastern edge, east-positive (positive = east hemisphere) */
-	long min_x, max_x, min_y, max_y;
-	int max_el;
-	int min_el;
-	short **data;
-	unsigned char **mask;
-	unsigned char **signal;
-};
 
 struct site {
 	double lat;
@@ -137,10 +125,18 @@ extern bool dbm;
 extern bool geotiff;
 extern bool write_ppm;
 
-extern struct dem *dem;
-/* Direct lookup table: tile_lut[lat+90][lon+180] -> dem[] index, or -1 if absent.
- * 180*360*2 = ~130 KB, fits in L2 cache. */
-extern int16_t tile_lut[180][360];
+/* Flat DEM arrays: dem_data[x][y], dem_signal[x][y], dem_mask[x][y]
+ * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)
+ * y: 0 = global east  edge, increases westward   (cols = ippd * tiles_lon)
+ * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
+extern short         **dem_data;
+extern unsigned char **dem_signal;
+extern unsigned char **dem_mask;
+/* Geographic origin of the flat arrays (south-west corner, integer degrees) */
+extern int dem_min_lat;   /* southernmost tile_lat */
+extern int dem_min_lon;   /* westernmost  tile_lon */
+extern int dem_width_px;  /* tiles_lon * ippd */
+extern int dem_height_px; /* tiles_lat * ippd */
 extern __thread struct path path;
 extern struct LR LR;
 extern struct region region;

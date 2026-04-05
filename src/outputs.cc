@@ -444,14 +444,11 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 		fd = stdout;
 
 	}
-	spdlog::info("DoRxdPwr min_lon {}", min_lon);
 
 	north = (double)max_north - dpp;
 	south = (double)min_north;	/* No bottom legend */
 	west = (double)min_lon;
 	east = (double)(max_lon - dpp);
-
-	spdlog::info("N/S/E/W: {}/{}/{}/{}", north, south, east, west);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			(filename != NULL ? mapfile : "to stdout"), width, height);
@@ -596,7 +593,7 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 
 	char mapfile[255];
 	unsigned terrain;
-	unsigned char found, mask;
+	unsigned char found;
 	int x, y, x0 = 0, y0 = 0;
 	double conversion, one_over_gamma, lat, lon;
 	FILE *fd;
@@ -655,109 +652,6 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
 			if (found) {
-				mask = dem_mask[x0][y0];
-
-				if (mask & 2)
-					/* Text Labels: Red */
-					ADD_PIXEL(&ctx, 255, 0, 0);
-
-				else if (mask & 4)
-					/* County Boundaries: Light Cyan */
-					ADD_PIXEL(&ctx, 128, 128, 255);
-
-				else
-					switch (mask & 57) {
-					case 1:
-						/* TX1: Green */
-						ADD_PIXEL(&ctx, 0, 255,
-							0);
-						break;
-
-					case 8:
-						/* TX2: Cyan */
-						ADD_PIXEL(&ctx, 0, 255,
-							255);
-						break;
-
-					case 9:
-						/* TX1 + TX2: Yellow */
-						ADD_PIXEL(&ctx, 255, 255,
-							0);
-						break;
-
-					case 16:
-						/* TX3: Medium Violet */
-						ADD_PIXEL(&ctx, 147, 112,
-							219);
-						break;
-
-					case 17:
-						/* TX1 + TX3: Pink */
-						ADD_PIXEL(&ctx, 255, 192,
-							203);
-						break;
-
-					case 24:
-						/* TX2 + TX3: Orange */
-						ADD_PIXEL(&ctx, 255, 165,
-							0);
-						break;
-
-					case 25:
-						/* TX1 + TX2 + TX3: Dark Green */
-						ADD_PIXEL(&ctx, 0, 100,
-							0);
-						break;
-
-					case 32:
-						/* TX4: Sienna 1 */
-						ADD_PIXEL(&ctx, 255, 130,
-							71);
-						break;
-
-					case 33:
-						/* TX1 + TX4: Green Yellow */
-						ADD_PIXEL(&ctx, 173, 255,
-							47);
-						break;
-
-					case 40:
-						/* TX2 + TX4: Dark Sea Green 1 */
-						ADD_PIXEL(&ctx, 193, 255,
-							193);
-						break;
-
-					case 41:
-						/* TX1 + TX2 + TX4: Blanched Almond */
-						ADD_PIXEL(&ctx, 255, 235,
-							205);
-						break;
-
-					case 48:
-						/* TX3 + TX4: Dark Turquoise */
-						ADD_PIXEL(&ctx, 0, 206,
-							209);
-						break;
-
-					case 49:
-						/* TX1 + TX3 + TX4: Medium Spring Green */
-						ADD_PIXEL(&ctx, 0, 250,
-							154);
-						break;
-
-					case 56:
-						/* TX2 + TX3 + TX4: Tan */
-						ADD_PIXEL(&ctx, 210, 180,
-							140);
-						break;
-
-					case 57:
-						/* TX1 + TX2 + TX3 + TX4: Gold2 */
-						ADD_PIXEL(&ctx, 238, 201,
-							0);
-						break;
-
-					default:
 						if (ngs)	/* No terrain */
 							ADD_PIXEL(&ctx, 
 								255, 255, 255);
@@ -779,7 +673,6 @@ void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
 									terrain);
 							}
 						}
-					}
 			}
 
 			else {
@@ -1156,10 +1049,10 @@ void PathReport(struct site source, struct site destination, char *name,
 
 			if (block)
 				elevation =
-				    ((acos(cos_test_angle)) / DEG2RAD) - 90.0;
+				    ((acos(cos_test_angle)) * RAD2DEG) - 90.0;
 			else
 				elevation =
-				    ((acos(cos_xmtr_angle)) / DEG2RAD) - 90.0;
+				    ((acos(cos_xmtr_angle)) * RAD2DEG) - 90.0;
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */

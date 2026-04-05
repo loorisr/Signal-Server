@@ -894,7 +894,6 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
             dem_data[gx][gy]   = val;
             dem_signal[gx][gy] = 0;
-            dem_mask[gx][gy]   = 0;
 
             if (val > tile_max_el) tile_max_el = val;
             if (val < tile_min_el) tile_min_el = val;

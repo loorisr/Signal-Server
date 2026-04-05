@@ -24,9 +24,6 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
 
 int ReduceAngle(double angle);
 double LonDiff(double lon1, double lon2);
-int PutMask(double lat, double lon, int value);
-int OrMask(double lat, double lon, int value);
-int GetMask(double lat, double lon);
 void PutSignal(double lat, double lon, unsigned char signal);
 unsigned char GetSignal(double lat, double lon);
 double GetElevation(struct site location);

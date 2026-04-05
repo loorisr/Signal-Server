@@ -13,28 +13,36 @@ double earthRadius(double lat)
     return double(sqrt( (An*An + Bn*Bn) / (Ad*Ad + Bd*Bd) ) / (double)1000);
 }
 
-coord getPointAtDistance(coord center, double distance, double bearing)
+coord getPointAtDistance(const coord center, double distance, double bearing_rad)
 {
-    // Result struct
     coord endCoords;
 
-    // Convert decimal degress to radians
-    double start_lat_rad = center.lat * DEG2RAD;
-    double start_lon_rad = center.lon * DEG2RAD;
-    double bearing_rad = bearing * DEG2RAD;
+    // 1. Pre-calculate radians and Earth radius ratio
+    const double start_lat_rad = center.lat * DEG2RAD;
+    const double start_lon_rad = center.lon * DEG2RAD;
+    const double dR            = distance / earthRadius(center.lat);
 
-    // Calclate the ratio of distance to earth's radius (used in the following equations)
-    double dR = distance / earthRadius(center.lat);
+    // 2. Pre-calculate common trig values to avoid redundant calls
+    const double sin_lat = sin(start_lat_rad);
+    const double cos_lat = cos(start_lat_rad);
+    const double sin_dR  = sin(dR);
+    const double cos_dR  = cos(dR);
+    const double sin_brg = sin(bearing_rad);
+    const double cos_brg = cos(bearing_rad);
 
-    // Calculate resulting lat/lon using trig
-    double end_lat_rad = asin( sin(start_lat_rad) * cos(dR) + cos(start_lat_rad) * sin(dR) * cos(bearing_rad) );
-    double end_lon_rad = start_lon_rad + atan2( 
-        sin(bearing_rad) * sin(dR) * cos(start_lat_rad),
-        cos(dR) - sin(start_lat_rad) * sin(end_lat_rad) 
+    // 3. Calculate Latitude
+    const double sin_end_lat = sin_lat * cos_dR + cos_lat * sin_dR * cos_brg;
+    const double end_lat_rad = asin(sin_end_lat);
+    
+    // 4. Calculate Longitude
+    // Optimization: Reuse sin_end_lat to avoid another sin() call
+    const double end_lon_rad = start_lon_rad + atan2(
+        sin_brg * sin_dR * cos_lat,
+        cos_dR - sin_lat * sin_end_lat
     );
 
-    endCoords.lat = end_lat_rad / DEG2RAD;
-    endCoords.lon = end_lon_rad / DEG2RAD;
+    endCoords.lat = end_lat_rad * RAD2DEG;
+    endCoords.lon = end_lon_rad * RAD2DEG;
 
     return endCoords;
 }
@@ -60,8 +68,8 @@ bbox getCircularBoundingBox(coord center, double radius)
     double lonMin = lon_rad - (radius / p_rad);
     double lonMax = lon_rad + (radius / p_rad);
     
-    result.lower_right = { latMin / DEG2RAD, lonMin / DEG2RAD };
-    result.upper_left = { latMax / DEG2RAD, lonMax / DEG2RAD };
+    result.lower_right = { latMin * RAD2DEG, lonMin * RAD2DEG };
+    result.upper_left = { latMax * RAD2DEG, lonMax * RAD2DEG };
 
     return result;
 }

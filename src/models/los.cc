@@ -51,7 +51,7 @@ namespace {
 	bool can_process(double lat, double lon)
 	{
 		int x = (int)rint(ppd  * (lat - dem_min_lat));
-		int y = (int)rint(yppd * (lon - dem_min_lon));
+		int y = (int)rint(ppd * (lon - dem_min_lon));
 		bool rtn = false;
 
 		if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px)
@@ -117,9 +117,9 @@ namespace {
             //spdlog::debug("Plotting propagation path to {:.6f}N {:.6f}W", edge.lat, edge.lon);
 
 			if(v->los)
-				PlotLOSPath(v->source, edge, v->mask_value);
+				PlotLOSPath(v->source, edge);
 			else
-				PlotPropPath(v->source, edge, v->mask_value, v->prop_model,
+				PlotPropPath(v->source, edge, v->prop_model,
 					v->knifeedge, v->pmenv);
             // Increment our counters
 			++y;
@@ -155,7 +155,7 @@ namespace {
         }
 
         spdlog::debug("Starting radiusPropagation for range {:.2f} to {:.2f}, {} points, {:.8f} dpp",
-            r->start_angle_rad / DEG2RAD, r->stop_angle_rad / DEG2RAD, r->points, dpp);
+            r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, dpp);
 
         // Get the amount in radians to increment per iteration
         double rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;
@@ -165,23 +165,21 @@ namespace {
         progress.count.store(0);
         // Iterate
         double rad = r->start_angle_rad;
+        site edge;
+        edge.alt = r->altitude;
         for (int i = 0; i < r->points; i++)
         {
             // Get coordinates of point on circle
-            coord point = getPointAtDistance({r->source.lat, r->source.lon}, r->radius, rad / DEG2RAD);
+            coord point = getPointAtDistance({r->source.lat, r->source.lon}, r->radius, rad);
             // Create site for prop path
-            site edge;
             edge.lat = point.lat;
             edge.lon = point.lon;
-            edge.alt = r->altitude;
 
-            //spdlog::info("coord {:.6f} {:.6f} {:.6f}", edge.lat, edge.lon, edge.alt);
-            
             // Plot
             if (r->los)
-                PlotLOSPath(r->source, edge, r->mask_value);
+                PlotLOSPath(r->source, edge);
             else
-                PlotPropPath(r->source, edge, r->mask_value, r->prop_model, r->knifeedge, r->pmenv);
+                PlotPropPath(r->source, edge, r->prop_model, r->knifeedge, r->pmenv);
 
             // Increment
             rad += rps;
@@ -191,7 +189,7 @@ namespace {
         // Double check we covered the whole range
         if (rad < (r->stop_angle_rad - 0.01f))
         {
-            spdlog::warn("Only got to {:.2f} degrees when we expected to get to {:.2f} degrees", rad / DEG2RAD, r->stop_angle_rad / DEG2RAD);
+            spdlog::warn("Only got to {:.2f} degrees when we expected to get to {:.2f} degrees", rad * RAD2DEG, r->stop_angle_rad * RAD2DEG);
         }
 
         // Free the buffers we made earlier
@@ -297,7 +295,7 @@ static double ked(double freq, double rxh, double dkm)
 	}
 }
 
-void PlotLOSPath(struct site source, struct site destination, char mask_value)
+void PlotLOSPath(struct site source, struct site destination)
 {
     /* This function analyzes the path between the source and
        destination locations. It determines which points along
@@ -361,14 +359,6 @@ void PlotLOSPath(struct site source, struct site destination, char mask_value)
         else {
             cos_angle = -1.0;
             cos_test_angle = 1.0;
-        }
-
-        /* Compare these two angles to determine if
-           an obstruction exists.
-           Mark this point only if it hasn't been already marked */
-
-        if ((cos_horizon_angle >= cos_angle) && ((GetMask(path.lat[x], path.lon[x]) & mask_value) == 0) && (can_process(path.lat[x], path.lon[x]))) {
-            OrMask(path.lat[x], path.lon[x], mask_value);
         }
 
         if (cos_test_angle < cos_horizon_angle) {
@@ -466,7 +456,6 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
 void PlotPropPath(
     struct site source,
     struct site destination,
-	unsigned char mask_value,
     PropModel prop_model,
 	int knifeedge,
     int pmenv
@@ -487,8 +476,7 @@ void PlotPropPath(
 
 
 	for (x = 1; x < path.length - 1; x++)
-		elev[x + 2] =
-		    (path.elevation[x] == 0.0 ? path.elevation[x] : (clutter + path.elevation[x]));
+		elev[x + 2] = (path.elevation[x] == 0.0 ? path.elevation[x] : (clutter + path.elevation[x]));
 
 	/* Copy ending points without clutter */
 
@@ -512,9 +500,7 @@ void PlotPropPath(
 		/* Process this point only if it
 		   has not already been processed. */
 
-		if ( (GetMask(path.lat[y], path.lon[y]) & 248) !=
-			(mask_value << 3) && can_process(path.lat[y], path.lon[y])) {
-		//if (can_process(path.lat[y], path.lon[y])) {
+		if (can_process(path.lat[y], path.lon[y])) {
 
 			distance = path.distance[y];
 			xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
@@ -576,11 +562,11 @@ void PlotPropPath(
 
 				if (block)
 					elevation =
-					    ((acos(cos_test_angle)) / DEG2RAD) -
+					    ((acos(cos_test_angle)) * RAD2DEG) -
 					    90.0;
 				else
 					elevation =
-					    ((acos(cos_rcvr_angle)) / DEG2RAD) -
+					    ((acos(cos_rcvr_angle)) * RAD2DEG) -
 					    90.0;
 			}
 
@@ -707,12 +693,6 @@ void PlotPropPath(
 				PutSignal(path.lat[y], path.lon[y],
 					  (unsigned char)ifs);
 			}
-
-			/* Mark this point as having been analyzed */
-
-			PutMask(path.lat[y], path.lon[y],
-				(GetMask(path.lat[y], path.lon[y]) & 7) +
-				(mask_value << 3));
 		}
 	}
 
@@ -739,8 +719,6 @@ void PlotLOSMap(struct site source, double altitude,
 	   of a topographic map when the WritePPM() function
 	   is later invoked. */
 
-	static __thread unsigned char mask_value = 1;
-
 	// Four sections start here
 	// Process north edge east/west, east edge north/south,
 	// south edge east/west, west edge north/south
@@ -764,7 +742,6 @@ void PlotLOSMap(struct site source, double altitude,
 
 		r[i].altitude = altitude;
 		r[i].source = source;
-		r[i].mask_value = mask_value;
 
         // Set the segment id
         thread_progress[i].id = i;
@@ -775,19 +752,6 @@ void PlotLOSMap(struct site source, double altitude,
 	finishThreads();
 
 	delete[] r;
-
-	switch (mask_value) {
-	case 1:
-		mask_value = 8;
-		break;
-
-	case 8:
-		mask_value = 16;
-		break;
-
-	case 16:
-		mask_value = 32;
-	}
 }
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude, PropModel prop_model, int knifeedge, int pmenv,
@@ -800,8 +764,6 @@ void PlotPropagationRadius(struct site source, double range,
         spdlog::error("Segment number must be an multiple of either 2 or 3!");
         exit(1);
     }
-
-    static __thread unsigned char mask_value = 1;
 
     // Get plot type string
     char plotType[32];
@@ -835,17 +797,22 @@ void PlotPropagationRadius(struct site source, double range,
 
     // Calculate plot width & height in degrees
     double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
-    //double plot_height = bounds.upper_left.lat - bounds.lower_right.lat; //unsed
+    double plot_height = bounds.upper_left.lat - bounds.lower_right.lat; 
 
     // Calculate the radius of our circle, in pixels
-    double radius_px = (plot_width / 2.0) * ppd;
+    //double radius_px = (plot_width / 2.0) * ppd;
+
+    // Calculate the radius of our circle, in pixels
+    //double radius_px = (plot_width + plot_height)/2.0/2.0 * ppd;
 
     // Calculate the total number of pixels/points in our plot circle using the midpoint circle algorithm
     // Borrowed from https://math.stackexchange.com/a/167310
     // We use the upper bound to ensure we don't miss any points
-    int circle_pixels = (int)ceil(radius_px * 6.283);
+    //int circle_pixels = (int)ceil(radius_px * 2.0 * PI);
+    // Ramanujan
+    int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
 
-    // Calculte the size of each angular degree section, in rads
+    // Calculate the size of each angular degree section, in rads
     double section_size_rad = 360.0 / number_threads * DEG2RAD;
 
     // Calculate the number of points/pixels in each segment
@@ -864,7 +831,6 @@ void PlotPropagationRadius(struct site source, double range,
         propRadius.radius = range;
         propRadius.points = section_pixels;
         propRadius.altitude = altitude;
-        propRadius.mask_value = mask_value;
         propRadius.prop_model = prop_model;
         propRadius.knifeedge = knifeedge;
         propRadius.pmenv = pmenv;
@@ -878,8 +844,8 @@ void PlotPropagationRadius(struct site source, double range,
         radii.push_back(propRadius);
     }
 
-	spdlog::debug("With {} number_threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) number_threads", 
-                    number_threads, circle_pixels, section_size_rad / DEG2RAD, section_pixels);
+	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) segments", 
+                    number_threads, circle_pixels, section_size_rad * RAD2DEG, section_pixels);
 
     // Make sure we didn't do anythng wrong
     if (radii.size() != number_threads) {
@@ -900,13 +866,14 @@ void PlotPropagationRadius(struct site source, double range,
         // Set the segment id
         thread_progress[i].id = i;
         // Start a thread
-        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad / DEG2RAD, radii[i].stop_angle_rad / DEG2RAD);
+        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad * RAD2DEG, radii[i].stop_angle_rad * RAD2DEG);
         futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
 
     }
 
     // Wait for futures to finish
     spdlog::debug("Waiting for threads to finish...");
+    //finishProgress(); //indicate the progress but it is slow
     for (auto& f : futures)
         f.get();
     futures.clear();
@@ -915,15 +882,9 @@ void PlotPropagationRadius(struct site source, double range,
 	for(size_t i = 0; i < radii.size(); i++){
 		radii.erase(radii.begin() + i);
 	}
-
-
-	if (mask_value < 30)
-    {
-        mask_value++;
-    }
 }
 
-void PlotPath(struct site source, struct site destination, char mask_value)
+void PlotPath(struct site source, struct site destination)
 {
 	/* This function analyzes the path between the source and
 	   destination locations.  It determines which points along
@@ -945,7 +906,6 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 		/* Test this point only if it hasn't been already
 		   tested and found to be free of obstructions. */
 
-		if ((GetMask(path.lat[y], path.lon[y]) & mask_value) == 0) {
 			distance = path.distance[y];
 			tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
 			rx_alt = EARTHRADIUS + destination.alt + path.elevation[y];
@@ -980,9 +940,5 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 				if (cos_xmtr_angle >= cos_test_angle)
 					block = 1;
 			}
-
-			if (block == 0)
-				OrMask(path.lat[y], path.lon[y], mask_value);
-		}
 	}
 }

@@ -30,9 +30,9 @@ double earthRadius(double lat);
 /// @param start_lat starting latitude in degrees
 /// @param start_lon starting longitude in degrees
 /// @param distance distance in km
-/// @param bearing bearing in degrees
+/// @param bearing bearing in radians
 /// @return coodinates of the resultant point in decimal degrees
-coord getPointAtDistance(coord center, double distance, double bearing);
+coord getPointAtDistance(coord center, double distance, double bearing_rad);
 
 /// @brief Get the bounding box for a circle at a given lat/lon and radius
 /// @param center center coordinates in decimal degrees

@@ -53,8 +53,8 @@ int ARRAYSIZE = (MAXPAGES * ippd) + 10;
 
 char DEM_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
 
-double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
-    fzone_clearance = 0.6, forced_freq, clutter, lat, lon, txh, tercon, terdic,
+double max_range = 0.0,  dpp, ppd, samples_per_radian,
+    fzone_clearance = 0.6, clutter, lat, lon, txh, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     min_lat = 90.0, max_lat = -90.0,
@@ -63,7 +63,7 @@ double max_range = 0.0, forced_erp, dpp, ppd, yppd, samples_per_radian,
 
 int mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
-    loops = 100, jgets = 0, MAXRAD, hottest = 0, height, width, resample = 0;
+    loops = 100, jgets = 0, MAXRAD, height, width, resample = 0;
 
 std::atomic<int> cnt_point_to_point_ITM{0};
 std::atomic<int> cnt_point_to_point{0};
@@ -84,7 +84,6 @@ __thread struct path path;
 struct site tx_site[2];
 short         **dem_data   = nullptr;
 unsigned char **dem_signal = nullptr;
-unsigned char **dem_mask   = nullptr;
 int dem_min_lat   = 0;
 int dem_min_lon   = 0;
 int dem_width_px  = 0;
@@ -93,20 +92,14 @@ int dem_height_px = 0;
 struct LR LR;
 struct region region;
 
+/* This function implements the arc cosine function,
+    returning a value between 0 and TWOPI.
+*/
 double arccos(double x, double y)
 {
-    /* This function implements the arc cosine function,
-       returning a value between 0 and TWOPI. */
-
-    double result = 0.0;
-
-    if (y > 0.0)
-        result = acos(x / y);
-
-    if (y < 0.0)
-        result = PI + acos(x / y);
-
-    return result;
+    if (y == 0.0) return 0.0;
+    double result = acos(x / y);
+    return y < 0.0 ? PI + result : result;
 }
 
 /*  This function normalizes the argument to
@@ -114,13 +107,8 @@ double arccos(double x, double y)
 */
 int ReduceAngle(double angle)
 {
-    double temp;
-
-    temp = acos(cos(angle * DEG2RAD));
-
-    return (int)rint(temp / DEG2RAD);
+    return (int)((int)angle % 360);
 }
-
 /**
  *  This function returns the short path longitudinal
  *  difference between longitude1 and longitude2
@@ -130,18 +118,9 @@ int ReduceAngle(double angle)
 */
 double LonDiff(double lon1, double lon2)
 {
-    
-
-    double diff;
-
-    diff = lon1 - lon2;
-
-    if (diff <= -180.0)
-        diff += 360.0;
-
-    if (diff >= 180.0)
-        diff -= 360.0;
-
+    double diff = lon1 - lon2;
+    if (diff <= -180.0) return diff + 360.0;
+    if (diff >= 180.0)  return diff - 360.0;
     return diff;
 }
 
@@ -151,44 +130,20 @@ double LonDiff(double lon1, double lon2)
  * Returns true and sets x_out/y_out when the point is inside the array. */
 static bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 {
-    //if (!dem_data) return false;
+    if (!dem_data) return false;
     int x = (int)rint(ppd  * (lat - dem_min_lat));
-    int y = (int)rint(yppd * (lon - dem_min_lon));
+    int y = (int)rint(ppd * (lon - dem_min_lon));
     if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px) return false;
     x_out = x;
     y_out = y;
     return true;
 }
 
-int PutMask(double lat, double lon, int value)
-{
-    int x, y;
-    if (!find_dem_xy(lat, lon, x, y)) return -1;
-    dem_mask[x][y] = value;
-    return (int)dem_mask[x][y];
-}
-
-int OrMask(double lat, double lon, int value)
-{
-    int x, y;
-    if (!find_dem_xy(lat, lon, x, y)) return -1;
-    dem_mask[x][y] |= value;
-    return (int)dem_mask[x][y];
-}
-
-int GetMask(double lat, double lon)
-{
-    return (OrMask(lat, lon, 0));
-}
-
 void PutSignal(double lat, double lon, unsigned char signal)
 {
-    if (signal > hottest)
-        hottest = signal;
-
     int x, y;
     if (find_dem_xy(lat, lon, x, y))
-        dem_signal[x][y] = signal;
+        dem_signal[x][y] = MAX(signal, GetSignal(lat, lon));
 }
 
 unsigned char GetSignal(double lat, double lon)
@@ -276,7 +231,7 @@ double Azimuth(struct site source, struct site destination)
     if (diff > 0.0)
         azimuth = TWOPI - azimuth;
 
-    return (azimuth / DEG2RAD);
+    return (azimuth * RAD2DEG);
 }
 
 double ElevationAngle(struct site source, struct site destination)
@@ -340,8 +295,8 @@ void ReadPath(struct site source, struct site destination)
         m_per_sample = 0.0;
         total_distance = 0.0;
 
-        lat1 = lat1 / DEG2RAD;
-        lon1 = lon1 / DEG2RAD;
+        lat1 = lat1 * RAD2DEG;
+        lon1 = lon1 * RAD2DEG;
 
         path.lat[c] = lat1;
         path.lon[c] = lon1;
@@ -381,8 +336,8 @@ void ReadPath(struct site source, struct site destination)
         while (lon2 > PI)
             lon2 -= TWOPI;
 
-        lat2 = lat2 / DEG2RAD;
-        lon2 = lon2 / DEG2RAD;
+        lat2 = lat2 * RAD2DEG;
+        lon2 = lon2 * RAD2DEG;
 
         path.lat[c] = lat2;
         path.lon[c] = lon2;
@@ -469,7 +424,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         if (cos_xmtr_angle >= cos_test_angle) {
             block = 1;
             first_obstruction_angle =
-                ((acos(cos_test_angle)) / DEG2RAD) - 90.0;
+                ((acos(cos_test_angle)) * RAD2DEG) - 90.0;
         }
     }
 
@@ -477,7 +432,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         elevation = first_obstruction_angle;
 
     else
-        elevation = ((acos(cos_xmtr_angle)) / DEG2RAD) - 90.0;
+        elevation = ((acos(cos_xmtr_angle)) * RAD2DEG) - 90.0;
 
     path = temp;
 
@@ -746,11 +701,9 @@ void free_dem(void)
     for (int i = 0; i < dem_height_px; i++) {
         delete [] dem_data[i];
         delete [] dem_signal[i];
-        delete [] dem_mask[i];
     }
     delete [] dem_data;   dem_data   = nullptr;
     delete [] dem_signal; dem_signal = nullptr;
-    delete [] dem_mask;   dem_mask   = nullptr;
     dem_width_px = dem_height_px = 0;
 }
 
@@ -784,11 +737,9 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
 
     dem_data   = new short         *[dem_height_px];
     dem_signal = new unsigned char *[dem_height_px];
-    dem_mask   = new unsigned char *[dem_height_px];
     for (int i = 0; i < dem_height_px; i++) {
         dem_data[i]   = new short        [dem_width_px]();
         dem_signal[i] = new unsigned char[dem_width_px]();
-        dem_mask[i]   = new unsigned char[dem_width_px]();
     }
 }
 
@@ -832,8 +783,6 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
         lry = min_north;
     }
     
-    spdlog::info("geotiff coordonées {} {} {} {}", ulx, uly, lrx, lry);
-
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {
         spdlog::error("write_geotiff_from_canvas: GTiff GDAL driver not available");
@@ -983,8 +932,6 @@ int main(int argc, char *argv[])
     DEM_path[0] = 0;
     mapfile[0] = 0;
     clutter = 0.0;
-    forced_erp = -1.0;
-    forced_freq = 0.0;
     color_file = NULL;
     path.length = 0;
     fzone_clearance = 0.6;
@@ -1631,7 +1578,6 @@ int main(int argc, char *argv[])
     }
 
     ppd=(double)ippd;
-    yppd=ppd;
     samples_per_radian = ppd * (180.0 / PI);
 
     width = (unsigned)(ippd * ReduceAngle(max_lon - min_lon));
@@ -1669,7 +1615,6 @@ int main(int argc, char *argv[])
                     spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon);
                     return 0;
                 }
-	            spdlog::info("cropping min_lon {}", min_lon);
             }
 
             // Write bitmap
@@ -1712,7 +1657,7 @@ int main(int argc, char *argv[])
     } else {
         strncpy(tx_site[0].name, "Tx", 3);
         strncpy(tx_site[1].name, "Rx", 3);
-        PlotPath(tx_site[0], tx_site[1], 1);
+        PlotPath(tx_site[0], tx_site[1]);
         PathReport(tx_site[0], tx_site[1], tx_site[0].filename, 0, prop_model, pmenv, rxGain);
         // Order flipped for benefit of graph. Makes no difference to data.
         SeriesData(tx_site[1], tx_site[0], tx_site[0].filename, 1, normalise);

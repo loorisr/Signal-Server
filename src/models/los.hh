@@ -33,7 +33,6 @@ struct PropagationRange {
     double altitude;
     bool eastwest, los;
     site source;
-    unsigned char mask_value;
     PropModel prop_model;
     int knifeedge, pmenv;
 };
@@ -45,7 +44,6 @@ struct PropagationRadius {
     double altitude;
     bool los;
     site source;
-    unsigned char mask_value;
     PropModel prop_model;
     int knifeedge, pmenv, points;
 };
@@ -57,9 +55,9 @@ struct progress_t {
     std::atomic<unsigned int> total {} ;
 };
 
-void PlotLOSPath(struct site source, struct site destination, char mask_value);
+void PlotLOSPath(struct site source, struct site destination);
 
-void PlotPropPath(struct site source, struct site destination, unsigned char mask_value, PropModel propmodel, int knifeedge,
+void PlotPropPath(struct site source, struct site destination, PropModel propmodel, int knifeedge,
                   int pmenv);
 
 void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
@@ -76,7 +74,7 @@ void PlotPropagationRadius(struct site source, double range,
                             PropModel prop_model, int knifeedge, int pmenv, 
                             uint8_t number_threads);
 
-void PlotPath(struct site source, struct site destination, char mask_value);
+void PlotPath(struct site source, struct site destination);
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
                    double dkm, int pmenv, char *strmode, int &errnum);

@@ -20,6 +20,7 @@
 
 // Multiplier to convert decimal degrees to radians
 #define DEG2RAD		1.74532925199e-02
+#define RAD2DEG		57.2957795130823
 // Radius of the earth, in meters
 #define	EARTHRADIUS	6371000.0
 #define FOUR_THIRDS	1.3333333333333
@@ -101,7 +102,6 @@ extern double west;
 extern double max_range;
 extern double dpp;
 extern double ppd;
-extern double yppd;
 extern double samples_per_radian;
 extern double fzone_clearance;
 extern double clutter;
@@ -125,13 +125,12 @@ extern bool dbm;
 extern bool geotiff;
 extern bool write_ppm;
 
-/* Flat DEM arrays: dem_data[x][y], dem_signal[x][y], dem_mask[x][y]
+/* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
  * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)
  * y: 0 = global east  edge, increases westward   (cols = ippd * tiles_lon)
  * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
 extern short         **dem_data;
 extern unsigned char **dem_signal;
-extern unsigned char **dem_mask;
 /* Geographic origin of the flat arrays (south-west corner, integer degrees) */
 extern int dem_min_lat;   /* southernmost tile_lat */
 extern int dem_min_lon;   /* westernmost  tile_lon */

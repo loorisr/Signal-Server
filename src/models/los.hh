@@ -57,8 +57,7 @@ struct progress_t {
 
 void PlotLOSPath(struct site source, struct site destination);
 
-void PlotPropPath(struct site source, struct site destination, PropModel propmodel, int knifeedge,
-                  int pmenv);
+void PlotPropPath(struct site source, struct site destination, PropModel propmodel, int knifeedge, int pmenv);
 
 void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
 
@@ -69,9 +68,7 @@ void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
 /// @param plot_filename output plot filename
 /// @param prop_model propagation model to use
 /// @param number_threads number_threads to split the plot circle into (must be a multiple of 2 or 3)
-void PlotPropagationRadius(struct site source, double range, 
-                            double altitude,
-                            PropModel prop_model, int knifeedge, int pmenv, 
+void PlotPropagationRadius(struct site source, double range, double altitude, PropModel prop_model, int knifeedge, int pmenv, 
                             uint8_t number_threads);
 
 void PlotPath(struct site source, struct site destination);

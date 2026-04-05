@@ -102,13 +102,7 @@ double arccos(double x, double y)
     return y < 0.0 ? PI + result : result;
 }
 
-/*  This function normalizes the argument to
-    an integer angle between 0 and 180 degrees 
-*/
-int ReduceAngle(double angle)
-{
-    return (int)((int)angle % 360);
-}
+
 /**
  *  This function returns the short path longitudinal
  *  difference between longitude1 and longitude2
@@ -173,9 +167,7 @@ double Distance(struct site site1, struct site site2)
     lat2 = site2.lat * DEG2RAD;
     lon2 = site2.lon * DEG2RAD;
 
-    distance =
-        6371000.0 * acos(sin(lat1) * sin(lat2) +
-              cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
+    distance = EARTHRADIUS * acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
 
     return distance;
 }
@@ -276,41 +268,21 @@ void ReadPath(struct site source, struct site destination)
     lon1 = source.lon * DEG2RAD;
     lat2 = destination.lat * DEG2RAD;
     lon2 = destination.lon * DEG2RAD;
-    azimuth = Azimuth(source, destination) * DEG2RAD;
 
+    azimuth = Azimuth(source, destination) * DEG2RAD;
     total_distance = Distance(source, destination);  
 
-    if (total_distance > (30000.0 / ppd)) {
-        dx = samples_per_radian * acos(cos(lon1 - lon2));
-        dy = samples_per_radian * acos(cos(lat1 - lat2));
-        path_length = sqrt((dx * dx) + (dy * dy));
-        m_per_sample = total_distance / path_length;
-    }
-
-    else {
-        c = 0;
-        dx = 0.0;
-        dy = 0.0;
-        path_length = 0.0;
-        m_per_sample = 0.0;
-        total_distance = 0.0;
-
-        lat1 = lat1 * RAD2DEG;
-        lon1 = lon1 * RAD2DEG;
-
-        path.lat[c] = lat1;
-        path.lon[c] = lon1;
-        path.elevation[c] = GetElevation(source);
-        path.distance[c] = 0.0;
-    }
+    dx = samples_per_radian * (lon1 - lon2);
+    dy = samples_per_radian * (lat1 - lat2);
+    path_length = sqrt((dx * dx) + (dy * dy));
+    m_per_sample = total_distance / path_length;
 
     for (distance = 0.0, c = 0;
          (total_distance != 0.0 && distance <= total_distance
           && c < ARRAYSIZE); c++, distance = m_per_sample * (double)c) {
-        beta = distance / 6371000.0;  /* earth radius in meters */
-        lat2 =
-            asin(sin(lat1) * cos(beta) +
-             cos(azimuth) * sin(beta) * cos(lat1));
+
+        beta = distance / EARTHRADIUS; 
+        lat2 = asin(sin(lat1) * cos(beta) + cos(azimuth) * sin(beta) * cos(lat1));
         num = cos(beta) - (sin(lat1) * sin(lat2));
         den = cos(lat1) * cos(lat2);
 
@@ -330,10 +302,9 @@ void ReadPath(struct site source, struct site destination)
                 lon2 = lon1 + arccos(num, den);
         }
 
-        while (lon2 < -PI)
+        if (lon2 < -PI)
             lon2 += TWOPI;
-
-        while (lon2 > PI)
+        else if (lon2 > PI)
             lon2 -= TWOPI;
 
         lat2 = lat2 * RAD2DEG;
@@ -357,10 +328,7 @@ void ReadPath(struct site source, struct site destination)
         c++;
     }
 
-    if (c < ARRAYSIZE)
-        path.length = c;
-    else
-        path.length = ARRAYSIZE - 1;
+    path.length = c;
 }
 
 double ElevationAngle2(struct site source, struct site destination, double er)
@@ -1580,8 +1548,8 @@ int main(int argc, char *argv[])
     ppd=(double)ippd;
     samples_per_radian = ppd * (180.0 / PI);
 
-    width = (unsigned)(ippd * ReduceAngle(max_lon - min_lon));
-    height = (unsigned)(ippd * ReduceAngle(max_north - min_north));
+    width = (unsigned)(ippd * (max_lon - min_lon));
+    height = (unsigned)(ippd * (max_north - min_north));
 
     dpp = 1 / ppd;
     mpi = ippd-1; 

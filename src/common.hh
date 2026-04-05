@@ -1,7 +1,6 @@
 #ifndef _COMMON_HH_
 #define _COMMON_HH_
 
-#include <unordered_map>
 #include <cstdint>
 #include <atomic>
 
@@ -137,7 +136,9 @@ extern bool geotiff;
 extern bool write_ppm;
 
 extern struct dem *dem;
-extern std::unordered_map<int32_t, int> dem_map;
+/* Direct lookup table: tile_lut[lat+90][lon+180] -> dem[] index, or -1 if absent.
+ * 180*360*2 = ~130 KB, fits in L2 cache. */
+extern int16_t tile_lut[180][360];
 extern __thread struct path path;
 extern struct LR LR;
 extern struct region region;

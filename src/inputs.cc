@@ -146,6 +146,8 @@ int LoadSDF_SDF(char *name)
 		if (dem[indx].max_lon > max_lon) max_lon = dem[indx].max_lon;
 		if (dem[indx].min_lon < min_lon) min_lon = dem[indx].min_lon;
 
+		tile_lut[int(dem[indx].min_north) + 90][int(dem[indx].min_lon) + 180] = (int16_t)indx;
+
 		spdlog::info("LoadSDF: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
 					path_plus_name,
 					dem[indx].min_el, dem[indx].max_el,
@@ -1102,8 +1104,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     {
         std::lock_guard<std::mutex> lock(copernicus_mutex);
 
-        /* Register tile in O(1) lookup map */
-        dem_map[((int(dem[indx].min_north) + 90) << 9) | (int(dem[indx].min_lon) + 180)] = indx;
+        /* Register tile in lookup table */
+        tile_lut[int(dem[indx].min_north) + 90][int(dem[indx].min_lon) + 180] = (int16_t)indx;
 
         /* Update global elevation bounds */
         if (dem[indx].min_el < min_elevation) min_elevation = dem[indx].min_el;

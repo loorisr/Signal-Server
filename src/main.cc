@@ -44,7 +44,6 @@
 
 #include <chrono>
 #include <thread>
-#include <unordered_map>
 
 #include <spdlog/spdlog.h>
 
@@ -83,7 +82,7 @@ __thread double *elev;
 __thread struct path path;
 struct site tx_site[2];
 struct dem *dem;
-std::unordered_map<int32_t, int> dem_map;
+int16_t tile_lut[180][360];
 
 struct LR LR;
 struct region region;
@@ -178,14 +177,6 @@ void *dec2dms(double decimal, char *string)
     return (string);
 }
 
-/* Encode integer tile coordinates into a unique key.
- * ilat ∈ [-90,89], ilon ∈ [-180,179]
- * Packed into a single int32: (ilat+90 << 9) | (ilon+180)  (17 bits). */
-static inline int32_t dem_key(int ilat, int ilon)
-{
-    return ((ilat + 90) << 9) | (ilon + 180);
-}
-
 /* Look up the DEM tile that contains (lat, lon).
  * Tries the primary tile (floor-based), then the 4 adjacent tiles to handle
  * floating-point imprecision near tile edges (e.g. 44.9999... near 45.0).
@@ -199,9 +190,11 @@ static int find_dem_indx(double lat, double lon, int &x_out, int &y_out)
     static const int dlon[5] = {0,  0,  0, +1, -1};
 
     for (int t = 0; t < 5; t++) {
-        auto it = dem_map.find(dem_key(ilat + dlat[t], ilon + dlon[t]));
-        if (it == dem_map.end()) continue;
-        int indx = it->second;
+        int rlat = ilat + dlat[t] + 90;
+        int rlon = ilon + dlon[t] + 180;
+        if (rlat < 0 || rlat >= 180 || rlon < 0 || rlon >= 360) continue;
+        int indx = tile_lut[rlat][rlon];
+        if (indx < 0) continue;
         int x = (int)rint(ppd  * (lat - dem[indx].min_north));
         int y = mpi - (int)rint(yppd * (lon - dem[indx].min_lon));
         if (x >= 0 && x <= mpi && y >= 0 && y <= mpi) {
@@ -891,6 +884,7 @@ void alloc_dem(void)
     int i;
     int j;
 
+    memset(tile_lut, -1, sizeof(tile_lut));  /* -1 = no tile loaded */
     dem = new struct dem[MAXPAGES];
     for (i = 0; i < MAXPAGES; i++) {
         dem[i].data = new short *[ippd];
@@ -954,6 +948,8 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
         lrx = east;
         lry = min_north;
     }
+    
+    spdlog::info("geotiff coordonées {} {} {} {}", ulx, uly, lrx, lry);
 
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {

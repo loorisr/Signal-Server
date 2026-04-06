@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 project(SignalServer LANGUAGES CXX)
 
-# ISO standard compliance (C++14)
-set(CMAKE_CXX_STANDARD 14)
+# ISO standard compliance (C++20)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -16,7 +16,7 @@ if (MSVC)
     add_compile_options(/W4)
 else()
     # lots of warnings
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-array-bounds)
 endif()
 
 # Get GIT commit branch & hash

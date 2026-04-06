@@ -238,7 +238,7 @@ double ElevationAngle(struct site source, struct site destination)
        (downtilt), as referenced to a normal to the center of
        the earth. */
 
-    register double a, b, dx;
+    double a, b, dx;
 
     a = GetElevation(destination) + destination.alt + EARTHRADIUS;
     b = GetElevation(source) + source.alt + EARTHRADIUS;

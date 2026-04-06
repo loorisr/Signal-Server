@@ -6,9 +6,9 @@ extern char scf_file[255];
 
 int LoadCopernicus(int tile_lat, int tile_lon);
 int LoadPAT(char *az_filename, char *el_filename);
-int LoadSignalColors(struct site xmtr);
-int LoadLossColors(struct site xmtr);
-int LoadDBMColors(struct site xmtr);
+int LoadSignalColors();
+int LoadLossColors();
+int LoadDBMColors();
 int LoadTopoData(bbox region);
 static const char AZ_FILE_SUFFIX[] = ".az";
 static const char EL_FILE_SUFFIX[] = ".el";

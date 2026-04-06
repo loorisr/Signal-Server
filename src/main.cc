@@ -1433,7 +1433,7 @@ int main(int argc, char *argv[])
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
             PlotLOSMap(tx_site[0], altitudeLR, number_threads);
-            DoLOS(mapfile, tx_site);
+            DoLOS(mapfile);
         } else {
             // 90% of effort here
             PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, (uint8_t)number_threads);
@@ -1462,11 +1462,11 @@ int main(int argc, char *argv[])
 
             // Write bitmap
             if (LR.erp == 0.0)
-                DoPathLoss(mapfile, tx_site);
+                DoPathLoss(mapfile);
             else if (dbm)
-                DoRxdPwr((to_stdout == true ? NULL : mapfile), tx_site);
+                DoRxdPwr((to_stdout == true ? NULL : mapfile));
             else
-                    if ((result = DoSigStr(mapfile, tx_site)) != 0)
+                    if ((result = DoSigStr(mapfile)) != 0)
                     return result;
         }
 

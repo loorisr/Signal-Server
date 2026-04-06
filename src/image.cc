@@ -25,13 +25,13 @@ int image_add_pixel(image_ctx_t *ctx, uint8_t r, uint8_t g, uint8_t b)
     return 0;
 }
 
-int image_write(image_ctx_t *ctx, FILE *fd)
+/*int image_write(image_ctx_t *ctx, FILE *fd)
 {
     size_t count   = ctx->width * ctx->height * RGB_SIZE;
     fprintf(fd, "P6\n%zu %zu\n255\n", ctx->width, ctx->height);
     size_t written = fwrite(ctx->canvas, 1, count, fd);
     return written < count ? EPIPE : 0;
-}
+}*/
 
 void image_free(image_ctx_t *ctx)
 {

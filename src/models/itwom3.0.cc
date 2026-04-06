@@ -1781,7 +1781,15 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 void hzns(double pfl[], prop_type & prop)
 {
     const int np = static_cast<int>(pfl[0]);
-    if (np < 2) return; // Early exit if no iterations needed
+    if (np < 2) {
+        // prop.dl and prop.the must be set; skip with safe defaults to avoid
+        // qlrpfl computing xl[] from uninitialized garbage and crashing z1sq1.
+        prop.dl[0] = prop.dist;
+        prop.dl[1] = prop.dist;
+        prop.the[0] = 0.0;
+        prop.the[1] = 0.0;
+        return;
+    }
 
     const double xi = pfl[1];
     const double dist = prop.dist;

@@ -12,7 +12,7 @@
 #include "models/los.hh"
 #include "image.hh"
 
-void DoPathLoss(char *filename, struct site *xmtr)
+void DoPathLoss(char *filename)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format.  The image created is rotated counter-clockwise
@@ -24,7 +24,6 @@ void DoPathLoss(char *filename, struct site *xmtr)
 	unsigned char found;
 	int x, y, z, x0 = 0, y0 = 0, loss, match;
 	double lat, lon, conversion, one_over_gamma;
-	FILE *fd;
 	image_ctx_t ctx;
 	int success;
 
@@ -38,7 +37,7 @@ void DoPathLoss(char *filename, struct site *xmtr)
 	    255.0 / pow((double)(max_elevation - min_elevation),
 			one_over_gamma);
 
-	if( (success = LoadLossColors(xmtr[0])) != 0 ){
+	if( (success = LoadLossColors()) != 0 ){
 		spdlog::error("Error loading loss colors");
 		exit(success);  // Now a fatal error!
 	}
@@ -50,10 +49,7 @@ void DoPathLoss(char *filename, struct site *xmtr)
 		}
 
 	} else {
-
 		spdlog::info("Writing to stdout");
-		fd = stdout;
-
 	}
 
 	north = (double)max_north - dpp;
@@ -166,19 +162,19 @@ void DoPathLoss(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(filename == NULL) {
+	/*if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
 		}
-	}
+	}*/
 	if(geotiff && filename != NULL)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 }
 
-int DoSigStr(char *filename, struct site *xmtr)
+int DoSigStr(char *filename)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal strength values held in the
@@ -191,7 +187,6 @@ int DoSigStr(char *filename, struct site *xmtr)
 	unsigned char found;
 	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
 	double conversion, one_over_gamma, lat, lon;
-	FILE *fd;
 	image_ctx_t ctx;
 	int success;
 
@@ -205,7 +200,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 	    255.0 / pow((double)(max_elevation - min_elevation),
 			one_over_gamma);
 
-	if( (success = LoadSignalColors(xmtr[0])) != 0 ){
+	if( (success = LoadSignalColors()) != 0 ){
 		spdlog::error("Error loading signal colors");
 		//exit(success);
 	}
@@ -218,10 +213,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 		}
 
 	} else {
-
 		spdlog::info("Writing to stdout");
-		fd = stdout;
-
 	}
 
 	north = (double)max_north - dpp;
@@ -343,12 +335,12 @@ int DoSigStr(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(filename == NULL) {
+	/*if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
 		}
-	}
+	}*/
 	if(geotiff && filename != NULL)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
@@ -357,7 +349,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 	return 0;
 }
 
-void DoRxdPwr(char *filename, struct site *xmtr)
+void DoRxdPwr(char *filename)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -370,7 +362,6 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 	unsigned char found;
 	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
 	double conversion, one_over_gamma, lat, lon;
-	FILE *fd;
 	image_ctx_t ctx;
 	int success;
 
@@ -384,7 +375,7 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 	    255.0 / pow((double)(max_elevation - min_elevation),
 			one_over_gamma);
 
-	if( (success = LoadDBMColors(xmtr[0])) != 0 ){
+	if( (success = LoadDBMColors()) != 0 ){
 		spdlog::error("Error loading DBM colors");
 		exit(success);  //Now a fatal error!
 	}
@@ -396,10 +387,7 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 	} else {
-
 		spdlog::info("Writing to stdout");
-		fd = stdout;
-
 	}
 
 	north = (double)max_north - dpp;
@@ -521,20 +509,20 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(filename == NULL) {
+	/*if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
 		}
 		fflush(fd);
-	}
+	}*/
 	if(geotiff && filename != NULL)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
 }
 
-void DoLOS(char *filename, struct site *xmtr)
+void DoLOS(char *filename)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -547,7 +535,6 @@ void DoLOS(char *filename, struct site *xmtr)
 	unsigned char found;
 	int x, y, x0 = 0, y0 = 0;
 	double conversion, one_over_gamma, lat, lon;
-	FILE *fd;
 	image_ctx_t ctx;
 	int success;
 
@@ -569,10 +556,7 @@ void DoLOS(char *filename, struct site *xmtr)
 		}
 
 	} else {
-
 		spdlog::info("Writing to stdout");
-		fd = stdout;
-
 	}
 
 	north = (double)max_north - dpp;
@@ -625,12 +609,12 @@ void DoLOS(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(filename == NULL) {
+	/*if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
 		}
-	}
+	}*/
 	if(geotiff && filename != NULL)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 

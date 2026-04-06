@@ -331,7 +331,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 	return 0;
 }
 
-int LoadSignalColors(struct site xmtr)
+int LoadSignalColors()
 {
 	int x, y, ok, val[4];
 
@@ -447,7 +447,7 @@ int LoadSignalColors(struct site xmtr)
 	return 0;
 }
 
-int LoadLossColors(struct site xmtr)
+int LoadLossColors()
 {
 	int x, y, ok, val[4];
 
@@ -587,7 +587,7 @@ int LoadLossColors(struct site xmtr)
 	return 0;
 }
 
-int LoadDBMColors(struct site xmtr)
+int LoadDBMColors()
 {
 	int x, y, ok, val[4];
 

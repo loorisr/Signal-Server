@@ -660,9 +660,12 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
     char *create_opts[] = {
         (char *)"COMPRESS=LZW",
         (char *)"PREDICTOR=2",
+        (char *)"TILED=YES",
+        (char *)"BLOCKXSIZE=256",
+        (char *)"BLOCKYSIZE=256",
         NULL
     };
-    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 3, GDT_Byte, create_opts);
+    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 4, GDT_Byte, create_opts);
     if (ds == NULL) {
         spdlog::error("write_geotiff_from_canvas: failed to create {}", tif_file);
         return;
@@ -686,15 +689,30 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
     CPLFree(wkt);
     OSRDestroySpatialReference(srs);
 
-    /* Write interleaved RGB canvas (RGBRGB…) to 3 separate GDAL bands */
-    int bandMap[3] = {1, 2, 3};
+    GDALSetRasterColorInterpretation(GDALGetRasterBand(ds, 4), GCI_AlphaBand);
+
+    /* Build RGBA buffer: white pixels become transparent, others opaque */
+    int npixels = img_width * img_height;
+    std::vector<uint8_t> rgba(npixels * 4);
+    for (int i = 0; i < npixels; ++i) {
+        uint8_t r = canvas[i * RGB_SIZE + 0];
+        uint8_t g = canvas[i * RGB_SIZE + 1];
+        uint8_t b = canvas[i * RGB_SIZE + 2];
+        rgba[i * 4 + 0] = r;
+        rgba[i * 4 + 1] = g;
+        rgba[i * 4 + 2] = b;
+        rgba[i * 4 + 3] = (r == 255 && g == 255 && b == 255) ? 0 : 255;
+    }
+
+    /* Write interleaved RGBA buffer to 4 separate GDAL bands */
+    int bandMap[4] = {1, 2, 3, 4};
     CPLErr err = (CPLErr)GDALDatasetRasterIO(ds, GF_Write,
         0, 0, img_width, img_height,
-        (void *)canvas, img_width, img_height, GDT_Byte,
-        3, bandMap,
-        RGB_SIZE,                   /* nPixelSpace: bytes to next pixel in same band */
-        img_width * RGB_SIZE,       /* nLineSpace:  bytes to next row */
-        1);                         /* nBandSpace:  bytes to next band within pixel */
+        rgba.data(), img_width, img_height, GDT_Byte,
+        4, bandMap,
+        4,              /* nPixelSpace */
+        img_width * 4,  /* nLineSpace  */
+        1);             /* nBandSpace  */
     if (err != CE_None)
         spdlog::error("write_geotiff_from_canvas: RasterIO write failed for {}", tif_file);
     else

@@ -47,11 +47,11 @@
 
 #include <spdlog/spdlog.h>
 
-int MAXPAGES = 4*4;
 int ippd = 1200;
-int ARRAYSIZE = (MAXPAGES * ippd) + 10;
+int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
+int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
 
-char DEM_path[255], opened = 0, gpsav = 0, dashes[80], *color_file = NULL;
+char DEM_path[255], gpsav = 0, *color_file = NULL;
 
 double max_range = 0.0,  dpp, ppd, samples_per_radian,
     fzone_clearance = 0.6, clutter, lat, lon, txh, tercon, terdic,
@@ -76,7 +76,7 @@ bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
 bool json = false;
 bool write_ppm = false;
-
+bool ngs = false;
 bool to_stdout = false, cropping = true;
 
 __thread double *elev;
@@ -137,7 +137,8 @@ void PutSignal(double lat, double lon, unsigned char signal)
 {
     int x, y;
     if (find_dem_xy(lat, lon, x, y))
-        dem_signal[x][y] = MAX(signal, GetSignal(lat, lon));
+        //dem_signal[x][y] = MAX(signal, GetSignal(lat, lon));
+        dem_signal[x][y] = signal;
 }
 
 unsigned char GetSignal(double lat, double lon)
@@ -319,14 +320,13 @@ void ReadPath(struct site source, struct site destination)
     }
 
     /* Make sure exact destination point is recorded at path.length-1 */
+    /* Check if really useful */
 
-    if (c < ARRAYSIZE) {
-        path.lat[c] = destination.lat;
-        path.lon[c] = destination.lon;
-        path.elevation[c] = GetElevation(destination);
-        path.distance[c] = total_distance;
-        c++;
-    }
+    path.lat[c] = destination.lat;
+    path.lon[c] = destination.lon;
+    path.elevation[c] = GetElevation(destination);
+    path.distance[c] = total_distance;
+    c++;
 
     path.length = c;
 }
@@ -815,8 +815,6 @@ int main(int argc, char *argv[])
 
     double rxlat, rxlon;
 
-    unsigned char ngs = 0;
-
     char mapfile[255], antenna_file[255];
     char *az_filename, *el_filename = NULL;
 
@@ -910,7 +908,7 @@ int main(int argc, char *argv[])
     lat = 0;
     lon = 0;
     txh = 0;
-    ngs = 1;			// default resolution
+    ngs = true;			// no greyscale background
 
     sscanf("0.1", "%lf", &altitudeLR);
 
@@ -1086,15 +1084,14 @@ int main(int argc, char *argv[])
             free_elev();
             free_path();
             free_dem();
-            //MAXPAGES = 32;  // was 16
             ippd = 3600;
-            ARRAYSIZE = (MAXPAGES * ippd) + 10;
+            ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
             do_allocs();
-            spdlog::info("    Built for {} DEM tiles at {} pixels", MAXPAGES, ippd);
+            spdlog::info("    Built for {} ppd", ippd);
         }
 
         if (strcmp(argv[x], "-t") == 0) {
-            ngs = 0;	// greyscale background
+            ngs = false;	// greyscale background
         }
 
         if (strcmp(argv[x], "-dbm") == 0)
@@ -1558,7 +1555,7 @@ int main(int argc, char *argv[])
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
             PlotLOSMap(tx_site[0], altitudeLR, number_threads);
-            DoLOS(mapfile, ngs, tx_site);
+            DoLOS(mapfile, tx_site);
         } else {
             // 90% of effort here
             PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, pmenv, (uint8_t)number_threads);
@@ -1587,11 +1584,11 @@ int main(int argc, char *argv[])
 
             // Write bitmap
             if (LR.erp == 0.0)
-                DoPathLoss(mapfile, ngs, tx_site);
+                DoPathLoss(mapfile, tx_site);
             else if (dbm)
-                DoRxdPwr((to_stdout == true ? NULL : mapfile), ngs, tx_site);
+                DoRxdPwr((to_stdout == true ? NULL : mapfile), tx_site);
             else
-                    if ((result = DoSigStr(mapfile, ngs, tx_site)) != 0)
+                    if ((result = DoSigStr(mapfile, tx_site)) != 0)
                     return result;
         }
 

@@ -75,7 +75,7 @@ struct bbox {
     coord upper_left;
 };
 
-extern int MAXPAGES;
+extern int MAX_DISTANCE_DEGRES;
 extern int ARRAYSIZE;
 
 extern double min_north;
@@ -124,6 +124,7 @@ extern bool got_azimuth_pattern;
 extern bool dbm;
 extern bool geotiff;
 extern bool write_ppm;
+extern bool ngs;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
  * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)

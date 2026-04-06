@@ -818,7 +818,6 @@ int LoadDBMColors(struct site xmtr)
  *
  * Returns 1 on success, 0 if already loaded, negative errno on error.
  */
-static std::mutex copernicus_mutex;
 
 int LoadCopernicus(int tile_lat, int tile_lon)
 {
@@ -902,8 +901,6 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     delete[] buf;
 
-    {
-        std::lock_guard<std::mutex> lock(copernicus_mutex);
 
         if (tile_min_el < min_elevation) min_elevation = tile_min_el;
         if (tile_max_el > max_elevation) max_elevation = tile_max_el;
@@ -917,7 +914,6 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         if (min_north ==  90 || f_min_north < min_north) min_north = f_min_north;
         if (f_max_lon > max_lon) max_lon = f_max_lon;
         if (f_min_lon < min_lon) min_lon = f_min_lon;
-    }
 
     spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
                  filename, tile_min_el, tile_max_el,

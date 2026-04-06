@@ -12,7 +12,7 @@
 #include "models/los.hh"
 #include "image.hh"
 
-void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
+void DoPathLoss(char *filename, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format.  The image created is rotated counter-clockwise
@@ -195,7 +195,7 @@ void DoPathLoss(char *filename, unsigned char ngs, struct site *xmtr)
 
 }
 
-int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
+int DoSigStr(char *filename, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal strength values held in the
@@ -388,7 +388,7 @@ int DoSigStr(char *filename, unsigned char ngs, struct site *xmtr)
 	return 0;
 }
 
-void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
+void DoRxdPwr(char *filename, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -582,7 +582,7 @@ void DoRxdPwr(char *filename, unsigned char ngs, struct site *xmtr)
 
 }
 
-void DoLOS(char *filename, unsigned char ngs, struct site *xmtr)
+void DoLOS(char *filename, struct site *xmtr)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the

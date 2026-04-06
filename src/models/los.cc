@@ -13,7 +13,6 @@
 #include "egli.hh"
 #include "soil.hh"
 #include "../geo.hh"
-#include <mutex>
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <limits.h>
@@ -31,9 +30,6 @@ namespace {
 
     // Storage for processing thread futures
     std::vector<std::future<void *>> futures;
-
-    // Mutex for processed vector
-    std::mutex maskMutex;
 
     // Thread progress vector
     std::vector<progress_t> thread_progress;
@@ -58,12 +54,8 @@ namespace {
 			return false;
 
 		if (!processedPoints[x][y]) {
-			maskMutex.lock();
-			if (!processedPoints[x][y]) {
-				rtn = true;
-				processedPoints[x][y] = true;
-			}
-			maskMutex.unlock();
+			rtn = true;
+			processedPoints[x][y] = true;
 		}
 		return rtn;
 	}

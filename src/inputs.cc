@@ -2,14 +2,15 @@
  * versions guard both MIN and MAX under a single #if !defined(MAX) block. */
 #include <gdal.h>
 
+#include <algorithm>
+#include <cstdlib>
 #include <errno.h>
-#include <limits.h>
+#include <format>
+#include <fstream>
 #include <math.h>
 #include <spdlog/spdlog.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <sstream>
+#include <string>
 
 #include "common.hh"
 #include "main.hh"
@@ -25,10 +26,9 @@ int LoadPAT(char *az_filename, char *el_filename)
 		 loaded ss .lrp files or may be user-supplied by cmdline.  */
 
 	int a, b, w, x, y, z, last_index, next_index, span;
-	char string[255], *pointer = NULL;
+	std::string line;
 	float az, xx, elevation, amplitude, rotation, valid1, valid2, delta, azimuth[361], azimuth_pattern[361], el_pattern[10001],
 			elevation_pattern[361][1001], slant_angle[361], tilt, mechanical_tilt = 0.0, tilt_azimuth, tilt_increment, sum;
-	FILE *fd = NULL;
 	unsigned char read_count[10001];
 
 	rotation = 0.0;
@@ -38,35 +38,32 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 	/* Load .az antenna pattern file */
 
-	if (az_filename != NULL && (fd = fopen(az_filename, "r")) == NULL && errno != ENOENT)
-		/* Any error other than file not existing is an error */
-		return errno;
+	{
+		std::ifstream fd;
+		if (az_filename != NULL) {
+			fd.open(az_filename);
+			if (!fd && errno != ENOENT)
+				return errno;
+		}
 
-	if (fd != NULL) {
+	if (fd.is_open()) {
 		spdlog::debug("Antenna Pattern Azimuth File = [{}]", az_filename);
 
 		/* Clear azimuth pattern array */
-		for (x = 0; x <= 360; x++) {
-			azimuth[x] = 0.0;
-			read_count[x] = 0;
-		}
+		std::fill(std::begin(azimuth), std::end(azimuth), 0.0f);
+		std::fill(std::begin(read_count), std::begin(read_count) + 361, 0);
 
 		/* Read azimuth pattern rotation
 			 in degrees measured clockwise
 			 from true North. */
 
-		if (fgets(string, 254, fd) == NULL) {
-			// fprintf(stderr,"Azimuth read error\n");
-			// exit(0);
-		}
-		pointer = strchr(string, ';');
-
-		if (pointer != NULL) *pointer = 0;
+		std::getline(fd, line);
+		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
 
 		if (antenna_rotation != -1)  // If cmdline override
 			rotation = (float)antenna_rotation;
 		else
-			sscanf(string, "%f", &rotation);
+			std::istringstream(line) >> rotation;
 
 		spdlog::debug("Antenna Pattern Rotation = {}", rotation);
 
@@ -74,36 +71,24 @@ int LoadPAT(char *az_filename, char *el_filename)
 			 normalized field radiation pattern amplitude
 			 (0.0 to 1.0) until EOF is reached. */
 
-		if (fgets(string, 254, fd) == NULL) {
-			// fprintf(stderr,"Azimuth read error\n");
-			// exit(0);
-		}
-		pointer = strchr(string, ';');
-
-		if (pointer != NULL) *pointer = 0;
-
-		sscanf(string, "%f %f", &az, &amplitude);
+		std::getline(fd, line);
+		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+		std::istringstream(line) >> az >> amplitude;
 
 		do {
 			x = (int)rintf(az);
 
-			if (x >= 0 && x <= 360 && fd != NULL) {
+			if (x >= 0 && x <= 360) {
 				azimuth[x] += amplitude;
 				read_count[x]++;
 			}
 
-			if (fgets(string, 254, fd) == NULL)
+			if (!std::getline(fd, line))
 				break;
-			pointer = strchr(string, ';');
+			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+			std::istringstream(line) >> az >> amplitude;
 
-			if (pointer != NULL) *pointer = 0;
-
-			sscanf(string, "%f %f", &az, &amplitude);
-
-		} while (1);
-
-		fclose(fd);
-		fd = NULL;
+		} while (true);
 
 		/* Handle 0=360 degree ambiguity */
 
@@ -168,36 +153,33 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 		got_azimuth_pattern = true;
 	}
+	} // az_fd scope
 
 	/* Read and process .el file */
 
-	if (el_filename != NULL && (fd = fopen(el_filename, "r")) == NULL && errno != ENOENT)
-		/* Any error other than file not existing is an error */
-		return errno;
+	{
+		std::ifstream fd;
+		if (el_filename != NULL) {
+			fd.open(el_filename);
+			if (!fd && errno != ENOENT)
+				return errno;
+		}
 
-	if (fd != NULL) {
+	if (fd.is_open()) {
 		spdlog::debug("Antenna Pattern Elevation File = [{}]", el_filename);
 
-		/* Clear azimuth pattern array */
+		/* Clear elevation pattern array */
 
-		for (x = 0; x <= 10000; x++) {
-			el_pattern[x] = 0.0;
-			read_count[x] = 0;
-		}
+		std::fill(std::begin(el_pattern), std::end(el_pattern), 0.0f);
+		std::fill(std::begin(read_count), std::end(read_count), 0);
 
 		/* Read mechanical tilt (degrees) and
 			 tilt azimuth in degrees measured
 			 clockwise from true North. */
 
-		if (fgets(string, 254, fd) == NULL) {
-			// fprintf(stderr,"Tilt read error\n");
-			// exit(0);
-		}
-		pointer = strchr(string, ';');
-
-		if (pointer != NULL) *pointer = 0;
-
-		sscanf(string, "%f %f", &mechanical_tilt, &tilt_azimuth);
+		std::getline(fd, line);
+		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+		std::istringstream(line) >> mechanical_tilt >> tilt_azimuth;
 
 		if (antenna_downtilt != 99.0) {    // If Cmdline override
 			if (antenna_dt_direction == -1)  // dt_dir not specified
@@ -215,17 +197,11 @@ int LoadPAT(char *az_filename, char *el_filename)
 			 normalized field radiation pattern amplitude
 			 (0.0 to 1.0) until EOF is reached. */
 
-		if (fgets(string, 254, fd) == NULL) {
-			// fprintf(stderr,"Ant elevation read error\n");
-			// exit(0);
-		}
-		pointer = strchr(string, ';');
+		std::getline(fd, line);
+		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+		std::istringstream(line) >> elevation >> amplitude;
 
-		if (pointer != NULL) *pointer = 0;
-
-		sscanf(string, "%f %f", &elevation, &amplitude);
-
-		while (1) {
+		do {
 			/* Read in normalized radiated field values
 				 for every 0.01 degrees of elevation between
 				 -10.0 and +90.0 degrees */
@@ -237,15 +213,11 @@ int LoadPAT(char *az_filename, char *el_filename)
 				read_count[x]++;
 			}
 
-			if (fgets(string, 254, fd) == NULL)
+			if (!std::getline(fd, line))
 				break;
-			pointer = strchr(string, ';');
-			if (pointer != NULL) *pointer = 0;
-
-			sscanf(string, "%f %f", &elevation, &amplitude);
-		}
-
-		fclose(fd);
+			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+			std::istringstream(line) >> elevation >> amplitude;
+		} while (true);
 
 		/* Average the field values in case more than
 			 one was read for each 0.01 degrees of elevation. */
@@ -289,7 +261,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 			 and tilt direction (azimuth). */
 
 		if (mechanical_tilt == 0.0) {
-			for (x = 0; x <= 360; x++) slant_angle[x] = 0.0;
+			std::fill(std::begin(slant_angle), std::end(slant_angle), 0.0f);
 		}
 
 		else {
@@ -355,25 +327,17 @@ int LoadPAT(char *az_filename, char *el_filename)
 			}
 		}
 	}
+	} // el_fd scope
 	return 0;
 }
 
 int LoadSignalColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer = NULL, *s;
-	FILE *fd = NULL;
 
-	if (color_file != NULL && color_file[0] != 0)
-		for (x = 0; color_file[x] != '.' && color_file[x] != 0 && x < 250; x++) filename[x] = color_file[x];
-	else
-		for (x = 0; xmtr.filename[x] != '.' && xmtr.filename[x] != 0 && x < 250; x++) filename[x] = xmtr.filename[x];
-
-	filename[x] = '.';
-	filename[x + 1] = 's';
-	filename[x + 2] = 'c';
-	filename[x + 3] = 'f';
-	filename[x + 4] = 0;
+	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
+	std::string base(src, std::find(src, src + 250, '.'));
+	std::string filename = base + ".scf";
 
 	/* Default values */
 
@@ -445,49 +409,37 @@ int LoadSignalColors(struct site xmtr)
 	region.levels = 13;
 
 	/* Don't save if we don't have an output file */
-	if ((fd = fopen(filename, "r")) == NULL && xmtr.filename[0] == '\0') return 0;
+	{
+		std::ifstream fd(filename);
+		if (!fd && xmtr.filename[0] == '\0') return 0;
 
-	if (fd == NULL) {
-		if ((fd = fopen(filename, "w")) == NULL) return errno;
-
-		for (x = 0; x < region.levels; x++)
-			fprintf(fd, "%3d: %3d, %3d, %3d\n", region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-
-		fclose(fd);
-	}
-
-	else {
-		x = 0;
-		s = fgets(string, 80, fd);
-
-		while (x < 128 && s != NULL) {
-			pointer = strchr(string, ';');
-
-			if (pointer != NULL) *pointer = 0;
-
-			ok = sscanf(string, "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-
-			if (ok == 4) {
-				spdlog::debug("LoadSignalColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-
-				for (y = 0; y < 4; y++) {
-					if (val[y] > 255) val[y] = 255;
-
-					if (val[y] < 0) val[y] = 0;
+		if (!fd) {
+			std::ofstream ofs(filename);
+			if (!ofs) return errno;
+			for (x = 0; x < region.levels; x++)
+				ofs << std::format("{:3d}: {:3d}, {:3d}, {:3d}\n",
+					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
+		} else {
+			std::string line;
+			x = 0;
+			while (x < 128 && std::getline(fd, line)) {
+				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+				if (ok == 4) {
+					spdlog::debug("LoadSignalColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
+					for (y = 0; y < 4; y++) {
+						if (val[y] > 255) val[y] = 255;
+						if (val[y] < 0) val[y] = 0;
+					}
+					region.level[x] = val[0];
+					region.color[x][0] = val[1];
+					region.color[x][1] = val[2];
+					region.color[x][2] = val[3];
+					x++;
 				}
-
-				region.level[x] = val[0];
-				region.color[x][0] = val[1];
-				region.color[x][1] = val[2];
-				region.color[x][2] = val[3];
-				x++;
 			}
-
-			s = fgets(string, 80, fd);
+			region.levels = x;
 		}
-
-		fclose(fd);
-		region.levels = x;
 	}
 	return 0;
 }
@@ -495,19 +447,10 @@ int LoadSignalColors(struct site xmtr)
 int LoadLossColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer = NULL, *s;
-	FILE *fd = NULL;
 
-	if (color_file != NULL && color_file[0] != 0)
-		for (x = 0; color_file[x] != '.' && color_file[x] != 0 && x < 250; x++) filename[x] = color_file[x];
-	else
-		for (x = 0; xmtr.filename[x] != '.' && xmtr.filename[x] != 0 && x < 250; x++) filename[x] = xmtr.filename[x];
-
-	filename[x] = '.';
-	filename[x + 1] = 'l';
-	filename[x + 2] = 'c';
-	filename[x + 3] = 'f';
-	filename[x + 4] = 0;
+	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
+	std::string base(src, std::find(src, src + 250, '.'));
+	std::string filename = base + ".lcf";
 
 	/* Default values */
 
@@ -602,51 +545,38 @@ int LoadLossColors(struct site xmtr)
 			}
 	*/
 	/* Don't save if we don't have an output file */
-	if ((fd = fopen(filename, "r")) == NULL && xmtr.filename[0] == '\0') return 0;
+	{
+		std::ifstream fd(filename);
+		if (!fd && xmtr.filename[0] == '\0') return 0;
 
-	if (fd == NULL) {
-		if ((fd = fopen(filename, "w")) == NULL) return errno;
-
-		for (x = 0; x < region.levels; x++)
-			fprintf(fd, "%3d: %3d, %3d, %3d\n", region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-
-		fclose(fd);
-
-		spdlog::error("loadLossColors: fopen fail: {}", filename);
-	}
-
-	else {
-		x = 0;
-		s = fgets(string, 80, fd);
-
-		while (x < 128 && s != NULL) {
-			pointer = strchr(string, ';');
-
-			if (pointer != NULL) *pointer = 0;
-
-			ok = sscanf(string, "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-
-			if (ok == 4) {
-				spdlog::debug("LoadLossColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-
-				for (y = 0; y < 4; y++) {
-					if (val[y] > 255) val[y] = 255;
-
-					if (val[y] < 0) val[y] = 0;
+		if (!fd) {
+			std::ofstream ofs(filename);
+			if (!ofs) return errno;
+			for (x = 0; x < region.levels; x++)
+				ofs << std::format("{:3d}: {:3d}, {:3d}, {:3d}\n",
+					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
+			spdlog::error("loadLossColors: fopen fail: {}", filename);
+		} else {
+			std::string line;
+			x = 0;
+			while (x < 128 && std::getline(fd, line)) {
+				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+				if (ok == 4) {
+					spdlog::debug("LoadLossColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
+					for (y = 0; y < 4; y++) {
+						if (val[y] > 255) val[y] = 255;
+						if (val[y] < 0) val[y] = 0;
+					}
+					region.level[x] = val[0];
+					region.color[x][0] = val[1];
+					region.color[x][1] = val[2];
+					region.color[x][2] = val[3];
+					x++;
 				}
-
-				region.level[x] = val[0];
-				region.color[x][0] = val[1];
-				region.color[x][1] = val[2];
-				region.color[x][2] = val[3];
-				x++;
 			}
-
-			s = fgets(string, 80, fd);
+			region.levels = x;
 		}
-
-		fclose(fd);
-		region.levels = x;
 	}
 	return 0;
 }
@@ -654,19 +584,10 @@ int LoadLossColors(struct site xmtr)
 int LoadDBMColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer = NULL, *s;
-	FILE *fd = NULL;
 
-	if (color_file != NULL && color_file[0] != 0)
-		for (x = 0; color_file[x] != '.' && color_file[x] != 0 && x < 250; x++) filename[x] = color_file[x];
-	else
-		for (x = 0; xmtr.filename[x] != '.' && xmtr.filename[x] != 0 && x < 250; x++) filename[x] = xmtr.filename[x];
-
-	filename[x] = '.';
-	filename[x + 1] = 'd';
-	filename[x + 2] = 'c';
-	filename[x + 3] = 'f';
-	filename[x + 4] = 0;
+	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
+	std::string base(src, std::find(src, src + 250, '.'));
+	std::string filename = base + ".dcf";
 
 	/* Default values */
 
@@ -753,54 +674,39 @@ int LoadDBMColors(struct site xmtr)
 	region.levels = 16;
 
 	/* Don't save if we don't have an output file */
-	if ((fd = fopen(filename, "r")) == NULL && xmtr.filename[0] == '\0') return 0;
+	{
+		std::ifstream fd(filename);
+		if (!fd && xmtr.filename[0] == '\0') return 0;
 
-	if (fd == NULL) {
-		if ((fd = fopen(filename, "w")) == NULL) return errno;
-
-		for (x = 0; x < region.levels; x++)
-			fprintf(fd, "%+4d: %3d, %3d, %3d\n", region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-
-		fclose(fd);
-	}
-
-	else {
-		x = 0;
-		s = fgets(string, 80, fd);
-
-		while (x < 128 && s != NULL) {
-			pointer = strchr(string, ';');
-
-			if (pointer != NULL) *pointer = 0;
-
-			ok = sscanf(string, "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-
-			if (ok == 4) {
-				spdlog::debug("LoadDBMColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-
-				if (val[0] < -200) val[0] = -200;
-
-				if (val[0] > +40) val[0] = +40;
-
-				region.level[x] = val[0];
-
-				for (y = 1; y < 4; y++) {
-					if (val[y] > 255) val[y] = 255;
-
-					if (val[y] < 0) val[y] = 0;
+		if (!fd) {
+			std::ofstream ofs(filename);
+			if (!ofs) return errno;
+			for (x = 0; x < region.levels; x++)
+				ofs << std::format("{:+4d}: {:3d}, {:3d}, {:3d}\n",
+					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
+		} else {
+			std::string line;
+			x = 0;
+			while (x < 128 && std::getline(fd, line)) {
+				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+				if (ok == 4) {
+					spdlog::debug("LoadDBMColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
+					if (val[0] < -200) val[0] = -200;
+					if (val[0] > +40) val[0] = +40;
+					region.level[x] = val[0];
+					for (y = 1; y < 4; y++) {
+						if (val[y] > 255) val[y] = 255;
+						if (val[y] < 0) val[y] = 0;
+					}
+					region.color[x][0] = val[1];
+					region.color[x][1] = val[2];
+					region.color[x][2] = val[3];
+					x++;
 				}
-
-				region.color[x][0] = val[1];
-				region.color[x][1] = val[2];
-				region.color[x][2] = val[3];
-				x++;
 			}
-
-			s = fgets(string, 80, fd);
+			region.levels = x;
 		}
-
-		fclose(fd);
-		region.levels = x;
 	}
 	return 0;
 }
@@ -828,20 +734,16 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int  lat_abs = abs(tile_lat);
     const char *res_str = (ippd == 3600) ? "10" : "30";
 
-    char filename[64];
-    snprintf(filename, sizeof(filename),
-             "Copernicus_DSM_COG_%s_%c%02d_00_%c%03d_00_DEM.tif",
-             res_str, ns, lat_abs, ew, lon_abs);
+    std::string filename = std::format(
+        "Copernicus_DSM_COG_{}_{}{:02d}_00_{}{:03d}_00_DEM.tif",
+        res_str, ns, lat_abs, ew, lon_abs);
 
     /* Try current working directory first, then DEM_path */
-    char path_plus_name[PATH_MAX];
-    strncpy(path_plus_name, filename, sizeof(path_plus_name) - 1);
-    path_plus_name[sizeof(path_plus_name) - 1] = '\0';
-
-    GDALDatasetH ds = GDALOpen(path_plus_name, GA_ReadOnly);
+    std::string path_plus_name = filename;
+    GDALDatasetH ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
     if (ds == NULL) {
-        snprintf(path_plus_name, sizeof(path_plus_name), "%s%s", DEM_path, filename);
-        ds = GDALOpen(path_plus_name, GA_ReadOnly);
+        path_plus_name = std::string(DEM_path) + filename;
+        ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
     }
     if (ds == NULL) {
         spdlog::debug("LoadCopernicus: file not found: {}", filename);

@@ -730,7 +730,7 @@ void PathReport(struct site source, struct site destination, char *name,
 	fd2 = fopen(report_name, "w");
 
 	fprintf(fd2, "\n\t\t--==[ Path Profile Analysis ]==--\n\n");
-	fprintf(fd2, "Transmitter site: %s\n", source.name);
+	fprintf(fd2, "Transmitter site: Tx\n");
 
 	fprintf(fd2, "Site location: %.4f, %.4f\n", source.lat, source.lon);
 
@@ -753,21 +753,21 @@ void PathReport(struct site source, struct site destination, char *name,
 		patterndB = 20.0 * log10(pattern);
 	}
 
-	fprintf(fd2, "Distance to %s: %.2f kilometers\n",
-		destination.name, Distance(source, destination));
+	fprintf(fd2, "Distance to Rx: %.2f kilometers\n",
+		Distance(source, destination));
 
-	fprintf(fd2, "Azimuth to %s: %.2f degrees grid\n", destination.name,
+	fprintf(fd2, "Azimuth to Rx: %.2f degrees grid\n",
 		azimuth);
 
 
-	fprintf(fd2, "Downtilt angle to %s: %+.4f degrees\n",
-		destination.name, angle1);
+	fprintf(fd2, "Downtilt angle to Rx: %+.4f degrees\n",
+		angle1);
 
 
 
 	/* Receiver */
 
-	fprintf(fd2, "\nReceiver site: %s\n", destination.name);
+	fprintf(fd2, "\nReceiver site: Rx\n");
 
 	fprintf(fd2, "Site location: %.4f, %.4f\n", destination.lat, destination.lon);
 
@@ -776,7 +776,7 @@ void PathReport(struct site source, struct site destination, char *name,
 		"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
 		destination.alt, destination.alt + GetElevation(destination));
 
-	fprintf(fd2, "Distance to %s: %.2f kilometers\n", source.name,
+	fprintf(fd2, "Distance to Rx: %.2f kilometers\n",
 		Distance(source, destination));
 
 	azimuth = Azimuth(destination, source);
@@ -784,11 +784,11 @@ void PathReport(struct site source, struct site destination, char *name,
 	angle1 = ElevationAngle(destination, source);
 	angle2 = ElevationAngle2(destination, source, EARTHRADIUS);
 
-	fprintf(fd2, "Azimuth to %s: %.2f degrees grid\n", source.name, azimuth);
+	fprintf(fd2, "Azimuth to Tx: %.2f degrees grid\n", azimuth);
 
 
-	fprintf(fd2, "Downtilt angle to %s: %+.4f degrees\n",
-		source.name, angle1);
+	fprintf(fd2, "Downtilt angle to Rx: %+.4f degrees\n",
+		angle1);
 
 	if (LR.frq_mhz > 0.0) {
 		fprintf(fd2, "\n\nPropagation model: ");
@@ -947,12 +947,11 @@ void PathReport(struct site source, struct site destination, char *name,
 			fprintf(fd2, "Transmitter EIRP minus Receiver gain: %.2f dBm\n", dBm-rxGain);
 		}
 
-		fprintf(fd2, "\nSummary for the link between %s and %s:\n\n",
-			source.name, destination.name);
+		fprintf(fd2, "\nSummary for the link between Rx and Tx:\n\n");
 
 		if (patterndB != 0.0)
-		        fprintf(fd2, "%s antenna pattern towards %s: %.3f (%.2f dB)\n",
-				source.name, destination.name, pattern,
+		        fprintf(fd2, "Rx antenna pattern towards Tx: %.3f (%.2f dB)\n",
+				pattern,
 				patterndB);
 
 		ReadPath(source, destination);	/* source=TX, destination=RX */
@@ -1106,8 +1105,8 @@ void PathReport(struct site source, struct site destination, char *name,
 				loss - free_space_loss);
 
 		if (patterndB != 0.0)
-		        fprintf(fd2,"Total path loss including %s antenna pattern: %.2f dB\n",
-				source.name, total_loss);
+		        fprintf(fd2,"Total path loss including Tx antenna pattern: %.2f dB\n",
+				total_loss);
 
 		if (LR.erp != 0.0) {
 			field_strength =
@@ -1126,13 +1125,13 @@ void PathReport(struct site source, struct site destination, char *name,
 			power_density /= (4.0 * PI * distance * distance *
 					  2589988.11);
 
-			fprintf(fd2, "Field strength at %s: %.2f dBuV/meter\n",
-				destination.name, field_strength);
-			fprintf(fd2, "Signal power level at %s: %+.2f dBm\n",
-				destination.name, dBm);
+			fprintf(fd2, "Field strength at Rx: %.2f dBuV/meter\n",
+				field_strength);
+			fprintf(fd2, "Signal power level at Rx: %+.2f dBm\n",
+				dBm);
 			fprintf(fd2,
-				"Signal power density at %s: %+.2f dBW per square meter\n",
-				destination.name, 10.0 * log10(power_density));
+				"Signal power density at Rx: %+.2f dBW per square meter\n",
+				10.0 * log10(power_density));
 			voltage =
 			    1.0e6 * sqrt(50.0 *
 					 (eirp /
@@ -1140,8 +1139,8 @@ void PathReport(struct site source, struct site destination, char *name,
 					   (10.0,
 					    (total_loss - 2.14) / 10.0))));
 			fprintf(fd2,
-				"Voltage across 50 ohm dipole at %s: %.2f uV (%.2f dBuV)\n",
-				destination.name, voltage,
+				"Voltage across 50 ohm dipole at Rx: %.2f uV (%.2f dBuV)\n",
+				voltage,
 				20.0 * log10(voltage));
 
 			voltage =
@@ -1151,8 +1150,8 @@ void PathReport(struct site source, struct site destination, char *name,
 					   (10.0,
 					    (total_loss - 2.14) / 10.0))));
 			fprintf(fd2,
-				"Voltage across 75 ohm dipole at %s: %.2f uV (%.2f dBuV)\n",
-				destination.name, voltage,
+				"Voltage across 75 ohm dipole at Rx: %.2f uV (%.2f dBuV)\n",
+				voltage,
 				20.0 * log10(voltage));
 		}
 
@@ -1253,13 +1252,12 @@ void PathReport(struct site source, struct site destination, char *name,
 		fprintf(fd, "set encoding iso_8859_1\n");
 		fprintf(fd, "set term %s\n", term);
 		fprintf(fd,
-			"set title \"Path Loss Profile Along Path Between %s and %s (%.2f%c azimuth)\"\n",
-			destination.name, source.name, Azimuth(destination,
+			"set title \"Path Loss Profile Along Path Between Rx and Tx (%.2f%c azimuth)\"\n",
+			Azimuth(destination,
 							       source), 176);
 
 		fprintf(fd,
-			"set xlabel \"Distance Between %s and %s (%.2f kilometers)\"\n",
-			destination.name, source.name,
+			"set xlabel \"Distance Between Rx and Tx (%.2f kilometers)\"\n",
 			Distance(destination, source));
 
 		if (got_azimuth_pattern || got_elevation_pattern)

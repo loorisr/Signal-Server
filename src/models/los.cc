@@ -751,9 +751,8 @@ void PlotPropagationRadius(struct site source, double range,
 		}
 	}
     // Print debug
-	spdlog::debug("Plotting {} contours of \"{}\" out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
+	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
             plotType,
-			source.name,
 			range,
 			altitude
     );

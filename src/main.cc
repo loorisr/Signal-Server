@@ -536,8 +536,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
         if (cos_tx_angle > cos_test_angle) {
             if (h_r == h_r_orig)
                 fprintf(outfile,
-                    "Between %s and %s, obstructions were detected at:\n\n",
-                    rcvr.name, xmtr.name);
+                    "Between RX and TX, obstructions were detected :\n\n");
 
             if (site_x.lat >= 0.0) {
                 fprintf(outfile,
@@ -622,8 +621,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
 
     if (h_r > h_r_orig) {
         snprintf(string, 150,
-             "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected.\n",
-             rcvr.name,
+             "\nAntenna at Rx must be raised to at least %.2f meters AGL\nto clear all obstructions detected.\n",
              h_r - GetElevation(rcvr) - EARTHRADIUS);
     }
 
@@ -634,8 +632,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
     if (f) {
         if (h_r_fpt6 > h_r_orig) {
             snprintf(string_fpt6, 150,
-                 "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",
-                 rcvr.name,
+                 "\nAntenna at Rx must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",
                  h_r_fpt6 - GetElevation(rcvr) - EARTHRADIUS,
                  fzone_clearance * 100.0, 37);
         }
@@ -647,8 +644,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
 
         if (h_r_f1 > h_r_orig) {
             snprintf(string_f1, 150,
-                 "\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",
-                 rcvr.name,
+                 "\nAntenna at Rx must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",
                  h_r_f1 - GetElevation(rcvr) - EARTHRADIUS);
         }
 
@@ -1027,8 +1023,6 @@ int main(int argc, char *argv[])
                 // Copy base name into mapfile and tx_site structures
                 strncpy(mapfile, argv[z], sizeof(mapfile)-1);
                 mapfile[sizeof(mapfile)-1] = '\0';
-                strncpy(tx_site[0].name, "Tx", sizeof(tx_site[0].name)-1);
-                tx_site[0].name[sizeof(tx_site[0].name)-1] = '\0';
                 strncpy(tx_site[0].filename, argv[z], sizeof(tx_site[0].filename)-1);
                 tx_site[0].filename[sizeof(tx_site[0].filename)-1] = '\0';
 
@@ -1059,8 +1053,6 @@ int main(int argc, char *argv[])
                 /* Handle writing image data to stdout */
                 to_stdout = true;
                 mapfile[0] = '\0';
-                strncpy(tx_site[0].name, "Tx", sizeof(tx_site[0].name)-1);
-                tx_site[0].name[sizeof(tx_site[0].name)-1] = '\0';
                 tx_site[0].filename[0] = '\0';
                 spdlog::error("Writing data to stdout");
             }
@@ -1622,8 +1614,6 @@ int main(int argc, char *argv[])
         }
 
     } else {
-        strncpy(tx_site[0].name, "Tx", 3);
-        strncpy(tx_site[1].name, "Rx", 3);
         PlotPath(tx_site[0], tx_site[1]);
         PathReport(tx_site[0], tx_site[1], tx_site[0].filename, 0, prop_model, rxGain);
         // Order flipped for benefit of graph. Makes no difference to data.

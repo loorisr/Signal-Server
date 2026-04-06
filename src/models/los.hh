@@ -34,7 +34,6 @@ struct PropagationRange {
     bool eastwest, los;
     site source;
     PropModel prop_model;
-    int knifeedge, pmenv;
 };
 
 // Angular propagation area
@@ -45,7 +44,7 @@ struct PropagationRadius {
     bool los;
     site source;
     PropModel prop_model;
-    int knifeedge, pmenv, points;
+    int points;
 };
 
 // Struct for storing thread progress
@@ -57,7 +56,7 @@ struct progress_t {
 
 void PlotLOSPath(struct site source, struct site destination);
 
-void PlotPropPath(struct site source, struct site destination, PropModel propmodel, int knifeedge, int pmenv);
+void PlotPropPath(struct site source, struct site destination, PropModel propmodel);
 
 void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
 
@@ -68,12 +67,11 @@ void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
 /// @param plot_filename output plot filename
 /// @param prop_model propagation model to use
 /// @param number_threads number_threads to split the plot circle into (must be a multiple of 2 or 3)
-void PlotPropagationRadius(struct site source, double range, double altitude, PropModel prop_model, int knifeedge, int pmenv, 
-                            uint8_t number_threads);
+void PlotPropagationRadius(struct site source, double range, double altitude, PropModel prop_model, uint8_t number_threads);
 
 void PlotPath(struct site source, struct site destination);
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dkm, int pmenv, char *strmode, int &errnum);
+                   double dkm, char *strmode, int &errnum);
 
 #endif /* _LOS_HH_ */

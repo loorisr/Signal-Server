@@ -1558,7 +1558,7 @@ int main(int argc, char *argv[])
             DoLOS(mapfile, tx_site);
         } else {
             // 90% of effort here
-            PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, knifeedge, pmenv, (uint8_t)number_threads);
+            PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, (uint8_t)number_threads);
             spdlog::debug("Finished PlotPropagationRadius()");
 
             if (cropping) {
@@ -1623,7 +1623,7 @@ int main(int argc, char *argv[])
         strncpy(tx_site[0].name, "Tx", 3);
         strncpy(tx_site[1].name, "Rx", 3);
         PlotPath(tx_site[0], tx_site[1]);
-        PathReport(tx_site[0], tx_site[1], tx_site[0].filename, 0, prop_model, pmenv, rxGain);
+        PathReport(tx_site[0], tx_site[1], tx_site[0].filename, 0, prop_model, rxGain);
         // Order flipped for benefit of graph. Makes no difference to data.
         SeriesData(tx_site[1], tx_site[0], tx_site[0].filename, 1, normalise);
     }

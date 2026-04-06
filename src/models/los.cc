@@ -111,8 +111,7 @@ namespace {
 			if(v->los)
 				PlotLOSPath(v->source, edge);
 			else
-				PlotPropPath(v->source, edge, v->prop_model,
-					v->knifeedge, v->pmenv);
+				PlotPropPath(v->source, edge, v->prop_model);
             // Increment our counters
 			++y;
             progress.count++;
@@ -171,7 +170,7 @@ namespace {
             if (r->los)
                 PlotLOSPath(r->source, edge);
             else
-                PlotPropPath(r->source, edge, r->prop_model, r->knifeedge, r->pmenv);
+                PlotPropPath(r->source, edge, r->prop_model);
 
             // Increment
             rad += rps;
@@ -446,9 +445,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
 void PlotPropPath(
     struct site source,
     struct site destination,
-    PropModel prop_model,
-	int knifeedge,
-    int pmenv
+    PropModel prop_model
 )
 {
 	if (debug) cnt_PlotPropPath++;
@@ -731,8 +728,7 @@ void PlotLOSMap(struct site source, double altitude,
 	delete[] r;
 }
 void PlotPropagationRadius(struct site source, double range, 
-                            double altitude, PropModel prop_model, int knifeedge, int pmenv,
-                            uint8_t number_threads)
+                            double altitude, PropModel prop_model, uint8_t number_threads)
 {
 
     // Ensure number_threads is a logical value
@@ -809,8 +805,6 @@ void PlotPropagationRadius(struct site source, double range,
         propRadius.points = section_pixels;
         propRadius.altitude = altitude;
         propRadius.prop_model = prop_model;
-        propRadius.knifeedge = knifeedge;
-        propRadius.pmenv = pmenv;
         // We're not doing LOS
         propRadius.los = false;
         // Calculate start and stop angles

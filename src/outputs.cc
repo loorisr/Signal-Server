@@ -702,7 +702,7 @@ void DoLOS(char *filename, struct site *xmtr)
 }
 
 void PathReport(struct site source, struct site destination, char *name,
-		char graph_it, PropModel propmodel, int pmenv, double rxGain)
+		char graph_it, PropModel propmodel, double rxGain)
 {
 	/* This function writes a PPA Path Report (name.txt) to
 	   the filesystem.  If (graph_it == 1), then gnuplot is invoked
@@ -1043,7 +1043,7 @@ void PathReport(struct site source, struct site destination, char *name,
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
 			loss = computeLoss(propmodel, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, dkm, pmenv,
+			                   path.elevation[y] + destination.alt, dkm,
 			                   strmode, errnum);
 
 			if (block)

@@ -94,6 +94,8 @@ extern int loops;
 extern int jgets;
 extern int width;
 extern int height;
+extern int knifeedge;
+extern int pmenv;
 
 extern double north;
 extern double east;

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <atomic>
 #include "../main.hh"
 #include "los.hh"
 #include "cost.hh"
@@ -34,12 +35,18 @@ namespace {
     // Thread progress vector
     std::vector<progress_t> thread_progress;
 
-    // 2D processed-flag array matching the flat DEM: processedPoints[x][y]
-    std::vector<std::vector<bool>> processedPoints;
+    // Flat processed-flag array matching the flat DEM, indexed as [x * dem_width_px + y].
+    // std::atomic<uint8_t> gives each pixel its own byte (vector<bool> packs bits,
+    // making concurrent access to adjacent elements a data race).
+    // std::atomic is non-copyable so we use a flat vector allocated via new[].
+    std::unique_ptr<std::atomic<uint8_t>[]> processedPoints;
 
 	void init_processed()
 	{
-        processedPoints.assign(dem_height_px, std::vector<bool>(dem_width_px, false));
+        int total = dem_height_px * dem_width_px;
+        processedPoints.reset(new std::atomic<uint8_t>[total]);
+        for (int i = 0; i < total; i++)
+            processedPoints[i].store(0, std::memory_order_relaxed);
         spdlog::debug("Initialized processedPoints vector of side {}x{}", dem_height_px, dem_width_px);
 		has_init_processed = true;
 	}
@@ -48,16 +55,12 @@ namespace {
 	{
 		int x = (int)rint(ppd  * (lat - dem_min_lat));
 		int y = (int)rint(ppd * (lon - dem_min_lon));
-		bool rtn = false;
 
 		if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px)
 			return false;
 
-		if (!processedPoints[x][y]) {
-			rtn = true;
-			processedPoints[x][y] = true;
-		}
-		return rtn;
+        // Atomically claim this pixel; returns true only for the first thread to do so.
+        return processedPoints[x * dem_width_px + y].exchange(1, std::memory_order_acq_rel) == 0;
 	}
 
     /**

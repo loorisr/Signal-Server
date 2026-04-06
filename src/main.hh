@@ -6,6 +6,7 @@
 #include <string>
 
 #include "common.hh"
+#include "geo.hh"
 
 #define VER_MAJ 4
 #define VER_MIN 0
@@ -22,12 +23,9 @@
 
 void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename);
 
-double LonDiff(double lon1, double lon2);
 void PutSignal(double lat, double lon, unsigned char signal);
 unsigned char GetSignal(double lat, double lon);
 double GetElevation(struct site location);
-double Distance(struct site site1, struct site site2);
-double Azimuth(struct site source, struct site destination);
 double ElevationAngle(struct site source, struct site destination);
 void ReadPath(struct site source, struct site destination);
 double ElevationAngle2(struct site source, struct site destination, double er);

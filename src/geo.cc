@@ -1,5 +1,75 @@
 #include "geo.hh"
 
+double arccos(double x, double y)
+{
+    if (y == 0.0) return 0.0;
+    double result = acos(x / y);
+    return y < 0.0 ? PI + result : result;
+}
+
+double LonDiff(double lon1, double lon2)
+{
+    double diff = lon1 - lon2;
+    if (diff <= -180.0) return diff + 360.0;
+    if (diff >= 180.0)  return diff - 360.0;
+    return diff;
+}
+
+double Distance(struct site site1, struct site site2)
+{
+    double lat1, lon1, lat2, lon2, distance;
+
+    lat1 = site1.lat * DEG2RAD;
+    lon1 = site1.lon * DEG2RAD;
+    lat2 = site2.lat * DEG2RAD;
+    lon2 = site2.lon * DEG2RAD;
+
+    distance = EARTHRADIUS * acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
+
+    return distance;
+}
+
+double Azimuth(struct site source, struct site destination)
+{
+    double dest_lat, dest_lon, src_lat, src_lon,
+        beta, azimuth, diff, num, den, fraction;
+
+    dest_lat = destination.lat * DEG2RAD;
+    dest_lon = destination.lon * DEG2RAD;
+
+    src_lat = source.lat * DEG2RAD;
+    src_lon = source.lon * DEG2RAD;
+
+    beta =
+        acos(sin(src_lat) * sin(dest_lat) +
+         cos(src_lat) * cos(dest_lat) * cos(src_lon - dest_lon));
+
+    num = sin(dest_lat) - (sin(src_lat) * cos(beta));
+    den = cos(src_lat) * sin(beta);
+    fraction = num / den;
+
+    if (fraction >= 1.0)
+        fraction = 1.0;
+
+    if (fraction <= -1.0)
+        fraction = -1.0;
+
+    azimuth = acos(fraction);
+
+    diff = dest_lon - src_lon;
+
+    if (diff <= -PI)
+        diff += TWOPI;
+
+    if (diff >= PI)
+        diff -= TWOPI;
+
+    if (diff > 0.0)
+        azimuth = TWOPI - azimuth;
+
+    return (azimuth * RAD2DEG);
+}
+
 double earthRadius(double lat)
 {
     // Convert latitude to rad

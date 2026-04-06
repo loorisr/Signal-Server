@@ -93,32 +93,6 @@ int dem_height_px = 0;
 struct LR LR;
 struct region region;
 
-/* This function implements the arc cosine function,
-    returning a value between 0 and TWOPI.
-*/
-double arccos(double x, double y)
-{
-    if (y == 0.0) return 0.0;
-    double result = acos(x / y);
-    return y < 0.0 ? PI + result : result;
-}
-
-
-/**
- *  This function returns the short path longitudinal
- *  difference between longitude1 and longitude2
- *  as an angle between -180.0 and +180.0 degrees.
- *  If lon1 is west of lon2, the result is positive.
- *  If lon1 is east of lon2, the result is negative.
-*/
-double LonDiff(double lon1, double lon2)
-{
-    double diff = lon1 - lon2;
-    if (diff <= -180.0) return diff + 360.0;
-    if (diff >= 180.0)  return diff - 360.0;
-    return diff;
-}
-
 /* Convert (lat, lon) to flat-array pixel coordinates.
  * x increases northward from the south edge of the loaded area.
  * y increases westward  from the east  edge of the loaded area.
@@ -156,77 +130,6 @@ double GetElevation(struct site location)
     return (double)dem_data[x][y];
 }
 
-
-double Distance(struct site site1, struct site site2)
-{
-    /* This function returns the great circle distance
-       in meters between any two site locations. */
-
-    double lat1, lon1, lat2, lon2, distance;
-
-    lat1 = site1.lat * DEG2RAD;
-    lon1 = site1.lon * DEG2RAD;
-    lat2 = site2.lat * DEG2RAD;
-    lon2 = site2.lon * DEG2RAD;
-
-    distance = EARTHRADIUS * acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
-
-    return distance;
-}
-
-double Azimuth(struct site source, struct site destination)
-{
-    /* This function returns the azimuth (in degrees) to the
-       destination as seen from the location of the source. */
-
-    double dest_lat, dest_lon, src_lat, src_lon,
-        beta, azimuth, diff, num, den, fraction;
-
-    dest_lat = destination.lat * DEG2RAD;
-    dest_lon = destination.lon * DEG2RAD;
-
-    src_lat = source.lat * DEG2RAD;
-    src_lon = source.lon * DEG2RAD;
-
-    /* Calculate Surface Distance */
-
-    beta =
-        acos(sin(src_lat) * sin(dest_lat) +
-         cos(src_lat) * cos(dest_lat) * cos(src_lon - dest_lon));
-
-    /* Calculate Azimuth */
-
-    num = sin(dest_lat) - (sin(src_lat) * cos(beta));
-    den = cos(src_lat) * sin(beta);
-    fraction = num / den;
-
-    /* Trap potential problems in acos() due to rounding */
-
-    if (fraction >= 1.0)
-        fraction = 1.0;
-
-    if (fraction <= -1.0)
-        fraction = -1.0;
-
-    /* Calculate azimuth */
-
-    azimuth = acos(fraction);
-
-    /* Reference it to True North */
-
-    diff = dest_lon - src_lon;
-
-    if (diff <= -PI)
-        diff += TWOPI;
-
-    if (diff >= PI)
-        diff -= TWOPI;
-
-    if (diff > 0.0)
-        azimuth = TWOPI - azimuth;
-
-    return (azimuth * RAD2DEG);
-}
 
 double ElevationAngle(struct site source, struct site destination)
 {
@@ -710,10 +613,10 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
 
 void alloc_path(void)
 {
-    path.lat = new double[ARRAYSIZE];
-    path.lon = new double[ARRAYSIZE];
-    path.elevation = new double[ARRAYSIZE];
-    path.distance = new double[ARRAYSIZE];
+    path.lat = new double[ARRAYSIZE + 1];
+    path.lon = new double[ARRAYSIZE + 1];
+    path.elevation = new double[ARRAYSIZE + 1];
+    path.distance = new double[ARRAYSIZE + 1];
 }
 
 void do_allocs(void)

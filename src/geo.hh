@@ -19,6 +19,11 @@
 #define WGS84_a 6378137.0
 #define WGS84_b 6356752.3
 
+double arccos(double x, double y);
+double LonDiff(double lon1, double lon2);
+double Distance(struct site site1, struct site site2);
+double Azimuth(struct site source, struct site destination);
+
 /// @brief Calculate the approximate radius of the earth at a given latitude, using the WGS84 model
 /// @cite http://en.wikipedia.org/wiki/Earth_radius
 /// @param lat latitude in degrees

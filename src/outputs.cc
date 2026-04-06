@@ -28,7 +28,7 @@ void DoPathLoss(char *filename, struct site *xmtr)
 	image_ctx_t ctx;
 	int success;
 
-	if( (success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
+	if( (success = image_init(&ctx, width, height)) != 0 ){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -195,7 +195,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 	image_ctx_t ctx;
 	int success;
 
-	if((success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0){
+	if((success = image_init(&ctx, width, height)) != 0){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -374,7 +374,7 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 	image_ctx_t ctx;
 	int success;
 
-	if( (success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0 ){
+	if( (success = image_init(&ctx, width, height)) != 0 ){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}
@@ -551,7 +551,7 @@ void DoLOS(char *filename, struct site *xmtr)
 	image_ctx_t ctx;
 	int success;
 
-	if((success = image_init(&ctx, width, height, IMAGE_RGB, IMAGE_DEFAULT)) != 0){
+	if((success = image_init(&ctx, width, height)) != 0){
 		spdlog::error("Error initializing image: {}", strerror(success));
 		exit(success);
 	}

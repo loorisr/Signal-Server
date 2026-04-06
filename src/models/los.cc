@@ -379,7 +379,7 @@ void PlotLOSPath(struct site source, struct site destination)
 }
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dkm, int pmenv, char *strmode, int &errnum)
+                   double dkm, char *strmode, int &errnum)
 {
     if (debug) cnt_computeLoss++;
     double loss = 0.0;
@@ -565,7 +565,7 @@ void PlotPropPath(
 			dkm = (elev[1] * elev[0]) / 1000;	// km
 
 			loss = computeLoss(prop_model, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, dkm, pmenv,
+			                   path.elevation[y] + destination.alt, dkm,
 			                   strmode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {

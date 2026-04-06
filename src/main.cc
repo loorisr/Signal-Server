@@ -78,6 +78,8 @@ bool json = false;
 bool write_ppm = false;
 bool ngs = false;
 bool to_stdout = false, cropping = true;
+int knifeedge = 0;
+int pmenv = 1;
 
 __thread double *elev;
 __thread struct path path;
@@ -807,8 +809,8 @@ int main(int argc, char *argv[])
 {
     auto start_time = std::chrono::steady_clock::now();
 
-    int x, y, z = 0, knifeedge = 0, ppa = 0, normalise = 0,
-      pmenv = 1, result,
+    int x, y, z = 0, ppa = 0, normalise = 0,
+      result,
       number_threads = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
 
     PropModel prop_model;

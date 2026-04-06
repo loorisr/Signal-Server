@@ -125,7 +125,6 @@ extern bool got_elevation_pattern;
 extern bool got_azimuth_pattern;
 extern bool dbm;
 extern bool geotiff;
-extern bool write_ppm;
 extern bool ngs;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]

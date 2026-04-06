@@ -75,8 +75,6 @@ std::atomic<int> cnt_PlotPropagation{0};
 
 bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
-bool json = false;
-bool write_ppm = false;
 bool ngs = false;
 bool to_stdout = false, cropping = true;
 int knifeedge = 0;
@@ -869,7 +867,6 @@ int main(int argc, char *argv[])
         spdlog::info("     -pe Propagation model mode: 1=Urban,2=Suburban,3=Rural");
         spdlog::info("     -ked Knife edge diffraction (Already on for ITM)");
         spdlog::info("     -geotiff Output a geotiff file");
-        spdlog::info("     -json Output a json file with boundaries");
         spdlog::info("Antenna:");
         spdlog::info("     -ant (antenna pattern file basename+path for .az and .el files)");
         spdlog::info("     -txh Tx Height (above ground)");
@@ -1058,14 +1055,6 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (strcmp(argv[x], "-so") == 0) {
-            z = x + 1;
-            if(image_set_library(argv[z]) != 0){
-                spdlog::error("Error configuring image processor");
-                exit(EINVAL);
-            }
-        }
-
         if (strcmp(argv[x], "-rt") == 0) {
             z = x + 1;
 
@@ -1093,14 +1082,6 @@ int main(int argc, char *argv[])
 
         if (strcmp(argv[x], "-geotiff") == 0) {
             geotiff = true;
-        }
-
-        if (strcmp(argv[x], "-json") == 0) {
-            json = true;
-        }
-
-        if (strcmp(argv[x], "-ppm") == 0) {
-            write_ppm = true;
         }
 
         if (strcmp(argv[x], "-dem") == 0) {
@@ -1589,28 +1570,8 @@ int main(int argc, char *argv[])
 
         if (cropping) {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
-
-            // JSON
-            if (json) {
-                char fn[253];
-                sprintf(fn, "%s.json", mapfile);
-                FILE *f = fopen(fn, "w");
-                if (f) {
-                    fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
-                    fclose(f);
-                }
-            }
         } else {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,east,min_north,west);
-            // JSON
-            if (json) {
-                char fn[253];
-                sprintf(fn, "%s.json", mapfile);
-                FILE *f = fopen(fn, "w");
-                if (f) {
-                    fprintf(f, "{\"north\":%g,\"east\":%g,\"south\":%g,\"west\":%g}", max_north, east, min_north, west);
-                }
-            }
         }
 
     } else {

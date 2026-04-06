@@ -44,20 +44,9 @@ void DoPathLoss(char *filename, struct site *xmtr)
 	}
 
 	if( filename != NULL ) {
-
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
-		}
-
-		if (write_ppm) {
-			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-				spdlog::error("Error creating file name");
-				exit(1);
-			}
-			fd = fopen(mapfile,"wb");
-		} else {
-			fd = NULL;
 		}
 
 	} else {
@@ -177,7 +166,7 @@ void DoPathLoss(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(write_ppm || filename == NULL) {
+	if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
@@ -187,12 +176,6 @@ void DoPathLoss(char *filename, struct site *xmtr)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
-
-	if( filename != NULL && write_ppm ) {
-		fclose(fd);
-		fd = NULL;
-	}
-
 }
 
 int DoSigStr(char *filename, struct site *xmtr)
@@ -232,16 +215,6 @@ int DoSigStr(char *filename, struct site *xmtr)
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
-		}
-
-		if (write_ppm) {
-			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-				spdlog::error("Error creating file name");
-				exit(1);
-			}
-			fd = fopen(mapfile,"wb");
-		} else {
-			fd = NULL;
 		}
 
 	} else {
@@ -370,7 +343,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(write_ppm || filename == NULL) {
+	if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
@@ -381,10 +354,6 @@ int DoSigStr(char *filename, struct site *xmtr)
 
 	image_free(&ctx);
 
-	if( filename != NULL && write_ppm ) {
-		fclose(fd);
-		fd = NULL;
-	}
 	return 0;
 }
 
@@ -426,17 +395,6 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-
-		if (write_ppm) {
-			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-				spdlog::error("Error creating file name");
-				exit(1);
-			}
-			fd = fopen(mapfile,"wb");
-		} else {
-			fd = NULL;
-		}
-
 	} else {
 
 		spdlog::info("Writing to stdout");
@@ -563,7 +521,7 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(write_ppm || filename == NULL) {
+	if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
@@ -574,12 +532,6 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
-
-	if( filename != NULL && write_ppm ) {
-		fclose(fd);
-		fd = NULL;
-	}
-
 }
 
 void DoLOS(char *filename, struct site *xmtr)
@@ -614,16 +566,6 @@ void DoLOS(char *filename, struct site *xmtr)
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
-		}
-
-		if (write_ppm) {
-			if(image_get_filename(&ctx,mapfile,sizeof(mapfile),filename) != 0){
-				spdlog::error("Error creating file name");
-				exit(1);
-			}
-			fd = fopen(mapfile,"wb");
-		} else {
-			fd = NULL;
 		}
 
 	} else {
@@ -683,7 +625,7 @@ void DoLOS(char *filename, struct site *xmtr)
 		}
 	}
 
-	if(write_ppm || filename == NULL) {
+	if(filename == NULL) {
 		if((success = image_write(&ctx,fd)) != 0){
 			spdlog::error("Error writing image");
 			exit(success);
@@ -693,12 +635,6 @@ void DoLOS(char *filename, struct site *xmtr)
 		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
 
 	image_free(&ctx);
-
-	if( filename != NULL && write_ppm ) {
-		fclose(fd);
-		fd = NULL;
-	}
-
 }
 
 void PathReport(struct site source, struct site destination, const char *name,

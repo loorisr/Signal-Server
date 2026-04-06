@@ -335,8 +335,11 @@ int LoadSignalColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
 
-	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
-	std::string base(src, std::find(src, src + 250, '.'));
+	std::string base = (color_file != nullptr && color_file[0] != '\0')
+	    ? std::string(color_file)
+	    : output_filename;
+	auto dot = base.find('.');
+	if (dot != std::string::npos) base = base.substr(0, dot);
 	std::string filename = base + ".scf";
 
 	/* Default values */
@@ -411,7 +414,7 @@ int LoadSignalColors(struct site xmtr)
 	/* Don't save if we don't have an output file */
 	{
 		std::ifstream fd(filename);
-		if (!fd && xmtr.filename[0] == '\0') return 0;
+		if (!fd && output_filename.empty()) return 0;
 
 		if (!fd) {
 			std::ofstream ofs(filename);
@@ -448,8 +451,11 @@ int LoadLossColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
 
-	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
-	std::string base(src, std::find(src, src + 250, '.'));
+	std::string base = (color_file != nullptr && color_file[0] != '\0')
+	    ? std::string(color_file)
+	    : output_filename;
+	auto dot = base.find('.');
+	if (dot != std::string::npos) base = base.substr(0, dot);
 	std::string filename = base + ".lcf";
 
 	/* Default values */
@@ -547,7 +553,7 @@ int LoadLossColors(struct site xmtr)
 	/* Don't save if we don't have an output file */
 	{
 		std::ifstream fd(filename);
-		if (!fd && xmtr.filename[0] == '\0') return 0;
+		if (!fd && output_filename.empty()) return 0;
 
 		if (!fd) {
 			std::ofstream ofs(filename);
@@ -585,8 +591,11 @@ int LoadDBMColors(struct site xmtr)
 {
 	int x, y, ok, val[4];
 
-	const char *src = (color_file != nullptr && color_file[0] != '\0') ? color_file : xmtr.filename;
-	std::string base(src, std::find(src, src + 250, '.'));
+	std::string base = (color_file != nullptr && color_file[0] != '\0')
+	    ? std::string(color_file)
+	    : output_filename;
+	auto dot = base.find('.');
+	if (dot != std::string::npos) base = base.substr(0, dot);
 	std::string filename = base + ".dcf";
 
 	/* Default values */
@@ -676,7 +685,7 @@ int LoadDBMColors(struct site xmtr)
 	/* Don't save if we don't have an output file */
 	{
 		std::ifstream fd(filename);
-		if (!fd && xmtr.filename[0] == '\0') return 0;
+		if (!fd && output_filename.empty()) return 0;
 
 		if (!fd) {
 			std::ofstream ofs(filename);

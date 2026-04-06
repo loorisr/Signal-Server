@@ -46,7 +46,7 @@ void DoPathLoss(char *filename, struct site *xmtr)
 	if( filename != NULL ) {
 
 		if (filename[0] == 0) {
-			strncpy(filename, xmtr[0].filename, 254);
+			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
@@ -230,7 +230,7 @@ int DoSigStr(char *filename, struct site *xmtr)
 	if( filename != NULL ) {
 
 		if (filename[0] == 0) {
-			strncpy(filename, xmtr[0].filename, 254);
+			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
@@ -423,7 +423,7 @@ void DoRxdPwr(char *filename, struct site *xmtr)
 	if( filename != NULL ) {
 
 		if (filename[0] == 0) {
-			strncpy(filename, xmtr[0].filename, 254);
+			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 
@@ -612,7 +612,7 @@ void DoLOS(char *filename, struct site *xmtr)
 	if( filename != NULL ){
 
 		if (filename[0] == 0) {
-			strncpy(filename, xmtr[0].filename, 254);
+			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
 

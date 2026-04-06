@@ -1,8 +1,9 @@
 #ifndef _COMMON_HH_
 #define _COMMON_HH_
 
-#include <cstdint>
 #include <atomic>
+#include <cstdint>
+#include <string>
 
 #define GAMMA 		2.5
 
@@ -34,7 +35,6 @@ struct site {
 	double lat;
 	double lon;
 	float alt;
-	char filename[255];
 };
 
 struct path {
@@ -119,6 +119,7 @@ extern double cropLon;
 extern char string[];
 extern char DEM_path[];
 extern char gpsav;
+extern std::string output_filename;
 
 extern bool got_elevation_pattern;
 extern bool got_azimuth_pattern;

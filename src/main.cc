@@ -52,6 +52,7 @@ int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
 int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
 
 char DEM_path[255], gpsav = 0, *color_file = NULL;
+std::string output_filename;
 
 double max_range = 0.0,  dpp, ppd, samples_per_radian,
     fzone_clearance = 0.6, clutter, lat, lon, txh, tercon, terdic,
@@ -1023,8 +1024,7 @@ int main(int argc, char *argv[])
                 // Copy base name into mapfile and tx_site structures
                 strncpy(mapfile, argv[z], sizeof(mapfile)-1);
                 mapfile[sizeof(mapfile)-1] = '\0';
-                strncpy(tx_site[0].filename, argv[z], sizeof(tx_site[0].filename)-1);
-                tx_site[0].filename[sizeof(tx_site[0].filename)-1] = '\0';
+                output_filename = argv[z];
 
                 const char *az_base = (antenna_file[0] != '\0') ? antenna_file : argv[z];
                 const char *el_base = az_base; // same logic
@@ -1053,7 +1053,7 @@ int main(int argc, char *argv[])
                 /* Handle writing image data to stdout */
                 to_stdout = true;
                 mapfile[0] = '\0';
-                tx_site[0].filename[0] = '\0';
+                output_filename.clear();
                 spdlog::error("Writing data to stdout");
             }
         }
@@ -1615,9 +1615,9 @@ int main(int argc, char *argv[])
 
     } else {
         PlotPath(tx_site[0], tx_site[1]);
-        PathReport(tx_site[0], tx_site[1], tx_site[0].filename, 0, prop_model, rxGain);
+        PathReport(tx_site[0], tx_site[1], output_filename.c_str(), 0, prop_model, rxGain);
         // Order flipped for benefit of graph. Makes no difference to data.
-        SeriesData(tx_site[1], tx_site[0], tx_site[0].filename, 1, normalise);
+        SeriesData(tx_site[1], tx_site[0], output_filename.c_str(), 1, normalise);
     }
     fflush(stderr);
 

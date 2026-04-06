@@ -701,7 +701,7 @@ void DoLOS(char *filename, struct site *xmtr)
 
 }
 
-void PathReport(struct site source, struct site destination, char *name,
+void PathReport(struct site source, struct site destination, const char *name,
 		char graph_it, PropModel propmodel, double rxGain)
 {
 	/* This function writes a PPA Path Report (name.txt) to
@@ -1289,7 +1289,7 @@ void PathReport(struct site source, struct site destination, char *name,
 
 }
 
-void SeriesData(struct site source, struct site destination, char *name,
+void SeriesData(struct site source, struct site destination, const char *name,
 		unsigned char fresnel_plot, unsigned char normalised)
 {
 	int x, y, z;

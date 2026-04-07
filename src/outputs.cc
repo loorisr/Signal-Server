@@ -1193,18 +1193,6 @@ void PathReport(struct site source, struct site destination, const char *name,
 		fclose(fd);
 
 		x = system("gnuplot ppa.gp");
-
-		if (x != -1) {
-			if (gpsav == 0) {
-				//unlink("ppa.gp");
-				//unlink("profile.gp");
-				//unlink("reference.gp");
-			}
-
-		}
-
-		else
-			spdlog::error("Error occurred invoking gnuplot!");
 	}
 
 }

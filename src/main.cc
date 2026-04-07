@@ -51,7 +51,7 @@ int ippd = 1200;
 int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
 int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
 
-char DEM_path[255], gpsav = 0, *color_file = NULL;
+char DEM_path[255], *color_file = NULL;
 std::string output_filename;
 
 double max_range = 0.0,  dpp, ppd, samples_per_radian,
@@ -59,12 +59,12 @@ double max_range = 0.0,  dpp, ppd, samples_per_radian,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     min_lat = 90.0, max_lat = -90.0,
-    westoffset=180, eastoffset=-180, delta=0, rxGain=0, antenna_rotation,
+    delta=0, rxGain=0, antenna_rotation,
     antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
 
 int mpi, max_elevation = -32768, min_elevation = 32768,
-    contour_threshold, pred, pblue, pgreen, ter, multiplier = 256, debug = 0,
-    loops = 100, jgets = 0, MAXRAD, height, width, resample = 0;
+    contour_threshold, debug = 0,
+    height, width;
 
 std::atomic<int> cnt_point_to_point_ITM{0};
 std::atomic<int> cnt_point_to_point{0};
@@ -781,7 +781,6 @@ int main(int argc, char *argv[])
         spdlog::info("     -dbm Plot Rxd signal power instead of field strength in dBuV/m");
         spdlog::info("     -rt Rx Threshold (dB / dBm / dBuV/m)");
         spdlog::info("     -R Radius (kilometers)");
-        spdlog::info("     -res Pixels per tile. 300/600/1200/3600 (Optional)");
         spdlog::info("     -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,");
         spdlog::info("          5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,");
         spdlog::info("          10: Plane earth, 11: Egli VHF/UHF, 12: Soil");
@@ -811,7 +810,6 @@ int main(int argc, char *argv[])
 
     y = argc - 1;
     dbm = false;
-    gpsav = 0;
     DEM_path[0] = 0;
     mapfile[0] = 0;
     clutter = 0.0;
@@ -819,7 +817,6 @@ int main(int argc, char *argv[])
     path.length = 0;
     fzone_clearance = 0.6;
     contour_threshold = 0;
-    resample = 0;
     max_range = 1.0;
     prop_model = ITM_LR;
     lat = 0;
@@ -1014,39 +1011,6 @@ int main(int argc, char *argv[])
             }
         }
         
-        if (strcmp(argv[x], "-res") == 0) {
-            z = x + 1;
-
-            if (z <= y &&
-                argv[z][0] &&
-                argv[z][0] != '-') {
-                sscanf(argv[z], "%d", &ippd);
-
-                switch (ippd) {
-                case 300:
-                    MAXRAD = 500;
-                    jgets = 3; // 3 dummy reads
-                    break;
-                case 600:
-                    MAXRAD = 500;
-                    jgets = 1;
-                    break;
-                case 1200:
-                    MAXRAD = 200;
-                    ippd = 1200;
-                    break;
-                case 3600:
-                    MAXRAD = 100;
-                    ippd = 3600;
-                    break;
-                default:
-                    MAXRAD = 200;
-                    ippd = 1200;
-                    break;
-                }
-            }
-        }
-
         if (strcmp(argv[x], "-lat") == 0) {
             z = x + 1;
 
@@ -1132,7 +1096,7 @@ int main(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-
+                int ter;
                 sscanf(argv[z], "%d", &ter);
 
                 switch (ter) {
@@ -1342,10 +1306,6 @@ int main(int argc, char *argv[])
         exit(EINVAL);
     }
 
-    if(resample > 10){
-        spdlog::error("Cannot resample higher than a factor of 10");
-        exit(EINVAL);	
-    }
     /* Ensure a trailing '/' is present in DEM_path */
 
     if (DEM_path[0]) {

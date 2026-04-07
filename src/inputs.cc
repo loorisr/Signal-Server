@@ -800,7 +800,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         for (int c = 0; c < ippd; c++) {
             int gy = gy_base + c;
             float fval = buf[r * ippd + c];
-            short val = (nodata_valid && fval == (float)nodata_val) ? 0 : (short)roundf(fval);
+            //short val = (nodata_valid && fval == (float)nodata_val) ? 0 : (short)roundf(fval);
+            double val = (nodata_valid && fval == (float)nodata_val) ? 0 : fval;
 
             dem_data[gx][gy]   = val;
             dem_signal[gx][gy] = 0;

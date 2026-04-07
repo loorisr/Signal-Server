@@ -125,7 +125,7 @@ extern bool ngs;
  * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)
  * y: 0 = global east  edge, increases westward   (cols = ippd * tiles_lon)
  * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
-extern short         **dem_data;
+extern double         **dem_data;
 extern unsigned char **dem_signal;
 /* Geographic origin of the flat arrays (south-west corner, integer degrees) */
 extern int dem_min_lat;   /* southernmost tile_lat */

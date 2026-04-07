@@ -84,7 +84,7 @@ __thread double *elev;
 __thread struct path path;
 site tx_site;
 site rx_site;
-short         **dem_data   = nullptr;
+double         **dem_data   = nullptr;
 unsigned char **dem_signal = nullptr;
 int dem_min_lat   = 0;
 int dem_min_lon   = 0;
@@ -542,10 +542,10 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     dem_height_px = tiles_lat * ippd;
     dem_width_px  = tiles_lon * ippd;
 
-    dem_data   = new short         *[dem_height_px];
+    dem_data   = new double         *[dem_height_px];
     dem_signal = new unsigned char *[dem_height_px];
     for (int i = 0; i < dem_height_px; i++) {
-        dem_data[i]   = new short        [dem_width_px]();
+        dem_data[i]   = new double        [dem_width_px]();
         dem_signal[i] = new unsigned char[dem_width_px]();
     }
 }

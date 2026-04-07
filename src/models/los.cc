@@ -240,7 +240,7 @@ namespace {
  */
 static double incidenceAngle(double opp, double adj)
 {
-	return atan2(opp, adj) * 180 / PI;
+	return atan2(opp, adj) * RAD2DEG;
 }
 
 /*
@@ -267,8 +267,7 @@ static double ked(double freq, double rxh, double dkm)
 		if (elev[n] < obh) {
 
 			// Angle from Rx point to obstacle
-			rxobaoi =
-			    incidenceAngle((obh - (elev[n] + rxh)), d - obd);
+			rxobaoi = incidenceAngle((obh - (elev[n] + rxh)), d - obd);
 		} else {
 			// Line of sight or higher
 			rxobaoi = 0;
@@ -323,7 +322,7 @@ void PlotLOSPath(struct site source, struct site destination)
     tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
     tx_alt2 = tx_alt * tx_alt;
 
-    for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range * 1000.0); x++) {
+    for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range); x++) {
 
         if (x > 0) {
             distance = path.distance[x];
@@ -482,19 +481,18 @@ void PlotPropPath(
 	   Longley-Rice.  This information is required for properly
 	   integrating the antenna's elevation pattern into the
 	   calculation for overall path loss. */
-	//if(debug)
-	//	fprintf(stderr,"four_thirds_earth %.1f source.alt %.1f path.elevation[0] %.1f\n",four_thirds_earth,source.alt,path.elevation[0]);
-	for (y = 2; (y < (path.length - 1) && path.distance[y] <= max_range * 1000.0);  y++) {
+
+	xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
+	xmtr_alt2 = xmtr_alt * xmtr_alt;
+    
+	for (y = 2; (y < (path.length - 1) && path.distance[y] <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
-
 		if (can_process(path.lat[y], path.lon[y])) {
 
 			distance = path.distance[y];
-			xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
 			dest_alt2 = dest_alt * dest_alt;
-			xmtr_alt2 = xmtr_alt * xmtr_alt;
 
 			/* Calculate the cosine of the elevation of
 			   the receiver as seen by the transmitter. */
@@ -572,8 +570,7 @@ void PlotPropPath(
 			                   strmode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {
-				diffloss =
-				    ked(LR.frq_mhz, destination.alt, dkm);
+				diffloss = ked(LR.frq_mhz, destination.alt, dkm);
 				loss += (diffloss);	// ;)
 			}
 			//Key stage. Link dB for p2p is returned as 'loss'.

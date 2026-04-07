@@ -756,7 +756,7 @@ int main(int argc, char *argv[])
     path.length = 0;
     fzone_clearance = 0.6;
     contour_threshold = 0;
-    max_range = 1.0;
+    max_range = 1000.0; // meters
     prop_model = ITM_LR;
     lat = 0;
     lon = 0;
@@ -795,7 +795,7 @@ int main(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 sscanf(argv[z], "%lf", &max_range);
-
+                max_range *= 1000.0;
             }
         }
 
@@ -1263,7 +1263,7 @@ int main(int argc, char *argv[])
 
     spdlog::info("-------------------------------- Plot Information --------------------------------");
     spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} m AGL", tx_site.lat, tx_site.lon, tx_site.alt);
-    spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range, ippd);
+    spdlog::info("    Plot parameters: {:.2f}-m radius, resolution of {} ppd", max_range, ippd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
     spdlog::info("    Map number_threads: {}", number_threads);
     spdlog::info("");
@@ -1284,10 +1284,10 @@ int main(int argc, char *argv[])
     double m_per_deg_lat = 111132.92 - (559.82 * cos(2 * tx_lat_rad)) + (1.175 * cos(4 * tx_lat_rad)) - (0.0023 * cos(6 * tx_lat_rad));
 
     // Calculate angular distance from the above numbers
-    double dist_deg_lon = (max_range * 1000.0) / m_per_deg_lon;
-    double dist_deg_lat = (max_range * 1000.0) / m_per_deg_lat;
+    double dist_deg_lon = max_range / m_per_deg_lon;
+    double dist_deg_lat = max_range / m_per_deg_lat;
 
-    spdlog::debug("Radius of {:.3f} km is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
+    spdlog::debug("Radius of {:.3f} m is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
 
     // Calculate our plot bounds based on these numbers
     min_lon = tx_site.lon - dist_deg_lon;

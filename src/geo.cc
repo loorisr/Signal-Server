@@ -80,7 +80,7 @@ double earthRadius(double lat)
     double Ad = WGS84_a * cos(lat_rad);
     double Bd = WGS84_b * sin(lat_rad);
 
-    return double(sqrt( (An*An + Bn*Bn) / (Ad*Ad + Bd*Bd) ) / (double)1000);
+    return double(sqrt( (An*An + Bn*Bn) / (Ad*Ad + Bd*Bd) ));
 }
 
 coord getPointAtDistance(const coord center, double distance, double bearing_rad)

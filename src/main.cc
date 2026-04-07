@@ -82,7 +82,8 @@ int pmenv = 1;
 
 __thread double *elev;
 __thread struct path path;
-struct site tx_site[2];
+site tx_site;
+site rx_site;
 short         **dem_data   = nullptr;
 unsigned char **dem_signal = nullptr;
 int dem_min_lat   = 0;
@@ -578,10 +579,10 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
 
     /* Compute geographic bounds */
     if (cropping) {
-        ulx = tx_site[0].lon - cropLon;
-        uly = tx_site[0].lat + cropLat;
-        lrx = tx_site[0].lon + cropLon;
-        lry = tx_site[0].lat - cropLat;
+        ulx = tx_site.lon - cropLon;
+        uly = tx_site.lat + cropLat;
+        lrx = tx_site.lon + cropLon;
+        lry = tx_site.lat - cropLat;
     } else {
         ulx = west;
         uly = max_north;
@@ -780,10 +781,10 @@ int main(int argc, char *argv[])
     antenna_dt_direction = -1;
     antenna_file[0] = '\0';
 
-    tx_site[0].lat = 91.0;
-    tx_site[0].lon = 181.0;
-    tx_site[1].lat = 91.0;
-    tx_site[1].lon = 181.0;
+    tx_site.lat = 91.0;
+    tx_site.lon = 181.0;
+    rx_site.lat = 91.0;
+    rx_site.lon = 181.0;
 
     /* Scan for command line arguments */
 
@@ -953,13 +954,13 @@ int main(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                tx_site[0].lat = atof(argv[z]);
+                tx_site.lat = atof(argv[z]);
             }
         }
         if (strcmp(argv[x], "-lon") == 0) {
             z = x + 1;
             if (z <= y && argv[z][0]) {
-                tx_site[0].lon = atof(argv[z]);
+                tx_site.lon = atof(argv[z]);
             }
         }
         //Switch to Path Profile Mode if Rx co-ords specified
@@ -968,14 +969,14 @@ int main(int argc, char *argv[])
 
             if (z <= y && argv[z][0]) {
                 ppa = 1;
-                tx_site[1].lat = atof(argv[z]);
+                rx_site.lat = atof(argv[z]);
 
             }
         }
         if (strcmp(argv[x], "-rlo") == 0) {
             z = x + 1;
             if (z <= y && argv[z][0]) {
-                tx_site[1].lon = atof(argv[z]);
+                rx_site.lon = atof(argv[z]);
             }
         }
 
@@ -983,7 +984,7 @@ int main(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%f", &tx_site[0].alt);
+                sscanf(argv[z], "%f", &tx_site.alt);
 
             }
         }
@@ -993,7 +994,7 @@ int main(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 sscanf(argv[z], "%lf", &altitudeLR);
-                sscanf(argv[z], "%f", &tx_site[1].alt);
+                sscanf(argv[z], "%f", &rx_site.alt);
             }
         }
 
@@ -1185,12 +1186,12 @@ int main(int argc, char *argv[])
     }
 
     /* ERROR DETECTION */
-    if (tx_site[0].lat > 90 || tx_site[0].lat < -90) {
+    if (tx_site.lat > 90 || tx_site.lat < -90) {
         spdlog::error("Either the lat was missing or out of range!");
         exit(EINVAL);
 
     }
-    if (tx_site[0].lon > 180.0 || tx_site[0].lon < -180.0) {
+    if (tx_site.lon > 180.0 || tx_site.lon < -180.0) {
         spdlog::error("Either the lon was missing or out of range! (expected -180 to +180)");
         exit(EINVAL);
 
@@ -1215,9 +1216,9 @@ int main(int argc, char *argv[])
 
     }
 
-    if (tx_site[0].alt < 0 || tx_site[0].alt > 60000) {
+    if (tx_site.alt < 0 || tx_site.alt > 60000) {
         spdlog::error("Tx altitude above ground was too high: {}",
-            tx_site[0].alt);
+            tx_site.alt);
         exit(EINVAL);
     }
     if (altitudeLR < 0 || altitudeLR > 60000) {
@@ -1261,7 +1262,7 @@ int main(int argc, char *argv[])
     }
 
     spdlog::info("-------------------------------- Plot Information --------------------------------");
-    spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} m AGL", tx_site[0].lat, tx_site[0].lon, tx_site[0].alt);
+    spdlog::info("    TX site parameters: {:.6f}N, {:.6f}W, {:.0f} m AGL", tx_site.lat, tx_site.lon, tx_site.alt);
     spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range, ippd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
     spdlog::info("    Map number_threads: {}", number_threads);
@@ -1276,7 +1277,7 @@ int main(int argc, char *argv[])
     */
 
     // Get latitude in radians
-    double tx_lat_rad = tx_site[0].lat * DEG2RAD;
+    double tx_lat_rad = tx_site.lat * DEG2RAD;
 
     // Find the distance in lat and lon per degree using the above referenced formulas
     double m_per_deg_lon = (111412.84 * cos(tx_lat_rad)) - (93.5 * cos(3 * tx_lat_rad)) + (0.118 * cos(5 * tx_lat_rad));
@@ -1289,17 +1290,17 @@ int main(int argc, char *argv[])
     spdlog::debug("Radius of {:.3f} km is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
 
     // Calculate our plot bounds based on these numbers
-    min_lon = tx_site[0].lon - dist_deg_lon;
-    max_lon = tx_site[0].lon + dist_deg_lon;
-    min_lat = tx_site[0].lat - dist_deg_lat;
-    max_lat = tx_site[0].lat + dist_deg_lat;
+    min_lon = tx_site.lon - dist_deg_lon;
+    max_lon = tx_site.lon + dist_deg_lon;
+    min_lat = tx_site.lat - dist_deg_lat;
+    max_lat = tx_site.lat + dist_deg_lat;
 
     // If doing P2P analysis, we need to make sure the RX site is within our whole degree bounds as well, so data is loaded
     // TODO: update this so it makes sense with the new approach
 
     if (ppa == 1) {
-        rxlat = tx_site[1].lat;
-        rxlon = tx_site[1].lon;
+        rxlat = rx_site.lat;
+        rxlon = rx_site.lon;
 
         if (rxlat < min_lat)
             min_lat = rxlat;
@@ -1348,11 +1349,11 @@ int main(int argc, char *argv[])
     if (ppa == 0) {
         if (prop_model == LOS) {  // Model 2 = LOS
             cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
-            PlotLOSMap(tx_site[0], altitudeLR, number_threads);
+            PlotLOSMap(tx_site, altitudeLR, number_threads);
             DoLOS(mapfile);
         } else {
             // 90% of effort here
-            PlotPropagationRadius(tx_site[0], max_range, altitudeLR, prop_model, (uint8_t)number_threads);
+            PlotPropagationRadius(tx_site, max_range, altitudeLR, prop_model, (uint8_t)number_threads);
             spdlog::debug("Finished PlotPropagationRadius()");
 
             if (cropping) {
@@ -1360,18 +1361,18 @@ int main(int argc, char *argv[])
                 // cropLon is the circle radius in pixels at it's widest (east/west) 
                 cropLon*=dpp; // pixels to degrees
                 max_north=cropLat; // degrees
-                min_lon = tx_site[0].lon - cropLon; // western crop boundary
-                cropLat-=tx_site[0].lat; // angle from tx to edge
+                min_lon = tx_site.lon - cropLon; // western crop boundary
+                cropLat-=tx_site.lat; // angle from tx to edge
 
-                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} dpp {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon,dpp);
+                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} dpp {:.5f}",min_lon,cropLat,cropLon,tx_site.lon,dpp);
 
                 width=(int)((cropLon*ppd)*2);
                 height=(int)((cropLat*ppd)*2);
 
-                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} width {:d}",min_lon,cropLat,cropLon,tx_site[0].lon,width);
+                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} width {:d}",min_lon,cropLat,cropLon,tx_site.lon,width);
 
                 if (width > 3600 * 10 || cropLon < 0) {
-                    spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site[0].lon);
+                    spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site.lon);
                     return 0;
                 }
             }
@@ -1388,16 +1389,16 @@ int main(int argc, char *argv[])
 
 
         if (cropping) {
-            spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site[0].lat+cropLat, tx_site[0].lon+cropLon, tx_site[0].lat-cropLat,tx_site[0].lon-cropLon);
+            spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site.lat+cropLat, tx_site.lon+cropLon, tx_site.lat-cropLat,tx_site.lon-cropLon);
         } else {
             spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,east,min_north,west);
         }
 
     } else {
-        PlotPath(tx_site[0], tx_site[1]);
-        PathReport(tx_site[0], tx_site[1], output_filename.c_str(), 0, prop_model, rxGain);
+        PlotPath(tx_site, rx_site);
+        PathReport(tx_site, rx_site, output_filename.c_str(), 0, prop_model, rxGain);
         // Order flipped for benefit of graph. Makes no difference to data.
-        SeriesData(tx_site[1], tx_site[0], output_filename.c_str(), 1, normalise);
+        SeriesData(rx_site, tx_site, output_filename.c_str(), 1, normalise);
     }
     fflush(stderr);
 

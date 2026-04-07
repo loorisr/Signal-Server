@@ -451,7 +451,7 @@ void PlotPropPath(
 )
 {
 	if (debug) cnt_PlotPropPath++;
-	int x, y, ifs, ofs, errnum;
+	int x, y, ifs, errnum;
 	char block = 0, strmode[100];
 	double loss, azimuth, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
@@ -618,14 +618,7 @@ void PlotPropPath(
 					if (ifs > 255)
 						ifs = 255;
 
-					ofs =
-					    GetSignal(path.lat[y], path.lon[y]);
-
-					if (ofs > ifs)
-						ifs = ofs;
-
-					PutSignal(path.lat[y], path.lon[y],
-						  (unsigned char)ifs);
+					PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
 
 				}
 
@@ -644,11 +637,6 @@ void PlotPropPath(
 					if (ifs > 255)
 						ifs = 255;
 
-					ofs = GetSignal(path.lat[y], path.lon[y]);
-
-					if (ofs > ifs)
-						ifs = ofs;
-
 					PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
 
 				}
@@ -660,11 +648,6 @@ void PlotPropPath(
 				else
 					ifs = (int)rint(loss);
 				
-				ofs = GetSignal(path.lat[y], path.lon[y]);
-
-				if (ofs < ifs && ofs != 0)
-					ifs = ofs;
-
 				PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
 			}
 		}

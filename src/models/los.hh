@@ -72,6 +72,6 @@ void PlotPropagationRadius(struct site source, double range, double altitude, Pr
 void PlotPath(struct site source, struct site destination);
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dkm, char *strmode, int &errnum);
+                   double dm, char *strmode, int &errnum);
 
 #endif /* _LOS_HH_ */

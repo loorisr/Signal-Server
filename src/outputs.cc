@@ -316,12 +316,14 @@ void DoRxdPwr(char *filename)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			x0 = (int)rint(ppd * (lat - dem_min_lat));
-				y0 = (int)rint(ppd * (lon - dem_min_lon));
-				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
+			//x0 = (int)rint(ppd * (lat - dem_min_lat));
+			//	y0 = (int)rint(ppd * (lon - dem_min_lon));
+			//	found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
 
-			if (found) {
-				dBm = (dem_signal[x0][y0]) - 200;
+			//if (found) {
+			if (1) {
+				//dBm = (dem_signal[x0][y0]) - 200;
+				dBm =  GetSignal(lat, lon) -200;
 				match = 255;
 
 				red = 0;

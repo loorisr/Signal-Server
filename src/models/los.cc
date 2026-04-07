@@ -249,17 +249,15 @@ static double incidenceAngle(double opp, double adj)
  * thoroughness for increased speed which adds a proportional diffraction
  * effect to obstacles.
  */
-static double ked(double freq, double rxh, double dkm)
+static double ked(double freq, double rxh, double dm)
 {
 	double obh, obd, rxobaoi = 0, d;
 
 	obh = 0;		// Obstacle height
 	obd = 0;		// Obstacle distance
 
-	dkm = dkm * 1000;	// KM to metres
-
 	// walk along path
-	for (int n = 2; n < (dkm / elev[1]); n++) {
+	for (int n = 2; n < (dm / elev[1]); n++) {
 
 		d = (n - 2) * elev[1];	// no of points * delta = km
 
@@ -381,10 +379,11 @@ void PlotLOSPath(struct site source, struct site destination)
 }
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dkm, char *strmode, int &errnum)
+                   double dm, char *strmode, int &errnum)
 {
     if (debug) cnt_computeLoss++;
     double loss = 0.0;
+    double dkm = dm / 1000.0;
 
     switch (model) {
     case ITM_LR:
@@ -459,7 +458,7 @@ void PlotPropPath(
 	    elevation = 0.0, distance = 0.0,
 	    field_strength = 0.0, rxp, dBm, diffloss;
 	struct site temp;
-	float dkm;
+	float dm;
 
 	ReadPath(source, destination);
 
@@ -563,14 +562,14 @@ void PlotPropPath(
 				path.elevation[y] = 1;
 			}
 
-			dkm = (elev[1] * elev[0]) / 1000;	// km
+			dm = elev[1] * elev[0];	// m
 
 			loss = computeLoss(prop_model, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, dkm,
+			                   path.elevation[y] + destination.alt, dm,
 			                   strmode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {
-				diffloss = ked(LR.frq_mhz, destination.alt, dkm);
+				diffloss = ked(LR.frq_mhz, destination.alt, dm);
 				loss += (diffloss);	// ;)
 			}
 			//Key stage. Link dB for p2p is returned as 'loss'.

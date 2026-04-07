@@ -23,8 +23,9 @@
 
 void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename);
 
-void PutSignal(double lat, double lon, unsigned char signal);
-unsigned char GetSignal(double lat, double lon);
+bool find_dem_xy(double lat, double lon, int &x_out, int &y_out);
+void PutSignal(double lat, double lon, int signal);
+int GetSignal(double lat, double lon);
 double GetElevation(struct site location);
 double ElevationAngle(struct site source, struct site destination);
 void ReadPath(struct site source, struct site destination);

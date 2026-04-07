@@ -85,7 +85,7 @@ __thread struct path path;
 site tx_site;
 site rx_site;
 double         **dem_data   = nullptr;
-unsigned char **dem_signal = nullptr;
+int **dem_signal = nullptr;
 int dem_min_lat   = 0;
 int dem_min_lon   = 0;
 int dem_width_px  = 0;
@@ -98,7 +98,7 @@ struct region region;
  * x increases northward from the south edge of the loaded area.
  * y increases westward  from the east  edge of the loaded area.
  * Returns true and sets x_out/y_out when the point is inside the array. */
-static bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
+bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 {
     if (!dem_data) return false;
     int x = (int)rint(ppd  * (lat - dem_min_lat));
@@ -109,7 +109,7 @@ static bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
     return true;
 }
 
-void PutSignal(double lat, double lon, unsigned char signal)
+void PutSignal(double lat, double lon, int signal)
 {
     int x, y;
     if (find_dem_xy(lat, lon, x, y))
@@ -117,7 +117,7 @@ void PutSignal(double lat, double lon, unsigned char signal)
         dem_signal[x][y] = signal;
 }
 
-unsigned char GetSignal(double lat, double lon)
+int GetSignal(double lat, double lon)
 {
     int x, y;
     if (!find_dem_xy(lat, lon, x, y)) return 0;
@@ -543,10 +543,10 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     dem_width_px  = tiles_lon * ippd;
 
     dem_data   = new double         *[dem_height_px];
-    dem_signal = new unsigned char *[dem_height_px];
+    dem_signal = new int *[dem_height_px];
     for (int i = 0; i < dem_height_px; i++) {
         dem_data[i]   = new double        [dem_width_px]();
-        dem_signal[i] = new unsigned char[dem_width_px]();
+        dem_signal[i] = new int[dem_width_px]();
     }
 }
 

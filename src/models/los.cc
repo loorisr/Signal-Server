@@ -600,25 +600,16 @@ void PlotPropPath(
 				if (dbm) {
 					/* dBm is based on EIRP (ERP + 2.14) */
 
-					rxp =
-					    LR.erp /
-					    (pow(10.0, (loss - 2.14) / 10.0));
+					rxp = LR.erp / (pow(10.0, (loss - 2.14) / 10.0));
 
-					dBm = 10.0 * (log10(rxp * 1000.0));
+					dBm = 30.0 + 10.0 * (log10(rxp));
 
 
 					/* Scale roughly between 0 and 255 */
 
-					ifs = 200 + (int)rint(dBm);
+					ifs = (int)rint(dBm);
 
-					if (ifs < 0)
-						ifs = 0;
-
-					if (ifs > 255)
-						ifs = 255;
-
-					PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
-
+					PutSignal(path.lat[y], path.lon[y], ifs);
 				}
 
 				else {
@@ -628,26 +619,17 @@ void PlotPropPath(
 					     loss) +
 					    (10.0 * log10(LR.erp / 1000.0));
 
-					ifs = 100 + (int)rint(field_strength);
+					ifs = (int)rint(field_strength);
 
-					if (ifs < 0)
-						ifs = 0;
-
-					if (ifs > 255)
-						ifs = 255;
-
-					PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
+					PutSignal(path.lat[y], path.lon[y], ifs);
 
 				}
 			}
 
 			else {
-				if (loss > 255)
-					ifs = 255;
-				else
-					ifs = (int)rint(loss);
+				ifs = (int)rint(loss);
 				
-				PutSignal(path.lat[y], path.lon[y], (unsigned char)ifs);
+				PutSignal(path.lat[y], path.lon[y], ifs);
 			}
 		}
 	}

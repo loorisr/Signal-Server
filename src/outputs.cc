@@ -21,7 +21,6 @@ void DoPathLoss(char *filename)
 
 	char mapfile[255];
 	unsigned red, green, blue, terrain = 0;
-	unsigned char found;
 	int x, y, z, x0 = 0, y0 = 0, loss, match;
 	double lat, lon, conversion, one_over_gamma;
 	image_ctx_t ctx;
@@ -63,11 +62,7 @@ void DoPathLoss(char *filename)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			x0 = (int)rint(ppd * (lat - dem_min_lat));
-				y0 = (int)rint(ppd * (lon - dem_min_lon));
-				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
-
-			if (found) {
+			if (find_dem_xy(lat, lon, x0, y0)) {
 				loss = (dem_signal[x0][y0]);
 
 				match = 255;
@@ -145,7 +140,6 @@ int DoSigStr(char *filename)
 
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
-	unsigned char found;
 	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
 	double conversion, one_over_gamma, lat, lon;
 	image_ctx_t ctx;
@@ -188,11 +182,7 @@ int DoSigStr(char *filename)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			x0 = (int)rint(ppd * (lat - dem_min_lat));
-				y0 = (int)rint(ppd * (lon - dem_min_lon));
-				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
-
-			if (found) {
+			if (find_dem_xy(lat, lon, x0, y0)) {
 				signal = (dem_signal[x0][y0]) - 100;
 				match = 255;
 
@@ -273,7 +263,6 @@ void DoRxdPwr(char *filename)
 
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
-	unsigned char found;
 	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
 	double conversion, one_over_gamma, lat, lon;
 	image_ctx_t ctx;
@@ -316,14 +305,8 @@ void DoRxdPwr(char *filename)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			//x0 = (int)rint(ppd * (lat - dem_min_lat));
-			//	y0 = (int)rint(ppd * (lon - dem_min_lon));
-			//	found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
-
-			//if (found) {
-			if (1) {
-				//dBm = (dem_signal[x0][y0]) - 200;
-				dBm =  GetSignal(lat, lon) -200;
+			if (find_dem_xy(lat, lon, x0, y0)) {
+				dBm =  dem_signal[x0][y0];
 				match = 255;
 
 				red = 0;
@@ -333,11 +316,8 @@ void DoRxdPwr(char *filename)
 				if (dBm >= region.level[0])
 					match = 0;
 				else {
-					for (z = 1;
-					     (z < region.levels
-					      && match == 255); z++) {
-						if (dBm < region.level[z - 1]
-						    && dBm >= region.level[z])
+					for (z = 1;  (z < region.levels && match == 255); z++) {
+						if (dBm < region.level[z - 1]  && dBm >= region.level[z])
 							match = z;
 					}
 				}
@@ -348,8 +328,7 @@ void DoRxdPwr(char *filename)
 					blue = region.color[match][2];
 				}
 
-					if (contour_threshold != 0
-					    && dBm < contour_threshold) {
+					if (contour_threshold != 0 && dBm < contour_threshold) {
 						if (ngs)	/* No terrain */
 							ADD_PIXEL(&ctx, 255, 255, 255);
 						else {
@@ -362,7 +341,7 @@ void DoRxdPwr(char *filename)
 						/* Plot signal power level regions in color */
 						if (red != 0 || green != 0 || blue != 0)
 							ADD_PIXEL(&ctx, red, green, blue);
-						else {	/* terrain / sea-level */
+						else {	
 							if (ngs)
 								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
 							else {
@@ -377,7 +356,6 @@ void DoRxdPwr(char *filename)
 			else {
 				/* We should never get here, but if */
 				/* we do, display the region as black */
-
 				ADD_PIXEL(&ctx, 255, 255, 255);
 			}
 		}
@@ -399,7 +377,6 @@ void DoLOS(char *filename)
 
 	char mapfile[255];
 	unsigned terrain;
-	unsigned char found;
 	int x, y, x0 = 0, y0 = 0;
 	double conversion, one_over_gamma, lat, lon;
 	image_ctx_t ctx;
@@ -437,11 +414,7 @@ void DoLOS(char *filename)
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
-			x0 = (int)rint(ppd * (lat - dem_min_lat));
-				y0 = (int)rint(ppd * (lon - dem_min_lon));
-				found = (dem_data && x0 >= 0 && x0 < dem_height_px && y0 >= 0 && y0 < dem_width_px);
-
-			if (found) {
+			if (find_dem_xy(lat, lon, x0, y0)) {
 						if (ngs)	/* No terrain */
 							ADD_PIXEL(&ctx, 255, 255, 255);
 						else {

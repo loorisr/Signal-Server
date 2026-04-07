@@ -29,7 +29,6 @@ double GetElevation(struct site location);
 double ElevationAngle(struct site source, struct site destination);
 void ReadPath(struct site source, struct site destination);
 double ElevationAngle2(struct site source, struct site destination, double er);
-double ReadBearing(char *input);
 void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *outfile);
 void free_elev(void);
 void free_path(void);

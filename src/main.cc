@@ -598,6 +598,8 @@ void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, cons
         (char *)"TILED=YES",
         (char *)"BLOCKXSIZE=256",
         (char *)"BLOCKYSIZE=256",
+        (char *)"INTERLEAVE=PIXEL",
+        (char *)"NUM_THREADS=ALL_CPUS",
         NULL
     };
     GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 4, GDT_Byte, create_opts);

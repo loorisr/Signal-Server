@@ -42,6 +42,7 @@
 #include "models/los.hh"
 #include "models/pel.hh"
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -56,7 +57,7 @@ std::string color_palette = "heat";
 std::string output_filename;
 
 double max_range = 0.0,  dpp, ppd, samples_per_radian,
-    fzone_clearance = 0.6, clutter, lat, lon, txh, tercon, terdic,
+    fzone_clearance = 0.6, clutter, lat, lon, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     min_lat = 90.0, max_lat = -90.0,
@@ -114,7 +115,6 @@ void PutSignal(double lat, double lon, int signal)
 {
     int x, y;
     if (find_dem_xy(lat, lon, x, y))
-        //dem_signal[x][y] = MAX(signal, GetSignal(lat, lon));
         dem_signal[x][y] = signal;
 }
 
@@ -129,7 +129,7 @@ double GetElevation(struct site location)
 {
     int x, y;
     if (!find_dem_xy(location.lat, location.lon, x, y)) return -5000.0;
-    return (double)dem_data[x][y];
+    return dem_data[x][y];
 }
 
 
@@ -151,9 +151,8 @@ double ElevationAngle(struct site source, struct site destination)
 
     /* Apply the Law of Cosines */
 
-    return ((180.0 *
-         (acos(((b * b) + (dx * dx) - (a * a)) / (2.0 * b * dx))) /
-         PI) - 90.0);
+    double cos_angle = std::clamp(((b * b) + (dx * dx) - (a * a)) / (2.0 * b * dx), -1.0, 1.0);
+    return (acos(cos_angle) * RAD2DEG) - 90.0;
 }
 
 /* This function generates a sequence of latitude and
@@ -298,7 +297,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         if (cos_xmtr_angle >= cos_test_angle) {
             block = 1;
             first_obstruction_angle =
-                ((acos(cos_test_angle)) * RAD2DEG) - 90.0;
+                (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
         }
     }
 
@@ -306,7 +305,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         elevation = first_obstruction_angle;
 
     else
-        elevation = ((acos(cos_xmtr_angle)) * RAD2DEG) - 90.0;
+        elevation = (acos(std::clamp(cos_xmtr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
 
     path = temp;
 
@@ -710,10 +709,7 @@ int main(int argc, char *argv[])
         spdlog::debug("RX site location expanded plot bounds to {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", min_lat, min_lon, max_lat, max_lon);
     }
 
-    bbox plot_bounds;
-    plot_bounds = getCircularBoundingBox( {tx_site.lat, tx_site.lon}, max_range);
-    //plot_bounds.lower_left = {min_lat, min_lon};
-    //plot_bounds.upper_right = {max_lat, max_lon};
+    bbox plot_bounds = getCircularBoundingBox({tx_site.lat, tx_site.lon}, max_range);
 
     spdlog::debug("Calculated plot boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
         plot_bounds.lower_left.lat, 
@@ -737,7 +733,7 @@ int main(int argc, char *argv[])
     width = (unsigned)(ippd * (max_lon - min_lon));
     height = (unsigned)(ippd * (max_north - min_north));
 
-    dpp = 1 / ppd;
+    dpp = 1.0 / ppd;
     mpi = ippd-1; 
 
     if (ppa == 0) {
@@ -770,9 +766,8 @@ int main(int argc, char *argv[])
                 DoPathLoss(mapfile);
             else if (dbm)
                 DoRxdPwr(mapfile);
-            else
-                    if ((result = DoSigStr(mapfile)) != 0)
-                    return result;
+            else if ((result = DoSigStr(mapfile)) != 0)
+                return result;
         }
 
 
@@ -784,7 +779,6 @@ int main(int argc, char *argv[])
         // Order flipped for benefit of graph. Makes no difference to data.
         SeriesData(rx_site, tx_site, output_filename.c_str(), 1, normalise);
     }
-    fflush(stderr);
 
     auto end_time = std::chrono::steady_clock::now();
     double elapsed_s = std::chrono::duration<double>(end_time - start_time).count();

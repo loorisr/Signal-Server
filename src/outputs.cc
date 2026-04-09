@@ -31,7 +31,8 @@ static tinycolormap::ColormapType get_colormap()
 	if (color_palette == "cubehelix") return tinycolormap::ColormapType::Cubehelix;
 	if (color_palette == "github")    return tinycolormap::ColormapType::Github;
 	if (color_palette == "gray")      return tinycolormap::ColormapType::Gray;
-	return get_colormap();
+	spdlog::warn("Unknown color palette '{}', falling back to heat", color_palette);
+	return tinycolormap::ColormapType::Heat;
 }
 
 void DoPathLoss(char *filename)
@@ -58,6 +59,7 @@ void DoPathLoss(char *filename)
 	if (geotiff && filename != NULL) {
 		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 		uint8_t *p = rgba.data();
+		const auto colormap = get_colormap();
 
 		for (y = 0, lat = north; y < (int)height;
 		     y++, lat = north - (dpp * (double)y)) {
@@ -78,7 +80,7 @@ void DoPathLoss(char *filename)
 					} else {
 						/* Low loss = warm color: reverse t */
 						double t = 1.0 - std::clamp((double)(loss - 80) / (230.0 - 80.0), 0.0, 1.0);
-						auto c = tinycolormap::GetColor(t, get_colormap());
+						auto c = tinycolormap::GetColor(t, colormap);
 						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
 				}
@@ -113,6 +115,7 @@ int DoSigStr(char *filename)
 	if (geotiff && filename != NULL) {
 		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 		uint8_t *p = rgba.data();
+		const auto colormap = get_colormap();
 
 		for (y = 0, lat = north; y < (int)height;
 		     y++, lat = north - (dpp * (double)y)) {
@@ -133,7 +136,7 @@ int DoSigStr(char *filename)
 					} else {
 						/* Strong signal = warm color */
 						double t = std::clamp((double)(signal - 8) / (128.0 - 8.0), 0.0, 1.0);
-						auto c = tinycolormap::GetColor(t, get_colormap());
+						auto c = tinycolormap::GetColor(t, colormap);
 						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
 				}
@@ -154,12 +157,16 @@ void DoRxdPwr(char *filename)
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	north = (double)max_north - dpp;
+	south = (double)min_north;
+	west = min_lon;
+	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
 	if (geotiff && filename != NULL) {
 		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 		uint8_t *p = rgba.data();
+		const auto colormap = get_colormap();
 
 		for (y = 0, lat = north; y < (int)height;
 		     y++, lat = north - (dpp * (double)y)) {
@@ -180,7 +187,7 @@ void DoRxdPwr(char *filename)
 					} else {
 						/* Strong dBm = warm color */
 						double t = (dBm - contour_threshold) / (-(double)contour_threshold);
-						auto c = tinycolormap::GetColor(t, get_colormap());
+						auto c = tinycolormap::GetColor(t, colormap);
 						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
 				}
@@ -260,7 +267,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 	    0.0, voltage, rxp, power_density, dkm;
 	FILE *fd = NULL, *fd2 = NULL;
 
-	snprintf(report_name, 80, "%s.txt%c", name, 0);
+	snprintf(report_name, 80, "%s.txt", name);
 
 	fd2 = fopen(report_name, "w");
 
@@ -582,10 +589,10 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			if (block)
 				elevation =
-				    ((acos(cos_test_angle)) * RAD2DEG) - 90.0;
+				    (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
 			else
 				elevation =
-				    ((acos(cos_xmtr_angle)) * RAD2DEG) - 90.0;
+				    (acos(std::clamp(cos_xmtr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
@@ -690,7 +697,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 				20.0 * log10(voltage));
 		}
 
-		if (propmodel == 1) {
+		if (propmodel == ITM_LR || propmodel == ITM_P2P) {
 			fprintf(fd2, "Longley-Rice model error number: %d",
 				errnum);
 
@@ -848,18 +855,12 @@ void SeriesData(struct site source, struct site destination, const char *name,
 		nm = (-source.alt - es - nb) / (path.distance[path.length - 1]);
 	}
 
-	strcpy(profilename, name);
-	strcat(profilename, "_profile\0");
-	strcpy(referencename, name);
-	strcat(referencename, "_reference\0");
-	strcpy(cluttername, name);
-	strcat(cluttername, "_clutter\0");
-	strcpy(curvaturename, name);
-	strcat(curvaturename, "_curvature\0");
-	strcpy(fresnelname, name);
-	strcat(fresnelname, "_fresnel\0");
-	strcpy(fresnel60name, name);
-	strcat(fresnel60name, "_fresnel60\0");
+	snprintf(profilename,   sizeof(profilename),   "%s_profile",   name);
+	snprintf(referencename, sizeof(referencename), "%s_reference", name);
+	snprintf(cluttername,   sizeof(cluttername),   "%s_clutter",   name);
+	snprintf(curvaturename, sizeof(curvaturename), "%s_curvature", name);
+	snprintf(fresnelname,   sizeof(fresnelname),   "%s_fresnel",   name);
+	snprintf(fresnel60name, sizeof(fresnel60name), "%s_fresnel60", name);
 
 	fd = fopen(profilename, "wb");
 	if (clutter > 0.0)

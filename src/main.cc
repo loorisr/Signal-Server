@@ -167,7 +167,6 @@ void ReadPath(struct site source, struct site destination)
     double azimuth, distance, lat1, lon1, beta, den, num,
         lat2, lon2, total_distance, dx, dy, path_length,
         m_per_sample;
-    struct site tempsite;
 
     lat1 = source.lat * DEG2RAD;
     lon1 = source.lon * DEG2RAD;
@@ -186,8 +185,8 @@ void ReadPath(struct site source, struct site destination)
          (total_distance != 0.0 && distance <= total_distance
           && c < ARRAYSIZE); c++, distance = m_per_sample * (double)c) {
 
-        beta = distance / EARTHRADIUS; 
-        lat2 = asin(sin(lat1) * cos(beta) + cos(azimuth) * sin(beta) * cos(lat1));
+        beta = distance / EARTHRADIUS;
+        lat2 = asin(std::clamp(sin(lat1) * cos(beta) + cos(azimuth) * sin(beta) * cos(lat1), -1.0, 1.0));
         num = cos(beta) - (sin(lat1) * sin(lat2));
         den = cos(lat1) * cos(lat2);
 
@@ -217,9 +216,7 @@ void ReadPath(struct site source, struct site destination)
 
         path.lat[c] = lat2;
         path.lon[c] = lon2;
-        tempsite.lat = lat2;
-        tempsite.lon = lon2;
-        path.elevation[c] = GetElevation(tempsite);
+        path.elevation[c] = GetElevation({lat2, lon2, 0.0f});
         path.distance[c] = distance;
     }
 

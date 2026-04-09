@@ -270,6 +270,10 @@ void PathReport(struct site source, struct site destination, const char *name,
 	snprintf(report_name, 80, "%s.txt", name);
 
 	fd2 = fopen(report_name, "w");
+	if (fd2 == NULL) {
+		spdlog::error("PathReport: cannot open {} for writing: {}", report_name, strerror(errno));
+		return;
+	}
 
 	fprintf(fd2, "\n\t\t--==[ Path Profile Analysis ]==--\n\n");
 	fprintf(fd2, "Transmitter site: Tx\n");
@@ -280,6 +284,8 @@ void PathReport(struct site source, struct site destination, const char *name,
 	fprintf(fd2,
 		"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
 		source.alt, source.alt + GetElevation(source));
+
+	const double link_distance = Distance(source, destination);
 
 	azimuth = Azimuth(source, destination);
 	angle1 = ElevationAngle(source, destination);
@@ -296,7 +302,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 	}
 
 	fprintf(fd2, "Distance to Rx: %.2f kilometers\n",
-		Distance(source, destination));
+		link_distance / 1000.0);
 
 	fprintf(fd2, "Azimuth to Rx: %.2f degrees grid\n",
 		azimuth);
@@ -319,7 +325,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 		destination.alt, destination.alt + GetElevation(destination));
 
 	fprintf(fd2, "Distance to Rx: %.2f kilometers\n",
-		Distance(source, destination));
+		link_distance / 1000.0);
 
 	azimuth = Azimuth(destination, source);
 
@@ -622,7 +628,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 				minloss = total_loss;
 		}
 
-		distance = Distance(source, destination);
+		distance = link_distance;
 
 		if (distance != 0.0) {
 			free_space_loss =
@@ -635,9 +641,10 @@ void PathReport(struct site source, struct site destination, const char *name,
 		fprintf(fd2, "Computed path loss: %.2f dB\n", loss);
 
 
-        if((loss*1.5) < free_space_loss){
-			fprintf(fd2,"Model error! Computed loss of %.1fdB is greater than free space loss of %.1fdB. Check your inuts for model %d\n",loss,free_space_loss,propmodel);
-			spdlog::error("Model error! Computed loss of {:.1f} dB is greater than free space loss of {:.1f} dB. Check your inputs for model {}", loss, free_space_loss, static_cast<int>(propmodel));
+        if ((loss * 1.5) < free_space_loss) {
+			fprintf(fd2, "Model error! Computed loss of %.1f dB is less than free space loss of %.1f dB. Check your inputs for model %d\n", loss, free_space_loss, propmodel);
+			spdlog::error("Model error! Computed loss of {:.1f} dB is less than free space loss of {:.1f} dB. Check your inputs for model {}", loss, free_space_loss, static_cast<int>(propmodel));
+			fclose(fd2);
 			return;
         }
 
@@ -746,9 +753,9 @@ void PathReport(struct site source, struct site destination, const char *name,
 		if (name[0] == '.') {
 			/* Default filename and output file type */
 
-			strncpy(basename, "profile\0", 8);
-			strncpy(term, "png\0", 4);
-			strncpy(ext, "png\0", 4);
+			strncpy(basename, "profile", 8);
+			strncpy(term, "png", 4);
+			strncpy(ext, "png", 4);
 		}
 
 		else {
@@ -774,20 +781,25 @@ void PathReport(struct site source, struct site destination, const char *name,
 		}
 
 		if (ext[0] == 0) {	/* No extension -- Default is png */
-			strncpy(term, "png\0", 4);
-			strncpy(ext, "png\0", 4);
+			strncpy(term, "png", 4);
+			strncpy(ext, "png", 4);
 		}
 
 		/* Either .ps or .postscript may be used
 		   as an extension for postscript output. */
 
 		if (strncmp(term, "postscript", 10) == 0)
-			strncpy(ext, "ps\0", 3);
+			strncpy(ext, "ps", 3);
 
 		else if (strncmp(ext, "ps", 2) == 0)
-			strncpy(term, "postscript enhanced color\0", 26);
+			strncpy(term, "postscript enhanced color", 26);
 
 		fd = fopen("ppa.gp", "w");
+		if (fd == NULL) {
+			spdlog::error("PathReport: cannot open ppa.gp for writing: {}", strerror(errno));
+			fclose(fd2);
+			return;
+		}
 
 		fprintf(fd, "set grid\n");
 		fprintf(fd, "set yrange [%2.3f to %2.3f]\n", minloss, maxloss);
@@ -863,14 +875,21 @@ void SeriesData(struct site source, struct site destination, const char *name,
 	snprintf(fresnel60name, sizeof(fresnel60name), "%s_fresnel60", name);
 
 	fd = fopen(profilename, "wb");
-	if (clutter > 0.0)
+	if (fd == NULL) { spdlog::error("SeriesData: cannot open {}", profilename); return; }
+	if (clutter > 0.0) {
 		fd1 = fopen(cluttername, "wb");
+		if (fd1 == NULL) { spdlog::error("SeriesData: cannot open {}", cluttername); fclose(fd); return; }
+	}
 	fd2 = fopen(referencename, "wb");
+	if (fd2 == NULL) { spdlog::error("SeriesData: cannot open {}", referencename); fclose(fd); if (fd1) fclose(fd1); return; }
 	fd5 = fopen(curvaturename, "wb");
+	if (fd5 == NULL) { spdlog::error("SeriesData: cannot open {}", curvaturename); fclose(fd); if (fd1) fclose(fd1); fclose(fd2); return; }
 
 	if ((LR.frq_mhz >= 20.0) && (LR.frq_mhz <= 100000.0) && fresnel_plot) {
 		fd3 = fopen(fresnelname, "wb");
+		if (fd3 == NULL) { spdlog::error("SeriesData: cannot open {}", fresnelname); fclose(fd); if (fd1) fclose(fd1); fclose(fd2); fclose(fd5); return; }
 		fd4 = fopen(fresnel60name, "wb");
+		if (fd4 == NULL) { spdlog::error("SeriesData: cannot open {}", fresnel60name); fclose(fd); if (fd1) fclose(fd1); fclose(fd2); fclose(fd5); fclose(fd3); return; }
 	}
 
 	for (x = 0; x < path.length - 1; x++) {
@@ -988,9 +1007,9 @@ void SeriesData(struct site source, struct site destination, const char *name,
 	}
 
 	if (name[0] == '.') {
-		strncpy(basename, "profile\0", 8);
-		strncpy(term, "png\0", 4);
-		strncpy(ext, "png\0", 4);
+		strncpy(basename, "profile", 8);
+		strncpy(term, "png", 4);
+		strncpy(ext, "png", 4);
 	}
 
 	else {
@@ -1013,8 +1032,8 @@ void SeriesData(struct site source, struct site destination, const char *name,
 		}
 
 		if (ext[0] == 0) {
-			strncpy(term, "png\0", 4);
-			strncpy(ext, "png\0", 4);
+			strncpy(term, "png", 4);
+			strncpy(ext, "png", 4);
 		}
 	}
 }

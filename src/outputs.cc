@@ -131,8 +131,8 @@ void PathReport(struct site source, struct site destination, const char *name,
 	   found, .png is assumed. */
 
 	int x, y, z, errnum;
-	char basename[255], term[30], ext[15], strmode[100],
-	    report_name[80], block = 0;
+	char basename[255], term[30], ext[15], report_name[80], block = 0;
+	PropagationMode mode = PROP_MODE_NONE;
 	double maxloss = -100000.0, minloss = 100000.0, angle1, angle2,
 	    azimuth, pattern = 1.0, patterndB = 0.0,
 	    total_loss = 0.0, cos_xmtr_angle, cos_test_angle = 0.0,
@@ -466,7 +466,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			loss = computeLoss(propmodel, source.alt, destination.alt,
 			                   path.elevation[y] + destination.alt, dkm,
-			                   strmode, errnum);
+			                   mode, errnum);
 
 			if (block)
 				elevation =

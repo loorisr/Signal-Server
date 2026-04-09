@@ -362,7 +362,7 @@ void PlotLOSPath(struct site source, struct site destination)
 }
 
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dm, char *strmode, int &errnum)
+                   double dm, PropagationMode &mode, int &errnum)
 {
     if (debug) cnt_computeLoss++;
     double loss = 0.0;
@@ -373,7 +373,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
         point_to_point_ITM(tx_alt, rx_alt,
                            LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
                            LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
-                           loss, strmode, errnum);
+                           loss, mode, errnum);
         break;
     case HATA:
         loss = HATApathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
@@ -394,7 +394,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
         point_to_point(tx_alt, rx_alt,
                        LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
                        LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
-                       loss, strmode, errnum);
+                       loss, mode, errnum);
         break;
     case ERICSSON:
         loss = EricssonpathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
@@ -413,7 +413,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
         point_to_point_ITM(tx_alt, rx_alt,
                            LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
                            LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
-                           loss, strmode, errnum);
+                           loss, mode, errnum);
         break;
     }
 
@@ -434,7 +434,8 @@ void PlotPropPath(
 {
 	if (debug) cnt_PlotPropPath++;
 	int x, y, errnum, azimuth;
-	char block = 0, strmode[100];
+	char block = 0;
+	PropagationMode mode = PROP_MODE_NONE;
 	double loss, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
 	    cos_rcvr_angle, cos_test_angle = 0.0, test_alt,
@@ -530,7 +531,7 @@ void PlotPropPath(
 
 			loss = computeLoss(prop_model, source.alt, destination.alt,
 			                   path.elevation[y] + destination.alt, distance,
-			                   strmode, errnum);
+			                   mode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {
 				diffloss = ked(LR.frq_mhz, destination.alt, distance);

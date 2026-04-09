@@ -70,6 +70,27 @@ struct bbox {
     coord upper_right;  /* NE corner: max lat, max lon */
 };
 
+enum PropagationMode {
+    PROP_MODE_NONE = 0,
+    PROP_MODE_LOS = 1 << 0,
+    PROP_MODE_1_HRZN = 1 << 1,
+    PROP_MODE_2_HRZN = 1 << 2,
+    PROP_MODE_PEAK = 1 << 3,
+    PROP_MODE_DIFFRACTION = 1 << 4,
+    PROP_MODE_TROPOSCATTER = 1 << 5,
+};
+
+inline PropagationMode operator|(PropagationMode lhs, PropagationMode rhs)
+{
+    return static_cast<PropagationMode>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+inline PropagationMode &operator|=(PropagationMode &lhs, PropagationMode rhs)
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
 extern int MAX_DISTANCE_DEGRES;
 extern int ARRAYSIZE;
 

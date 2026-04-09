@@ -333,17 +333,6 @@ int LoadPAT(char *az_filename, char *el_filename)
 
 int LoadSignalColors()
 {
-	int x, y, ok, val[4];
-
-	std::string base = (color_file != nullptr && color_file[0] != '\0')
-	    ? std::string(color_file)
-	    : output_filename;
-	auto dot = base.find('.');
-	if (dot != std::string::npos) base = base.substr(0, dot);
-	std::string filename = base + ".scf";
-
-	/* Default values */
-
 	region.level[0] = 128;
 	region.color[0][0] = 255;
 	region.color[0][1] = 0;
@@ -410,56 +399,10 @@ int LoadSignalColors()
 	region.color[12][2] = 128;
 
 	region.levels = 13;
-
-	/* Don't save if we don't have an output file */
-	{
-		std::ifstream fd(filename);
-		if (!fd && output_filename.empty()) return 0;
-
-		if (!fd) {
-			std::ofstream ofs(filename);
-			if (!ofs) return errno;
-			for (x = 0; x < region.levels; x++)
-				ofs << std::format("{:3d}: {:3d}, {:3d}, {:3d}\n",
-					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-		} else {
-			std::string line;
-			x = 0;
-			while (x < 128 && std::getline(fd, line)) {
-				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-				if (ok == 4) {
-					spdlog::debug("LoadSignalColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-					for (y = 0; y < 4; y++) {
-						if (val[y] > 255) val[y] = 255;
-						if (val[y] < 0) val[y] = 0;
-					}
-					region.level[x] = val[0];
-					region.color[x][0] = val[1];
-					region.color[x][1] = val[2];
-					region.color[x][2] = val[3];
-					x++;
-				}
-			}
-			region.levels = x;
-		}
-	}
-	return 0;
 }
 
 int LoadLossColors()
 {
-	int x, y, ok, val[4];
-
-	std::string base = (color_file != nullptr && color_file[0] != '\0')
-	    ? std::string(color_file)
-	    : output_filename;
-	auto dot = base.find('.');
-	if (dot != std::string::npos) base = base.substr(0, dot);
-	std::string filename = base + ".lcf";
-
-	/* Default values */
-
 	region.level[0] = 80;
 	region.color[0][0] = 255;
 	region.color[0][1] = 0;
@@ -541,65 +484,12 @@ int LoadLossColors()
 	region.color[15][2] = 204;
 
 	region.levels = 16;
-	/*	region.levels = 120; // 240dB max PL */
-
-	/*	for(int i=0; i<region.levels;i++){
-					region.level[i] = i*2;
-					region.color[i][0] = i*2;
-					region.color[i][1] = i*2;
-					region.color[i][2] = i*2;
-			}
-	*/
-	/* Don't save if we don't have an output file */
-	{
-		std::ifstream fd(filename);
-		if (!fd && output_filename.empty()) return 0;
-
-		if (!fd) {
-			std::ofstream ofs(filename);
-			if (!ofs) return errno;
-			for (x = 0; x < region.levels; x++)
-				ofs << std::format("{:3d}: {:3d}, {:3d}, {:3d}\n",
-					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-			spdlog::error("loadLossColors: fopen fail: {}", filename);
-		} else {
-			std::string line;
-			x = 0;
-			while (x < 128 && std::getline(fd, line)) {
-				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-				if (ok == 4) {
-					spdlog::debug("LoadLossColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-					for (y = 0; y < 4; y++) {
-						if (val[y] > 255) val[y] = 255;
-						if (val[y] < 0) val[y] = 0;
-					}
-					region.level[x] = val[0];
-					region.color[x][0] = val[1];
-					region.color[x][1] = val[2];
-					region.color[x][2] = val[3];
-					x++;
-				}
-			}
-			region.levels = x;
-		}
-	}
+	
 	return 0;
 }
 
 int LoadDBMColors()
 {
-	int x, y, ok, val[4];
-
-	std::string base = (color_file != nullptr && color_file[0] != '\0')
-	    ? std::string(color_file)
-	    : output_filename;
-	auto dot = base.find('.');
-	if (dot != std::string::npos) base = base.substr(0, dot);
-	std::string filename = base + ".dcf";
-
-	/* Default values */
-
 	region.level[0] = 0;
 	region.color[0][0] = 255;
 	region.color[0][1] = 0;
@@ -682,41 +572,6 @@ int LoadDBMColors()
 
 	region.levels = 16;
 
-	/* Don't save if we don't have an output file */
-	{
-		std::ifstream fd(filename);
-		if (!fd && output_filename.empty()) return 0;
-
-		if (!fd) {
-			std::ofstream ofs(filename);
-			if (!ofs) return errno;
-			for (x = 0; x < region.levels; x++)
-				ofs << std::format("{:+4d}: {:3d}, {:3d}, {:3d}\n",
-					region.level[x], region.color[x][0], region.color[x][1], region.color[x][2]);
-		} else {
-			std::string line;
-			x = 0;
-			while (x < 128 && std::getline(fd, line)) {
-				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-				ok = sscanf(line.c_str(), "%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
-				if (ok == 4) {
-					spdlog::debug("LoadDBMColors() {}: {}, {}, {}", val[0], val[1], val[2], val[3]);
-					if (val[0] < -200) val[0] = -200;
-					if (val[0] > +40) val[0] = +40;
-					region.level[x] = val[0];
-					for (y = 1; y < 4; y++) {
-						if (val[y] > 255) val[y] = 255;
-						if (val[y] < 0) val[y] = 0;
-					}
-					region.color[x][0] = val[1];
-					region.color[x][1] = val[2];
-					region.color[x][2] = val[3];
-					x++;
-				}
-			}
-			region.levels = x;
-		}
-	}
 	return 0;
 }
 

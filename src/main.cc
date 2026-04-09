@@ -695,7 +695,7 @@ int main(int argc, char *argv[])
         spdlog::info("     -dem Directory containing Copernicus DEM GeoTIFF COG tiles");
         spdlog::info("                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,");
         spdlog::info("                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)");
-        spdlog::info("     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette");
+        spdlog::info("     -color Color palette - not working - TO DO");
         spdlog::info("Input:");
         spdlog::info("     -lat Tx Latitude (decimal degrees) -70/+70");
         spdlog::info("     -lon Tx Longitude (decimal degrees) -180/+180");
@@ -752,7 +752,6 @@ int main(int argc, char *argv[])
     DEM_path[0] = 0;
     mapfile[0] = 0;
     clutter = 0.0;
-    color_file = NULL;
     path.length = 0;
     fzone_clearance = 0.6;
     contour_threshold = 0;
@@ -1155,17 +1154,13 @@ int main(int argc, char *argv[])
                 LR.conf=LR.conf/100;
             }
         }
-        // LossColors for the -scf, -dcf and -lcf, depending on mode
+        // TO DO : allow to change color
         if (strcmp(argv[x], "-color") == 0) {
             z = x + 1;
 
-            if (z <= y && argv[z][0]) {
-                color_file = (char*) calloc(PATH_MAX+1, sizeof(char));
-                if (color_file == NULL)
-                    return ENOMEM;
-                strncpy(color_file, argv[z], 253);
-                color_file[253] = '\0';
-            }
+            //if (z <= y && argv[z][0]) {
+            //    strncpy(color_file, argv[z], 253);
+            //}
         }
 
         // number_threads to divide plot by
@@ -1339,7 +1334,7 @@ int main(int argc, char *argv[])
     }
 
     ppd=(double)ippd;
-    samples_per_radian = ppd * (180.0 / PI);
+    samples_per_radian = ppd * RAD2DEG;
 
     width = (unsigned)(ippd * (max_lon - min_lon));
     height = (unsigned)(ippd * (max_north - min_north));
@@ -1383,11 +1378,7 @@ int main(int argc, char *argv[])
         }
 
 
-        if (cropping) {
-            spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ", tx_site.lat+cropLat, tx_site.lon+cropLon, tx_site.lat-cropLat,tx_site.lon-cropLon);
-        } else {
-            spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,east,min_north,west);
-        }
+        spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,max_lon,min_north,min_lon);
 
     } else {
         PlotPath(tx_site, rx_site);

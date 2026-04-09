@@ -115,7 +115,11 @@ void DoRxdPwr(char *filename)
 void DoLOS(char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 1.0, false,
-		[](int sig) -> std::optional<double> { return sig; });
+		[](int sig) -> std::optional<double> {
+			if (sig <= 0)
+				return std::nullopt;
+			return sig;
+		});
 }
 
 void PathReport(struct site source, struct site destination, const char *name,
@@ -675,7 +679,6 @@ void PathReport(struct site source, struct site destination, const char *name,
 		fd = fopen("ppa.gp", "w");
 		if (fd == NULL) {
 			spdlog::error("PathReport: cannot open ppa.gp for writing: {}", strerror(errno));
-			fclose(fd2);
 			return;
 		}
 

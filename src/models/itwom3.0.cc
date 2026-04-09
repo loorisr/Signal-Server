@@ -220,7 +220,7 @@ double abq_alos(complex < double >r)
 	return r.real() * r.real() + r.imag() * r.imag();
 }
 
-double saalos(double d, prop_type & prop, propa_type & propa)
+double saalos(double d, prop_type & prop, propa_type & /*propa*/)
 {
 	double ensa, encca, q, dp, dx, tde, hc, ucrpc, ctip, tip, tic, stic,
 	    ctic, sta;
@@ -1646,6 +1646,7 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 			cfp1 = bfp1[temp_klim];
 			cfp2 = bfp2[temp_klim];
 			cfp3 = bfp3[temp_klim];
+			[[fallthrough]];
 
 		case 4:
 			kdv = propv.mdvar;
@@ -1663,6 +1664,7 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 				kdv = 0;
 				prop.kwx = MAX(prop.kwx, 2);
 			}
+			[[fallthrough]];
 
 		case 3:
 			q = log(0.133 * prop.wn);
@@ -1672,11 +1674,13 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 
 			gm = cfm1 + cfm2 / ((cfm3 * q * cfm3 * q) + 1.0);
 			gp = cfp1 + cfp2 / ((cfp3 * q * cfp3 * q) + 1.0);
+			[[fallthrough]];
 
 		case 2:
 			dexa =
 			    sqrt(18e6 * prop.he[0]) + sqrt(18e6 * prop.he[1]) +
 			    pow((575.7e12 / prop.wn), THIRD);
+			[[fallthrough]];
 
 		case 1:
 			if (prop.dist < dexa)
@@ -1840,7 +1844,7 @@ void hzns(double pfl[], prop_type & prop)
     prop.dl[1] = dl1;
 }
 
-void hzns2(double pfl[], prop_type & prop, propa_type & propa)
+void hzns2(double pfl[], prop_type & prop, propa_type & /*propa*/)
 {
 	bool wq;
 	int np, rp, i, j;
@@ -2118,7 +2122,7 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 }
 
 double d1thx2(double pfl[], const double &x1, const double &x2,
-	      propa_type & propa)
+	      propa_type & /*propa*/)
 {
 	int np, ka, kb, n, k, kmx, j;
 	double d1thx2v, sn, xa, xb, xc;
@@ -2251,7 +2255,7 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type & prop,
 	     propa_type & propa, propv_type & propv)
 {
 	int np, j;
-	double xl[2], dlb, q, za, zb, temp, rad, rae1, rae2;
+	double xl[2], dlb, q = 1.0, za, zb, temp, rad, rae1, rae2;
 
 	prop.dist = pfl[0] * pfl[1];
 	np = (int)pfl[0];

@@ -12,8 +12,9 @@ using namespace std;
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define DIM(x, y) (((x) > (y)) ? (x - y) : (0))
-
+#ifndef PI
 #define PI                                      3.1415926535897932384
+#endif
 #define SQRT2                                   sqrt(2)
 #define a_0__meter                              6370e3
 #define a_9000__meter                           9000e3

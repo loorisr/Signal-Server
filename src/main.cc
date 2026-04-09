@@ -716,7 +716,6 @@ int main(int argc, char *argv[])
     mpi = ippd-1; 
 
     if (ppa == 0) {
-        // 90% of effort here
         PlotPropagationRadius(tx_site);
         spdlog::debug("Finished PlotPropagationRadius()");
 
@@ -741,7 +740,6 @@ int main(int argc, char *argv[])
             DoRxdPwr(mapfile);
         else if ((result = DoSigStr(mapfile)) != 0)
             return result;
-
 
         spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,max_lon,min_north,min_lon);
 

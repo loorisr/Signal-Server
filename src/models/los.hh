@@ -31,7 +31,6 @@ enum PropModel {
 // Angular propagation area
 struct PropagationRadius {
     double start_angle_rad, stop_angle_rad;
-    bool los;
     site source;
     int points;
 };

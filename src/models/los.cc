@@ -21,8 +21,8 @@
 #include <vector>
 #include <limits.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
+//#define MIN(a,b) (((a)<(b))?(a):(b))
+//#define MAX(a,b) (((a)>(b))?(a):(b))
 
 namespace {
 	//bool ***processed; //unused
@@ -546,7 +546,7 @@ void PlotPropagationRadius(struct site source)
                     number_threads, circle_pixels, section_size_rad * RAD2DEG, section_pixels);
 
     // Make sure we didn't do anythng wrong
-    if (radii.size() != number_threads) {
+    if (radii.size() != (size_t)number_threads) {
         spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), number_threads);
         exit(1);
     }

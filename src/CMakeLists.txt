@@ -66,6 +66,8 @@ find_package(spdlog REQUIRED)
 find_package(GDAL REQUIRED)
 include_directories(${GDAL_INCLUDE_DIR})
 
+add_library(cmdline STATIC cmdline.cc)
+
 add_executable(signalserver main.cc)
 
 target_compile_definitions(
@@ -75,6 +77,7 @@ target_compile_definitions(
 )
 
 target_link_libraries(signalserver
+			PUBLIC cmdline
 			PUBLIC image
 			PUBLIC inputs
 			PUBLIC outputs

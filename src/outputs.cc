@@ -87,25 +87,25 @@ void DoPathLoss(char *filename)
 
 					if (loss == 0 || (contour_threshold != 0 && loss > abs(contour_threshold))) {
 						if (ngs)	/* No terrain */
-							ADD_PIXEL(&ctx,  255, 255, 255);
+							image_add_pixel(&ctx,  255, 255, 255);
 						else {
 							/* Display land or sea elevation */
 								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								ADD_PIXEL(&ctx, terrain, terrain, terrain);
+								image_add_pixel(&ctx, terrain, terrain, terrain);
 							}
 					}
 					else {
 						/* Plot path loss in color */
 
 						if (red != 0 || green != 0 || blue != 0)
-							ADD_PIXEL(&ctx, red, green, blue);
+							image_add_pixel(&ctx, red, green, blue);
 						else {	/* terrain / sea-level */
 							if (ngs)
-								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
+								image_add_pixel(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
 								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								ADD_PIXEL(&ctx, terrain, terrain, terrain);
+								image_add_pixel(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
@@ -195,11 +195,11 @@ int DoSigStr(char *filename)
 
 					if (contour_threshold != 0 && signal < contour_threshold) {
 							if (ngs)
-								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
+								image_add_pixel(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
 								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								ADD_PIXEL(&ctx, terrain, terrain, terrain);
+								image_add_pixel(&ctx, terrain, terrain, terrain);
 							}
 					}
 
@@ -207,14 +207,14 @@ int DoSigStr(char *filename)
 						/* Plot field strength regions in color */
 
 						if (red != 0 || green != 0 || blue != 0)
-							ADD_PIXEL(&ctx, red, green, blue);
+							image_add_pixel(&ctx, red, green, blue);
 						else {	/* terrain / sea-level */
 							if (ngs)
-								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
+								image_add_pixel(&ctx, 255, 255, 255); // WHITE
 							else {
 									/* Elevation: Greyscale */
 									terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-									ADD_PIXEL(&ctx, terrain, terrain, terrain);
+									image_add_pixel(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
@@ -296,24 +296,24 @@ void DoRxdPwr(char *filename)
 
 					if (contour_threshold != 0 && dBm < contour_threshold) {
 						if (ngs)	/* No terrain */
-							ADD_PIXEL(&ctx, 255, 255, 255);
+							image_add_pixel(&ctx, 255, 255, 255);
 						else {
 							/* Display land or sea elevation */
 							terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-							ADD_PIXEL(&ctx, terrain, terrain, terrain);
+							image_add_pixel(&ctx, terrain, terrain, terrain);
 						}
 					}
 					else {
 						/* Plot signal power level regions in color */
 						if (red != 0 || green != 0 || blue != 0)
-							ADD_PIXEL(&ctx, red, green, blue);
+							image_add_pixel(&ctx, red, green, blue);
 						else {	
 							if (ngs)
-								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
+								image_add_pixel(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
 								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								ADD_PIXEL(&ctx, terrain, terrain, terrain);
+								image_add_pixel(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
@@ -375,12 +375,12 @@ void DoLOS(char *filename)
 
 			if (find_dem_xy(lat, lon, x0, y0)) {
 						if (ngs)	/* No terrain */
-							ADD_PIXEL(&ctx, 255, 255, 255);
+							image_add_pixel(&ctx, 255, 255, 255);
 						else {
 							/* Sea-level: Medium Blue */
 								/* Elevation: Greyscale */
 								terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								ADD_PIXEL(&ctx, terrain, terrain, terrain);
+								image_add_pixel(&ctx, terrain, terrain, terrain);
 						}
 			}
 		}

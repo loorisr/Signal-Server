@@ -2353,11 +2353,6 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type & prop,
 	lrprop2(0.0, prop, propa);
 }
 
-double deg2rad(double d)
-{
-	return d * 3.1415926535897 / 180.0;
-}
-
 //***************************************************************************************
 //* Point-To-Point Mode Calculations 
 //***************************************************************************************

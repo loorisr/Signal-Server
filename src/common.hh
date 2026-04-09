@@ -120,6 +120,18 @@ extern bool got_azimuth_pattern;
 extern bool dbm;
 extern bool geotiff;
 extern bool ngs;
+extern bool to_stdout;
+extern bool cropping;
+
+extern struct site tx_site;
+extern struct site rx_site;
+
+extern double antenna_rotation;
+extern double antenna_downtilt;
+extern double antenna_dt_direction;
+extern double rxGain;
+extern double tercon;
+extern double terdic;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
  * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)

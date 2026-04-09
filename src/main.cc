@@ -56,13 +56,12 @@ char DEM_path[255];
 std::string color_palette = "heat";
 std::string output_filename;
 
-double max_range = 0.0,  dpp, ppd, samples_per_radian,
-    fzone_clearance = 0.6, clutter, lat, lon, tercon, terdic,
+double max_range = 0.0, dpp, ppd, samples_per_radian,
+    fzone_clearance = 0.6, clutter, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
-    min_lat = 90.0, max_lat = -90.0,
     delta=0, rxGain=0, antenna_rotation,
-    antenna_downtilt,antenna_dt_direction, cropLat=-70, cropLon=0,cropLonNeg=0;
+    antenna_downtilt, antenna_dt_direction, cropLat=-70, cropLon=0;
 
 int mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, debug = 0,
@@ -684,8 +683,8 @@ int main(int argc, char *argv[])
     // Calculate our plot bounds based on these numbers
     min_lon = tx_site.lon - dist_deg_lon;
     max_lon = tx_site.lon + dist_deg_lon;
-    min_lat = tx_site.lat - dist_deg_lat;
-    max_lat = tx_site.lat + dist_deg_lat;
+    double min_lat = tx_site.lat - dist_deg_lat;
+    double max_lat = tx_site.lat + dist_deg_lat;
 
     // If doing P2P analysis, we need to make sure the RX site is within our whole degree bounds as well, so data is loaded
     // TODO: update this so it makes sense with the new approach

@@ -83,8 +83,6 @@ extern double min_north;
 extern double max_north;
 extern double min_lon;
 extern double max_lon;
-extern double min_lat;
-extern double max_lat;
 extern int ippd;
 extern int mpi;
 extern int max_elevation;
@@ -135,7 +133,7 @@ extern double terdic;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
  * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)
- * y: 0 = global east  edge, increases westward   (cols = ippd * tiles_lon)
+ * y: 0 = global west  edge, increases eastward   (cols = ippd * tiles_lon)
  * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
 extern double         **dem_data;
 extern int **dem_signal;

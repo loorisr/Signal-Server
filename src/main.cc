@@ -1318,8 +1318,9 @@ int main(int argc, char *argv[])
     }
 
     bbox plot_bounds;
-    plot_bounds.lower_right = {min_lat, min_lon};
-    plot_bounds.upper_left = {max_lat, max_lon};
+    plot_bounds = getCircularBoundingBox( {tx_site.lat, tx_site.lon}, max_range);
+    //plot_bounds.lower_right = {min_lat, min_lon};
+    //plot_bounds.upper_left = {max_lat, max_lon};
 
     spdlog::debug("Calculated plot boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
         plot_bounds.lower_right.lat, 
@@ -1359,29 +1360,23 @@ int main(int argc, char *argv[])
             if (cropping) {
                 // CROPPING Factor determined in propPathLoss().
                 // cropLon is the circle radius in pixels at it's widest (east/west) 
-                cropLon*=dpp; // pixels to degrees
-                max_north=cropLat; // degrees
-                min_lon = tx_site.lon - cropLon; // western crop boundary
-                cropLat-=tx_site.lat; // angle from tx to edge
 
-                spdlog::debug("Cropping 1: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} dpp {:.5f}",min_lon,cropLat,cropLon,tx_site.lon,dpp);
+                spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_left.lat, plot_bounds.lower_right.lat, plot_bounds.upper_left.lon, plot_bounds.lower_right.lon, ppd);
 
-                width=(int)((cropLon*ppd)*2);
-                height=(int)((cropLat*ppd)*2);
-
-                spdlog::debug("Cropping 2: min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.4f} longitude: {:.4f} width {:d}",min_lon,cropLat,cropLon,tx_site.lon,width);
-
-                if (width > 3600 * 10 || cropLon < 0) {
-                    spdlog::error("FATAL BOUNDS! min_lon: {:.4f} cropLat: {:.4f} cropLon: {:.7f} longitude: {:.5f}",min_lon,cropLat,cropLon,tx_site.lon);
-                    return 0;
-                }
+                max_north = plot_bounds.upper_left.lat;
+                min_north = plot_bounds.lower_right.lat;
+                max_lon = plot_bounds.upper_left.lon;
+                min_lon = plot_bounds.lower_right.lon;
+                width = (unsigned)(ippd * (max_lon - min_lon));
+                height = (unsigned)(ippd * (max_north - min_north));
+                spdlog::info("width/height: {}/{}", width, height);
             }
 
             // Write bitmap
             if (LR.erp == 0.0)
                 DoPathLoss(mapfile);
             else if (dbm)
-                DoRxdPwr((to_stdout == true ? NULL : mapfile));
+                DoRxdPwr(mapfile);
             else
                     if ((result = DoSigStr(mapfile)) != 0)
                     return result;

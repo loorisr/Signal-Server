@@ -6,6 +6,8 @@
 #include <string>
 
 #define GAMMA 		2.5
+#define ONE_OVER_GAMMA 	(1.0 / GAMMA)
+
 
 #ifndef PI
   #define PI		3.141592653589793
@@ -108,8 +110,6 @@ extern double loss;
 extern double field_strength;
 extern __thread double *elev;
 extern double delta;
-extern double cropLat;
-extern double cropLon;
 
 extern char string[];
 extern char DEM_path[];

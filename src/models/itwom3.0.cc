@@ -2026,6 +2026,20 @@ double qtile(const int &nn, double a[], const int &ir)
     return a[k];
 }
 
+double get_two_qtiles(double a[], int n, int ka, int kb) {
+    // Premier appel sur tout le tableau pour trouver le plus grand index
+    std::nth_element(a, a + kb, a + n, std::greater<double>());
+    double res2 = a[kb];
+
+    // Deuxième appel : on ne cherche QUE dans la partie gauche [a, a + k2]
+    // C'est ici que l'on gagne du temps car le range est plus petit.
+    std::nth_element(a, a + ka, a + kb, std::greater<double>());
+    double res1 = a[ka];
+
+    // On réaffecte les valeurs selon l'ordre initial demandé
+    return res1 - res2;
+}
+
 double qerf(const double &z)
 {
 	double b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
@@ -2095,7 +2109,8 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 		xa = xa + xb;
 	}
 
-	d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
+	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
+	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1);
 	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
 	delete[]s;
 

@@ -633,16 +633,6 @@ void PlotPropPath(
 			}
 		}
 	}
-
-	if(path.lat[y]>cropLat)
-		cropLat=path.lat[y];
-
-	
-	if(y>cropLon)
-		cropLon=y;
-
-	//if(cropLon>180)
-	//	cropLon-=360;
 }
 
 void PlotLOSMap(struct site source, double altitude,

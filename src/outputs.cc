@@ -22,7 +22,7 @@ void DoPathLoss(char *filename)
 	char mapfile[255];
 	unsigned red, green, blue, terrain = 0;
 	int x, y, z, x0 = 0, y0 = 0, loss, match;
-	double lat, lon, conversion, one_over_gamma;
+	double lat, lon, conversion;
 	image_ctx_t ctx;
 	int success;
 
@@ -31,8 +31,7 @@ void DoPathLoss(char *filename)
 		exit(success);
 	}
 
-	one_over_gamma = 1.0 / GAMMA;
-	conversion = 255.0 / pow((double)(max_elevation - min_elevation), one_over_gamma);
+	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	if( (success = LoadLossColors()) != 0 ){
 		spdlog::error("Error loading loss colors");
@@ -44,13 +43,10 @@ void DoPathLoss(char *filename)
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-
-	} else {
-		spdlog::info("Writing to stdout");
 	}
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	/* No bottom legend */
+	south = (double)min_north;	
 	west = min_lon;
 	east = max_lon - dpp;
 
@@ -94,7 +90,7 @@ void DoPathLoss(char *filename)
 							ADD_PIXEL(&ctx,  255, 255, 255);
 						else {
 							/* Display land or sea elevation */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 								ADD_PIXEL(&ctx, terrain, terrain, terrain);
 							}
 					}
@@ -108,18 +104,11 @@ void DoPathLoss(char *filename)
 								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 								ADD_PIXEL(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
-			}
-
-			else {
-				/* We should never get here, but if */
-				/* we do, display the region as black */
-
-				ADD_PIXEL(&ctx, 0, 0, 0);
 			}
 		}
 	}
@@ -141,7 +130,7 @@ int DoSigStr(char *filename)
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
-	double conversion, one_over_gamma, lat, lon;
+	double conversion, lat, lon;
 	image_ctx_t ctx;
 	int success;
 
@@ -150,8 +139,7 @@ int DoSigStr(char *filename)
 		exit(success);
 	}
 
-	one_over_gamma = 1.0 / GAMMA;
-	conversion = 255.0 / pow((double)(max_elevation - min_elevation), one_over_gamma);
+	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	if( (success = LoadSignalColors()) != 0 ){
 		spdlog::error("Error loading signal colors");
@@ -159,18 +147,14 @@ int DoSigStr(char *filename)
 	}
 
 	if( filename != NULL ) {
-
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-
-	} else {
-		spdlog::info("Writing to stdout");
-	}
+	} 
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	/* No bottom legend */
+	south = (double)min_north;	
 	west = min_lon;
 	east = max_lon - dpp;
 
@@ -214,7 +198,7 @@ int DoSigStr(char *filename)
 								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 								ADD_PIXEL(&ctx, terrain, terrain, terrain);
 							}
 					}
@@ -229,18 +213,11 @@ int DoSigStr(char *filename)
 								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
 							else {
 									/* Elevation: Greyscale */
-									terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+									terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 									ADD_PIXEL(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
-			}
-
-			else {
-				/* We should never get here, but if */
-				/* we do, display the region as black */
-
-				ADD_PIXEL(&ctx, 255, 255, 255);
 			}
 		}
 	}
@@ -264,7 +241,7 @@ void DoRxdPwr(char *filename)
 	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
-	double conversion, one_over_gamma, lat, lon;
+	double conversion, lat, lon;
 	image_ctx_t ctx;
 	int success;
 
@@ -273,26 +250,15 @@ void DoRxdPwr(char *filename)
 		exit(success);
 	}
 
-	one_over_gamma = 1.0 / GAMMA;
-	conversion = 255.0 / pow((double)(max_elevation - min_elevation), one_over_gamma);
+	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	if( (success = LoadDBMColors()) != 0 ){
 		spdlog::error("Error loading DBM colors");
 		exit(success);  //Now a fatal error!
 	}
 
-	if( filename != NULL ) {
-
-		if (filename[0] == 0) {
-			strncpy(filename, output_filename.c_str(), 254);
-			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
-		}
-	} else {
-		spdlog::info("Writing to stdout");
-	}
-
 	north = (double)max_north - dpp;
-	south = (double)min_north;	/* No bottom legend */
+	south = (double)min_north;	
 	west = (double)min_lon;
 	east = (double)(max_lon - dpp);
 
@@ -333,7 +299,7 @@ void DoRxdPwr(char *filename)
 							ADD_PIXEL(&ctx, 255, 255, 255);
 						else {
 							/* Display land or sea elevation */
-							terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+							terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 							ADD_PIXEL(&ctx, terrain, terrain, terrain);
 						}
 					}
@@ -346,17 +312,11 @@ void DoRxdPwr(char *filename)
 								ADD_PIXEL(&ctx, 255, 255, 255); // WHITE
 							else {
 								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 								ADD_PIXEL(&ctx, terrain, terrain, terrain);
 							}
 						}
 					}
-			}
-
-			else {
-				/* We should never get here, but if */
-				/* we do, display the region as black */
-				ADD_PIXEL(&ctx, 255, 255, 255);
 			}
 		}
 	}
@@ -378,7 +338,7 @@ void DoLOS(char *filename)
 	char mapfile[255];
 	unsigned terrain;
 	int x, y, x0 = 0, y0 = 0;
-	double conversion, one_over_gamma, lat, lon;
+	double conversion, lat, lon;
 	image_ctx_t ctx;
 	int success;
 
@@ -387,8 +347,7 @@ void DoLOS(char *filename)
 		exit(success);
 	}
 
-	one_over_gamma = 1.0 / GAMMA;
-	conversion = 255.0 / pow((double)(max_elevation - min_elevation), one_over_gamma);
+	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	if( filename != NULL ){
 
@@ -402,7 +361,7 @@ void DoLOS(char *filename)
 	}
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	/* No bottom legend */
+	south = (double)min_north;	
 	west = min_lon;
 	east = max_lon - dpp;
 
@@ -420,15 +379,9 @@ void DoLOS(char *filename)
 						else {
 							/* Sea-level: Medium Blue */
 								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), one_over_gamma) * conversion);
+								terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 								ADD_PIXEL(&ctx, terrain, terrain, terrain);
 						}
-			}
-
-			else {
-				/* We should never get here, but if */
-				/* we do, display the region as black */
-				ADD_PIXEL(&ctx, 255, 255, 255);
 			}
 		}
 	}

@@ -92,20 +92,20 @@ namespace {
         // Iterate
         double rad = r->start_angle_rad;
         site edge;
-        edge.alt = r->altitude;
+        edge.alt = altitudeLR;
         for (int i = 0; i < r->points; i++)
         {
             // Get coordinates of point on circle
-            coord point = getPointAtDistance({r->source.lat, r->source.lon}, r->radius, rad);
+            coord point = getPointAtDistance({r->source.lat, r->source.lon}, max_range, rad);
             // Create site for prop path
             edge.lat = point.lat;
             edge.lon = point.lon;
 
             // Plot
-            if (r->los)
+            if (prop_model == LOS)
                 PlotLOSPath(r->source, edge);
             else
-                PlotPropPath(r->source, edge, r->prop_model);
+                PlotPropPath(r->source, edge);
 
             // Increment
             rad += rps;
@@ -336,8 +336,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
 */
 void PlotPropPath(
     struct site source,
-    struct site destination,
-    PropModel prop_model
+    struct site destination
 )
 {
 	if (debug) cnt_PlotPropPath++;
@@ -534,12 +533,7 @@ void PlotPropagationRadius(struct site source)
         PropagationRadius propRadius;
         // Populate static data
         propRadius.source = source;
-        propRadius.radius = max_range;
         propRadius.points = section_pixels;
-        propRadius.altitude = altitudeLR;
-        propRadius.prop_model = prop_model;
-        // We're not doing LOS
-        propRadius.los = (prop_model==LOS);
         // Calculate start and stop angles
         propRadius.start_angle_rad = i * section_size_rad;
         propRadius.stop_angle_rad = (i + 1) * section_size_rad;

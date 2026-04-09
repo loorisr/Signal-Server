@@ -31,11 +31,8 @@ enum PropModel {
 // Angular propagation area
 struct PropagationRadius {
     double start_angle_rad, stop_angle_rad;
-    double radius;
-    double altitude;
     bool los;
     site source;
-    PropModel prop_model;
     int points;
 };
 
@@ -50,7 +47,7 @@ struct progress_t {
 
 void PlotLOSPath(struct site source, struct site destination);
 
-void PlotPropPath(struct site source, struct site destination, PropModel prop_model);
+void PlotPropPath(struct site source, struct site destination);
 
 void PlotPropagationRadius(struct site source);
 

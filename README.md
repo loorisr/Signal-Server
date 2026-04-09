@@ -92,11 +92,11 @@ Additional improvements and multithreading fixes by P. McDonnell, W3AXL
 Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile
 
 Data:
-     -sdf Directory containing SRTM derived .sdf DEM tiles (may be .gz or .bz2)
-     -lid ASCII grid tile (LIDAR) with dimensions and resolution defined in header
-     -udt User defined point clutter as decimal co-ordinates: 'latitude,longitude,height'
-     -clt MODIS 17-class wide area clutter in ASCII grid format
-     -color File to pre-load .scf/.lcf/.dcf for Signal/Loss/dBm color palette
+     -dem Directory containing Copernicus DEM GeoTIFF COG tiles
+                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,
+                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)
+     -color Color palette: heat (default), jet, turbo, viridis, magma, plasma,
+                  inferno, hot, parula, gray, hsv, cubehelix, cividis, github
 Input:
      -lat Tx Latitude (decimal degrees) -70/+70
      -lon Tx Longitude (decimal degrees) -180/+180
@@ -104,8 +104,7 @@ Input:
      -rlo (Optional) Rx Longitude for PPA (decimal degrees) -180/+180
      -f Tx Frequency (MHz) 20MHz to 100GHz (LOS after 20GHz)
      -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14dBi = 0dBd
-     -gc Random ground clutter (feet/meters)
-     -m Metric units of measurement
+     -gc Random ground clutter (meters)
      -te Terrain code 1-6 (optional - 1. Water, 2. Marsh, 3. Farmland,
           4. Mountain, 5. Desert, 6. Urban
      -terdic Terrain dielectric value 2-80 (optional)
@@ -115,19 +114,19 @@ Input:
           6. Maritime temperate (Land) 7. Maritime temperate (Sea)
      -rel Reliability for ITM model (% of 'time') 1 to 99 (optional, default 50%)
      -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)
-     -resample Reduce Lidar resolution by specified factor (2 = 50%)
-     -segments Number of segments to divide the plot rectangle into (must be even and > 4)
+     -number_threads Number of worker threads to divide the plot rectangle into (must be even and >= 4)
+     -hd Use HD mode (30m), default 90m
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power instead of field strength in dBuV/m
      -rt Rx Threshold (dB / dBm / dBuV/m)
-     -R Radius (miles/kilometers)
-     -res Pixels per tile. 300/600/1200/3600 (Optional. LIDAR res is within the tile)
+     -R Radius (kilometers)
      -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,
           5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,
           10: Plane earth, 11: Egli VHF/UHF, 12: Soil
      -pe Propagation model mode: 1=Urban,2=Suburban,3=Rural
      -ked Knife edge diffraction (Already on for ITM)
+     -geotiff Output a geotiff file
 Antenna:
      -ant (antenna pattern file basename+path for .az and .el files)
      -txh Tx Height (above ground)
@@ -141,9 +140,6 @@ Debugging:
      -t Terrain greyscale background
      -dbg Verbose debug messages
      -ng Normalise Path Profile graph
-     -haf Halve 1 or 2 (optional)
-     -nothreads Turn off threaded processing
-     -rp Use experimental radial processing
 ```
 
 ### REFERENCE DATA
@@ -153,7 +149,7 @@ Signal server is designed for most of the environments and climates on Planet Ea
 
 #### -dem
 ##### Directory containing Digital Elevation Models (DEM)
-SDF formatted tiles can be created by converting SRTM tiles (30m or 90m) in HGT format with the srtm2sdf or srtm2sdf-hd utility. At the time of writing these tiles can be obtained for free from the [Viewfinder Panoramas website](http://viewfinderpanoramas.org/dem3.html).
+Use Copernicus DEM GeoTIFF COG tiles. The parser expects filenames such as `Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif` for 1200 ppd and `Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif` for 3600 ppd.
 
 
 ### Antenna radiation pattern(s)

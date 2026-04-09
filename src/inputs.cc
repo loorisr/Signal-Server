@@ -380,18 +380,29 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     double tile_min_el = 32768, tile_max_el = -32768;
 
-    for (int r = 0; r < ippd; r++) {
-        int gx = gx_base + (ippd - 1 - r);
-        for (int c = 0; c < ippd; c++) {
-            int gy = gy_base + c;
-            float fval = buf[r * ippd + c];
-            double val = (nodata_valid && fabsf(fval - (float)nodata_val) < 0.5f) ? 0.0 : fval;
-
-            dem_data[gx][gy]   = val;
-            dem_signal[gx][gy] = -200;
-
-            if (val > tile_max_el) tile_max_el = val;
-            if (val < tile_min_el) tile_min_el = val;
+    if (nodata_valid) {
+        const float nd = (float)nodata_val;
+        for (int r = 0; r < ippd; r++) {
+            int gx = gx_base + (ippd - 1 - r);
+            std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
+            for (int c = 0; c < ippd; c++) {
+                float fval = buf[r * ippd + c];
+                double val = fabsf(fval - nd) < 0.5f ? 0.0 : fval;
+                dem_data[gx][gy_base + c] = val;
+                if (val > tile_max_el) tile_max_el = val;
+                if (val < tile_min_el) tile_min_el = val;
+            }
+        }
+    } else {
+        for (int r = 0; r < ippd; r++) {
+            int gx = gx_base + (ippd - 1 - r);
+            std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
+            for (int c = 0; c < ippd; c++) {
+                double val = buf[r * ippd + c];
+                dem_data[gx][gy_base + c] = val;
+                if (val > tile_max_el) tile_max_el = val;
+                if (val < tile_min_el) tile_min_el = val;
+            }
         }
     }
 

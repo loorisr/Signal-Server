@@ -1,6 +1,7 @@
 src/build
 build/
 tmp/
+.claude
 
 # Prerequisites
 *.d

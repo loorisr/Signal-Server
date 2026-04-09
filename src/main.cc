@@ -101,7 +101,7 @@ struct LR LR;
 bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 {
     if (!dem_data) return false;
-    int x = (int)rint(ppd  * (lat - dem_min_lat));
+    int x = (int)rint(ppd * (lat - dem_min_lat));
     int y = (int)rint(ppd * (lon - dem_min_lon));
     if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px) return false;
     x_out = x;
@@ -700,9 +700,7 @@ int main(int argc, char *argv[])
         plot_bounds.upper_right.lon
     );
 
-    /* Load the required tiles */
-    // DEM first
-
+    /* Load the required DEM tiles */
     if( (result = LoadTopoData(plot_bounds)) != 0 ){
         // This only fails on errors loading DEM tiles
         spdlog::error("Error loading topo data");
@@ -720,8 +718,7 @@ int main(int argc, char *argv[])
 
     if (ppa == 0) {
         if (prop_model == LOS) {  // Model 2 = LOS
-            cropping = false; // TODO: File is written in DoLOS() so this needs moving to PlotPropagation() to allow styling, cropping etc
-            PlotLOSMap(tx_site, altitudeLR, number_threads);
+            PlotLOSMap(tx_site, max_range, altitudeLR, number_threads);
             DoLOS(mapfile);
         } else {
             // 90% of effort here

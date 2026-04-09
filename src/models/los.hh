@@ -59,15 +59,8 @@ void PlotLOSPath(struct site source, struct site destination);
 
 void PlotPropPath(struct site source, struct site destination, PropModel propmodel);
 
-void PlotLOSMap(struct site source, double altitude, uint8_t number_threads);
+void PlotLOSMap(struct site source, double range, double altitude, uint8_t number_threads);
 
-/// @brief Plot propagation using a center point and circular radius. This plots around a circle instead of a rectangular bounding box and is theoretically more efficient.
-/// @param source source transmitter
-/// @param range maximum plot rage in miles or km
-/// @param altitude altitude in ft or m
-/// @param plot_filename output plot filename
-/// @param prop_model propagation model to use
-/// @param number_threads number_threads to split the plot circle into (must be a multiple of 2 or 3)
 void PlotPropagationRadius(struct site source, double range, double altitude, PropModel prop_model, uint8_t number_threads);
 
 void PlotPath(struct site source, struct site destination);

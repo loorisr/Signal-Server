@@ -84,7 +84,7 @@ void DoPathLoss(char *filename)
 {
 	render_geotiff(filename, get_colormap(), 80.0, 230.0, true,
 		[](int sig) -> std::optional<double> {
-			if (sig == 0 || (contour_threshold != 0 && sig > abs(contour_threshold)))
+			if (sig <= 0 || (contour_threshold != 0 && sig > abs(contour_threshold)))
 				return std::nullopt;
 			return sig;
 		});
@@ -92,9 +92,9 @@ void DoPathLoss(char *filename)
 
 int DoSigStr(char *filename)
 {
-	render_geotiff(filename, get_colormap(), 108.0, 228.0, false,
+	render_geotiff(filename, get_colormap(), 0.0, 128.0, false,
 		[](int sig) -> std::optional<double> {
-			if (contour_threshold != 0 && sig < contour_threshold)
+			if (sig < 0)
 				return std::nullopt;
 			return sig;
 		});
@@ -114,8 +114,8 @@ void DoRxdPwr(char *filename)
 
 void DoLOS(char *filename)
 {
-	render_geotiff(filename, get_colormap(), 0.0, 1.0, /*reverse=*/false,
-		[](int) -> std::optional<double> { return std::nullopt; });
+	render_geotiff(filename, get_colormap(), 0.0, 1.0, false,
+		[](int sig) -> std::optional<double> { return sig; });
 }
 
 void PathReport(struct site source, struct site destination, const char *name,

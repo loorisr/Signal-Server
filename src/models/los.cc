@@ -65,76 +65,6 @@ namespace {
         return processedPoints[x * dem_width_px + y].exchange(1, std::memory_order_acq_rel) == 0;
 	}
 
-    /**
-     * Calulate a propagation for a specific range
-     * 
-     * @param *parameters parameters object for the propagation range
-    */
-	void* rangePropagation(progress_t &progress, void *parameters)
-	{
-        // Create propagationRange object based on our parameters
-		PropagationRange *v = (PropagationRange*)parameters;
-
-		alloc_elev();
-		alloc_path();
-
-        // Check if we're plotting a single line
-        if (v->min_north == v->max_north && v->min_lon == v->max_lon) {
-            spdlog::warn("Propagation plot range is a single point!");
-        }
-
-        // If our min & max lon coords are the same, it's a vertical line
-        bool vertical = (v->min_lon == v->max_lon) ? true : false;
-
-        // Calculate total number of points we are going to process
-        unsigned int totalPoints = vertical ? (int)((v->max_north - v->min_north) / dpp) : (int)((v->max_lon - v->min_lon) / dpp);
-        progress.total.store(totalPoints);
-
-        // Init the count
-        progress.count.store(0);
-
-        spdlog::debug("Starting rangePropagation for {} range {:.6f}N {:.6f}E to {:.6f}N {:.6f}E, {} points at {:.8f} dpp [Segment {}]",
-            vertical ? "vertical" : "horizontal",
-            v->min_north, v->min_lon, v->max_north, v->max_lon, progress.total.load(), dpp, progress.id);
-
-        // Init our varaibles for tracking position over the loop
-        double lat = v->min_north;
-        double lon = v->min_lon;
-        int y = 0;
-        // Iterate
-		do {
-			if (lon > 180.0)
-				lon -= 360.0;
-
-			site edge;
-			edge.lat = lat;
-			edge.lon = lon;
-			edge.alt = v->altitude;
-
-            //spdlog::debug("Plotting propagation path to {:.6f}N {:.6f}W", edge.lat, edge.lon);
-
-			if(v->los)
-				PlotLOSPath(v->source, edge);
-			else
-				PlotPropPath(v->source, edge, v->prop_model);
-            // Increment our counters
-			++y;
-            progress.count++;
-            // Incremenet our lat/lon as needed
-			if(vertical) {
-                lat = (double)v->min_north + (dpp * (double)y);
-            } else {
-			    lon = (double)v->min_lon + (dpp * (double)y);
-            }
-
-        } while ( vertical ? (lat < (double)v->max_north) : (lon <= (double)v->max_lon) );
-
-        free_elev();
-        free_path();
-		
-		return NULL;
-	}
-
     void* radiusPropagation(progress_t &progress, void *parameters)
     {
         // Create a prop radius from our parameters
@@ -194,13 +124,6 @@ namespace {
 
         return NULL;
     }
-
-	/// @brief Wait for all threads in our threads array to finish
-	void finishThreads()
-	{
-        for (auto& th : threads)
-            th.join();
-	}
 
     /// @brief Wait for the progress accumulators to finish, then finish out any running threads
     void finishProgress()
@@ -288,75 +211,47 @@ static double ked(double freq, double rxh, double dm)
 	}
 }
 
+// to complete
 void PlotLOSPath(struct site source, struct site destination)
 {
     /* This function analyzes the path between the source and
        destination locations. It determines which points along
-
        the path have line-of-sight visibility to the source.
     */
 
-    bool bStop;
-    int x, iCounter;
-    double cos_test_angle, cos_horizon_angle, cos_limit_angle;
-    double distance, tx_alt, limit_alt, distance2, tx_alt2, test_alt, test_alt2, limit_alt2;
+    int x, y;
+    char block = 0;
+    double cos_test_angle, cos_rcvr_angle;
+    double distance, tx_alt, distance_test, tx_alt2, test_alt, test_alt2, dest_alt, dest_alt2;
 
     ReadPath(source, destination);
 
-    distance = 0.0;
-    cos_horizon_angle = 1.0;
-    bStop = false;
-    iCounter = 0;
-
-    /* altitude limit of 10000 meters */
-    limit_alt = EARTHRADIUS + 10000.0;
-    limit_alt2 = limit_alt * limit_alt;
-
-    tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
+    tx_alt = EARTHRADIUS + source.alt + GetElevation(source);
     tx_alt2 = tx_alt * tx_alt;
 
-    for (x = 0; (bStop == false) && (x < (path.length - 1)) && (path.distance[x] <= max_range); x++) {
+    distance = 0.0;
 
-        if (x > 0) {
-            distance = path.distance[x];
-            distance2 = distance * distance;
-            
+    for (y = 1; (y < (path.length - 1)) && distance <= max_range; y++) {
+        distance = path.distance[y];
+        dest_alt = EARTHRADIUS + destination.alt + path.elevation[y];
+        dest_alt2 = dest_alt * dest_alt;
+        
+        cos_rcvr_angle = ((tx_alt2) + (distance * distance) - (dest_alt2)) / (2.0 * tx_alt * distance);
+        cos_rcvr_angle = MIN(1.0, MAX(-1.0, cos_rcvr_angle));
+
+        for (x = 2, block = 0; (x < y && block == 0); x++) {
+            distance_test = path.distance[x];
             test_alt = EARTHRADIUS + path.elevation[x] + clutter;
             test_alt2 = test_alt * test_alt;
 
-            /* Calculate the cosine of the elevation between
-               transmitter and this test point. */
+            /* Calculate the cosine of the elevation between transmitter and this test point. */
+            cos_test_angle = ((tx_alt2) + (distance_test * distance_test) - (test_alt2)) / (2.0 * tx_alt * distance_test);
+            cos_test_angle = std::clamp(cos_test_angle, -1.0, 1.0);
 
-            cos_test_angle = (distance2 + tx_alt2 - test_alt2) / (2.0 * distance * tx_alt);
-        }
-        else {
-            cos_test_angle = 1.0;
-        }
-
-        if (cos_test_angle < cos_horizon_angle) {
-            cos_horizon_angle = cos_test_angle;
-        }
-
-        if ((x > 0) && (cos_horizon_angle < 0.0)) {
-            if (iCounter > 10) {
-                /* Check for Mount Everest in line-of-sight visibility */
-
-                /* Calculate the cosine of the elevation between
-                   transmitter and altitude limit. */
-
-                cos_limit_angle = (distance2 + tx_alt2 - limit_alt2) / (2.0 * distance * tx_alt);
-
-                cos_limit_angle = MIN(1.0, MAX(-1.0, cos_limit_angle));
-
-                if (cos_limit_angle > cos_horizon_angle) {
-                    bStop = true;
-					PutSignal(path.lat[x], path.lon[x], 200);
-                }
-
-                iCounter = 0;
-            }
-            else {
-                iCounter++;
+            if (cos_rcvr_angle >= cos_test_angle) { //block
+                block = 1;
+            } else {
+                PutSignal(path.lat[x], path.lon[x], 200);
             }
         }
     }
@@ -586,54 +481,108 @@ void PlotPropPath(
 	}
 }
 
-void PlotLOSMap(struct site source, double altitude,
+void PlotLOSMap(struct site source, double range, double altitude,
 		uint8_t number_threads)
 {
-	/* This function performs a 360 degree sweep around the
-	   transmitter site (source location), and plots the
-	   line-of-sight coverage of the transmitter on the ss
-	   generated topographic map based on a receiver located
-	   at the specified altitude (in feet AGL).  Results
-	   are stored in memory, and written out in the form
-	   of a topographic map when the WritePPM() function
-	   is later invoked. */
+    // Get plot type string
+    char plotType[32];
+	if (debug) {
+        if (LR.erp == 0.0)
+            snprintf(plotType, sizeof(plotType), "path loss");
+        else if (dbm)
+            snprintf(plotType, sizeof(plotType), "signal power level");
+        else
+            snprintf(plotType, sizeof(plotType), "field strength");
+	}
+    // Print debug
+	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
+            plotType,
+			range,
+			altitude
+    );
 
-	// Four sections start here
-	// Process north edge east/west, east edge north/south,
-	// south edge east/west, west edge north/south
-	double range_min_lon[] = {min_lon, min_lon, min_lon, max_lon};
-	double range_min_north[] = {max_north, min_north, min_north, min_north};
-	double range_max_lon[] = {max_lon, min_lon, max_lon, max_lon};
-	double range_max_north[] = {max_north, max_north, min_north, max_north};
-	PropagationRange *r = new PropagationRange[number_threads];
+    // Optional clutter debug print
+	if (clutter > 0.0)
+        spdlog::debug("Using {:.2f} meters of ground clutter", clutter);
+
+    // TX site location print
+    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
+
+    // Get bounding box of plot
+    bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
+
+    // Calculate plot width & height in degrees
+    double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
+    double plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
+
+    // Ramanujan
+    int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
+
+    // Calculate the size of each angular degree section, in rads
+    double section_size_rad = 360.0 / number_threads * DEG2RAD;
+
+    // Calculate the number of points/pixels in each segment
+    int section_pixels = (int)(circle_pixels / number_threads);
+
+    // Create our ranges
+    std::vector<PropagationRadius> radii;
+
+    // Iterate through our number_threads
+    for (int i = 0; i < number_threads; i++)
+    {
+        // Create a new radius
+        PropagationRadius propRadius;
+        // Populate static data
+        propRadius.source = source;
+        propRadius.radius = range;
+        propRadius.points = section_pixels;
+        propRadius.altitude = altitude;
+        // We're not doing LOS
+        propRadius.los = true;
+        // Calculate start and stop angles
+        propRadius.start_angle_rad = i * section_size_rad;
+        propRadius.stop_angle_rad = (i + 1) * section_size_rad;
+
+        // Add to list
+        radii.push_back(propRadius);
+    }
+
+	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) segments", 
+                    number_threads, circle_pixels, section_size_rad * RAD2DEG, section_pixels);
+
+    // Make sure we didn't do anythng wrong
+    if (radii.size() != number_threads) {
+        spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), number_threads);
+        exit(1);
+    }
 
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(number_threads);
 
-	for(int i = 0; i < number_threads; ++i) {
-        r[i].los = true;
+    // Init our vector for storing processing progress
+    if (!has_init_processed) {
+        init_processed();
+    }
 
-		r[i].eastwest = (range_min_lon[i] == range_max_lon[i] ? false : true);
-		r[i].min_lon = range_min_lon[i];
-		r[i].max_lon = range_max_lon[i];
-		r[i].min_north = range_min_north[i];
-		r[i].max_north = range_max_north[i];
-
-		r[i].altitude = altitude;
-		r[i].source = source;
-
+    // Iterate over the final list of ranges
+    for (size_t i = 0; i < radii.size(); i++) {
         // Set the segment id
         thread_progress[i].id = i;
+        // Start a thread
+        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad * RAD2DEG, radii[i].stop_angle_rad * RAD2DEG);
+        futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
 
-		futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &r[i] ) );
-	}
+    }
 
-	for (auto& f : futures)
-		f.get();
-	futures.clear();
+    // Wait for futures to finish
+    spdlog::debug("Waiting for threads to finish...");
+    //finishProgress(); //indicate the progress but it is slow
+    for (auto& f : futures)
+        f.get();
+    futures.clear();
 
-	delete[] r;
 }
+
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude, PropModel prop_model, uint8_t number_threads)
 {
@@ -668,16 +617,6 @@ void PlotPropagationRadius(struct site source, double range,
     double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
     double plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
 
-    // Calculate the radius of our circle, in pixels
-    //double radius_px = (plot_width / 2.0) * ppd;
-
-    // Calculate the radius of our circle, in pixels
-    //double radius_px = (plot_width + plot_height)/2.0/2.0 * ppd;
-
-    // Calculate the total number of pixels/points in our plot circle using the midpoint circle algorithm
-    // Borrowed from https://math.stackexchange.com/a/167310
-    // We use the upper bound to ensure we don't miss any points
-    //int circle_pixels = (int)ceil(radius_px * 2.0 * PI);
     // Ramanujan
     int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
 

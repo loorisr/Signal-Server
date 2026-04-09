@@ -44,113 +44,108 @@ int LoadPAT(char *az_filename, char *el_filename)
 				return errno;
 		}
 
-	if (fd.is_open()) {
-		spdlog::debug("Antenna Pattern Azimuth File = [{}]", az_filename);
+		if (fd.is_open()) {
+			spdlog::debug("Antenna Pattern Azimuth File = [{}]", az_filename);
 
-		/* Clear azimuth pattern array */
-		std::fill(std::begin(azimuth), std::end(azimuth), 0.0f);
-		std::fill(std::begin(read_count), std::begin(read_count) + 361, 0);
+			/* Clear azimuth pattern array */
+			std::fill(std::begin(azimuth), std::end(azimuth), 0.0f);
+			std::fill(std::begin(read_count), std::begin(read_count) + 361, 0);
 
-		/* Read azimuth pattern rotation
-			 in degrees measured clockwise
-			 from true North. */
+			/* Read azimuth pattern rotation
+			   in degrees measured clockwise from true North. */
 
-		std::getline(fd, line);
-		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+			std::getline(fd, line);
+			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
 
-		if (antenna_rotation != -1)  // If cmdline override
-			rotation = (float)antenna_rotation;
-		else
-			std::istringstream(line) >> rotation;
+			if (antenna_rotation != -1)  // If cmdline override
+				rotation = (float)antenna_rotation;
+			else
+				std::istringstream(line) >> rotation;
 
-		spdlog::debug("Antenna Pattern Rotation = {}", rotation);
+			spdlog::debug("Antenna Pattern Rotation = {}", rotation);
 
-		/* Read azimuth (degrees) and corresponding
-			 normalized field radiation pattern amplitude
-			 (0.0 to 1.0) until EOF is reached. */
+			/* Read azimuth (degrees) and corresponding normalized field
+			   radiation pattern amplitude (0.0 to 1.0) until EOF. */
 
-		std::getline(fd, line);
-		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-		std::istringstream(line) >> az >> amplitude;
-
-		do {
-			x = (int)rintf(az);
-
-			if (x >= 0 && x <= 360) {
-				azimuth[x] += amplitude;
-				read_count[x]++;
-			}
-
-			if (!std::getline(fd, line))
-				break;
+			std::getline(fd, line);
 			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
 			std::istringstream(line) >> az >> amplitude;
 
-		} while (true);
+			do {
+				x = (int)rintf(az);
 
-		/* Handle 0=360 degree ambiguity */
+				if (x >= 0 && x <= 360) {
+					azimuth[x] += amplitude;
+					read_count[x]++;
+				}
 
-		if ((read_count[0] == 0) && (read_count[360] != 0)) {
-			read_count[0] = read_count[360];
-			azimuth[0] = azimuth[360];
-		}
+				if (!std::getline(fd, line))
+					break;
+				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+				std::istringstream(line) >> az >> amplitude;
+			} while (true);
 
-		if ((read_count[0] != 0) && (read_count[360] == 0)) {
-			read_count[360] = read_count[0];
-			azimuth[360] = azimuth[0];
-		}
+			/* Handle 0=360 degree ambiguity */
 
-		/* Average pattern values in case more than
-			 one was read for each degree of azimuth. */
-
-		for (x = 0; x <= 360; x++) {
-			if (read_count[x] > 1) azimuth[x] /= (float)read_count[x];
-		}
-
-		/* Interpolate missing azimuths
-			 to completely fill the array */
-
-		last_index = -1;
-		next_index = -1;
-
-		for (x = 0; x <= 360; x++) {
-			if (read_count[x] != 0) {
-				if (last_index == -1)
-					last_index = x;
-				else
-					next_index = x;
+			if ((read_count[0] == 0) && (read_count[360] != 0)) {
+				read_count[0] = read_count[360];
+				azimuth[0] = azimuth[360];
 			}
 
-			if (last_index != -1 && next_index != -1) {
-				valid1 = azimuth[last_index];
-				valid2 = azimuth[next_index];
-
-				span = next_index - last_index;
-				delta = (valid2 - valid1) / (float)span;
-
-				for (y = last_index + 1; y < next_index; y++) azimuth[y] = azimuth[y - 1] + delta;
-
-				last_index = y;
-				next_index = -1;
+			if ((read_count[0] != 0) && (read_count[360] == 0)) {
+				read_count[360] = read_count[0];
+				azimuth[360] = azimuth[0];
 			}
+
+			/* Average pattern values in case more than
+			   one was read for each degree of azimuth. */
+
+			for (x = 0; x <= 360; x++) {
+				if (read_count[x] > 1) azimuth[x] /= (float)read_count[x];
+			}
+
+			/* Interpolate missing azimuths to completely fill the array */
+
+			last_index = -1;
+			next_index = -1;
+
+			for (x = 0; x <= 360; x++) {
+				if (read_count[x] != 0) {
+					if (last_index == -1)
+						last_index = x;
+					else
+						next_index = x;
+				}
+
+				if (last_index != -1 && next_index != -1) {
+					valid1 = azimuth[last_index];
+					valid2 = azimuth[next_index];
+
+					span = next_index - last_index;
+					delta = (valid2 - valid1) / (float)span;
+
+					for (y = last_index + 1; y < next_index; y++) azimuth[y] = azimuth[y - 1] + delta;
+
+					last_index = y;
+					next_index = -1;
+				}
+			}
+
+			/* Perform azimuth pattern rotation and load azimuth_pattern[361]
+			   with azimuth pattern data in its final form. */
+
+			for (x = 0; x < 360; x++) {
+				y = x + (int)rintf(rotation);
+
+				if (y >= 360) y -= 360;
+
+				azimuth_pattern[y] = azimuth[x];
+			}
+
+			azimuth_pattern[360] = azimuth_pattern[0];
+
+			got_azimuth_pattern = true;
 		}
-
-		/* Perform azimuth pattern rotation
-			 and load azimuth_pattern[361] with
-			 azimuth pattern data in its final form. */
-
-		for (x = 0; x < 360; x++) {
-			y = x + (int)rintf(rotation);
-
-			if (y >= 360) y -= 360;
-
-			azimuth_pattern[y] = azimuth[x];
-		}
-
-		azimuth_pattern[360] = azimuth_pattern[0];
-
-		got_azimuth_pattern = true;
-	}
 	} // az_fd scope
 
 	/* Read and process .el file */
@@ -163,168 +158,148 @@ int LoadPAT(char *az_filename, char *el_filename)
 				return errno;
 		}
 
-	if (fd.is_open()) {
-		spdlog::debug("Antenna Pattern Elevation File = [{}]", el_filename);
+		if (fd.is_open()) {
+			spdlog::debug("Antenna Pattern Elevation File = [{}]", el_filename);
 
-		/* Clear elevation pattern array */
+			/* Clear elevation pattern array */
 
-		std::fill(std::begin(el_pattern), std::end(el_pattern), 0.0f);
-		std::fill(std::begin(read_count), std::end(read_count), 0);
+			std::fill(std::begin(el_pattern), std::end(el_pattern), 0.0f);
+			std::fill(std::begin(read_count), std::end(read_count), 0);
 
-		/* Read mechanical tilt (degrees) and
-			 tilt azimuth in degrees measured
-			 clockwise from true North. */
+			/* Read mechanical tilt (degrees) and tilt azimuth in degrees
+			   measured clockwise from true North. */
 
-		std::getline(fd, line);
-		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-		std::istringstream(line) >> mechanical_tilt >> tilt_azimuth;
+			std::getline(fd, line);
+			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+			std::istringstream(line) >> mechanical_tilt >> tilt_azimuth;
 
-		if (antenna_downtilt != 99.0) {    // If Cmdline override
-			if (antenna_dt_direction == -1)  // dt_dir not specified
-				tilt_azimuth = rotation;       // use rotation value
-			mechanical_tilt = (float)antenna_downtilt;
-		}
-
-		if (antenna_dt_direction != -1)  // If Cmdline override
-			tilt_azimuth = (float)antenna_dt_direction;
-
-		spdlog::debug("Antenna Pattern Mechamical Downtilt = {}", mechanical_tilt);
-		spdlog::debug("Antenna Pattern Mechanical Downtilt Direction = {}", tilt_azimuth);
-
-		/* Read elevation (degrees) and corresponding
-			 normalized field radiation pattern amplitude
-			 (0.0 to 1.0) until EOF is reached. */
-
-		std::getline(fd, line);
-		{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
-		std::istringstream(line) >> elevation >> amplitude;
-
-		do {
-			/* Read in normalized radiated field values
-				 for every 0.01 degrees of elevation between
-				 -10.0 and +90.0 degrees */
-
-			x = (int)rintf(100.0 * (elevation + 10.0));
-
-			if (x >= 0 && x <= 10000) {
-				el_pattern[x] += amplitude;
-				read_count[x]++;
+			if (antenna_downtilt != 99.0) {    // If Cmdline override
+				if (antenna_dt_direction == -1)  // dt_dir not specified
+					tilt_azimuth = rotation;       // use rotation value
+				mechanical_tilt = (float)antenna_downtilt;
 			}
 
-			if (!std::getline(fd, line))
-				break;
+			if (antenna_dt_direction != -1)  // If Cmdline override
+				tilt_azimuth = (float)antenna_dt_direction;
+
+			spdlog::debug("Antenna Pattern Mechamical Downtilt = {}", mechanical_tilt);
+			spdlog::debug("Antenna Pattern Mechanical Downtilt Direction = {}", tilt_azimuth);
+
+			/* Read elevation (degrees) and corresponding normalized field
+			   radiation pattern amplitude (0.0 to 1.0) until EOF. */
+
+			std::getline(fd, line);
 			{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
 			std::istringstream(line) >> elevation >> amplitude;
-		} while (true);
 
-		/* Average the field values in case more than
-			 one was read for each 0.01 degrees of elevation. */
+			do {
+				/* Read in normalized radiated field values for every 0.01
+				   degrees of elevation between -10.0 and +90.0 degrees */
 
-		for (x = 0; x <= 10000; x++) {
-			if (read_count[x] > 1) el_pattern[x] /= (float)read_count[x];
-		}
+				x = (int)rintf(100.0 * (elevation + 10.0));
 
-		/* Interpolate between missing elevations (if
-			 any) to completely fill the array and provide
-			 radiated field values for every 0.01 degrees of
-			 elevation. */
-
-		last_index = -1;
-		next_index = -1;
-
-		for (x = 0; x <= 10000; x++) {
-			if (read_count[x] != 0) {
-				if (last_index == -1)
-					last_index = x;
-				else
-					next_index = x;
-			}
-
-			if (last_index != -1 && next_index != -1) {
-				valid1 = el_pattern[last_index];
-				valid2 = el_pattern[next_index];
-
-				span = next_index - last_index;
-				delta = (valid2 - valid1) / (float)span;
-
-				for (y = last_index + 1; y < next_index; y++) el_pattern[y] = el_pattern[y - 1] + delta;
-
-				last_index = y;
-				next_index = -1;
-			}
-		}
-
-		/* Fill slant_angle[] array with offset angles based
-			 on the antenna's mechanical beam tilt (if any)
-			 and tilt direction (azimuth). */
-
-		if (mechanical_tilt == 0.0) {
-			std::fill(std::begin(slant_angle), std::end(slant_angle), 0.0f);
-		}
-
-		else {
-			tilt_increment = mechanical_tilt / 90.0;
-
-			for (x = 0; x <= 360; x++) {
-				xx = (float)x;
-				y = (int)rintf(tilt_azimuth + xx);
-
-				while (y >= 360) y -= 360;
-
-				while (y < 0) y += 360;
-
-				if (x <= 180) slant_angle[y] = -(tilt_increment * (90.0 - xx));
-
-				if (x > 180) slant_angle[y] = -(tilt_increment * (xx - 270.0));
-			}
-		}
-
-		slant_angle[360] = slant_angle[0]; /* 360 degree wrap-around */
-
-		for (w = 0; w <= 360; w++) {
-			tilt = slant_angle[w];
-
-			/** Convert tilt angle to
-							an array index offset **/
-
-			y = (int)rintf(100.0 * tilt);
-
-			/* Copy shifted el_pattern[10001] field
-				 values into elevation_pattern[361][1001]
-				 at the corresponding azimuth, downsampling
-				 (averaging) along the way in chunks of 10. */
-
-			for (x = y, z = 0; z <= 1000; x += 10, z++) {
-				for (sum = 0.0, a = 0; a < 10; a++) {
-					b = a + x;
-
-					if (b >= 0 && b <= 10000) sum += el_pattern[b];
-					if (b < 0) sum += el_pattern[0];
-					if (b > 10000) sum += el_pattern[10000];
+				if (x >= 0 && x <= 10000) {
+					el_pattern[x] += amplitude;
+					read_count[x]++;
 				}
 
-				elevation_pattern[w][z] = sum / 10.0;
+				if (!std::getline(fd, line))
+					break;
+				{ auto p = line.find(';'); if (p != std::string::npos) line.erase(p); }
+				std::istringstream(line) >> elevation >> amplitude;
+			} while (true);
+
+			/* Average the field values in case more than one was read
+			   for each 0.01 degrees of elevation. */
+
+			for (x = 0; x <= 10000; x++) {
+				if (read_count[x] > 1) el_pattern[x] /= (float)read_count[x];
+			}
+
+			/* Interpolate between missing elevations (if any) to completely
+			   fill the array and provide radiated field values for every
+			   0.01 degrees of elevation. */
+
+			last_index = -1;
+			next_index = -1;
+
+			for (x = 0; x <= 10000; x++) {
+				if (read_count[x] != 0) {
+					if (last_index == -1)
+						last_index = x;
+					else
+						next_index = x;
+				}
+
+				if (last_index != -1 && next_index != -1) {
+					valid1 = el_pattern[last_index];
+					valid2 = el_pattern[next_index];
+
+					span = next_index - last_index;
+					delta = (valid2 - valid1) / (float)span;
+
+					for (y = last_index + 1; y < next_index; y++) el_pattern[y] = el_pattern[y - 1] + delta;
+
+					last_index = y;
+					next_index = -1;
+				}
+			}
+
+			/* Fill slant_angle[] array with offset angles based on the
+			   antenna's mechanical beam tilt (if any) and tilt direction. */
+
+			if (mechanical_tilt == 0.0) {
+				std::fill(std::begin(slant_angle), std::end(slant_angle), 0.0f);
+			} else {
+				tilt_increment = mechanical_tilt / 90.0;
+
+				for (x = 0; x <= 360; x++) {
+					xx = (float)x;
+					y = (int)rintf(tilt_azimuth + xx);
+
+					while (y >= 360) y -= 360;
+					while (y < 0) y += 360;
+
+					if (x <= 180) slant_angle[y] = -(tilt_increment * (90.0 - xx));
+					if (x > 180)  slant_angle[y] = -(tilt_increment * (xx - 270.0));
+				}
+			}
+
+			slant_angle[360] = slant_angle[0]; /* 360 degree wrap-around */
+
+			for (w = 0; w <= 360; w++) {
+				tilt = slant_angle[w];
+
+				/* Convert tilt angle to an array index offset */
+				y = (int)rintf(100.0 * tilt);
+
+				/* Copy shifted el_pattern[10001] field values into
+				   elevation_pattern[361][1001] at the corresponding azimuth,
+				   downsampling (averaging) along the way in chunks of 10. */
+
+				for (x = y, z = 0; z <= 1000; x += 10, z++) {
+					for (sum = 0.0, a = 0; a < 10; a++) {
+						b = a + x;
+
+						if (b >= 0 && b <= 10000) sum += el_pattern[b];
+						if (b < 0)                sum += el_pattern[0];
+						if (b > 10000)            sum += el_pattern[10000];
+					}
+
+					elevation_pattern[w][z] = sum / 10.0;
+				}
+			}
+
+			got_elevation_pattern = true;
+
+			for (x = 0; x <= 360; x++) {
+				for (y = 0; y <= 1000; y++) {
+					elevation = got_elevation_pattern ? elevation_pattern[x][y] : 1.0f;
+					az        = got_azimuth_pattern   ? azimuth_pattern[x]      : 1.0f;
+					LR.antenna_pattern[x][y] = az * elevation;
+				}
 			}
 		}
-
-		got_elevation_pattern = true;
-
-		for (x = 0; x <= 360; x++) {
-			for (y = 0; y <= 1000; y++) {
-				if (got_elevation_pattern)
-					elevation = elevation_pattern[x][y];
-				else
-					elevation = 1.0;
-
-				if (got_azimuth_pattern)
-					az = azimuth_pattern[x];
-				else
-					az = 1.0;
-
-				LR.antenna_pattern[x][y] = az * elevation;
-			}
-		}
-	}
 	} // el_fd scope
 	return 0;
 }
@@ -478,10 +453,10 @@ int LoadTopoData(bbox region)
     alloc_dem(r_min_lat, r_min_lon, tiles_lat, tiles_lon);
 
     // Load the data
-    for (int x = 0; x < tiles_lon; x++) {
-        for (int y = 0; y < tiles_lat; y++) {
-            int tile_lon = r_min_lon + x;
-            int tile_lat = r_min_lat + y;
+    for (int lon_i = 0; lon_i < tiles_lon; lon_i++) {
+        for (int lat_i = 0; lat_i < tiles_lat; lat_i++) {
+            int tile_lon = r_min_lon + lon_i;
+            int tile_lat = r_min_lat + lat_i;
             spdlog::debug("Loading topo for tile {}N {}E to {}N {}E", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
             int success = LoadCopernicus(tile_lat, tile_lon);
             if (success < 0 && success != -ENOENT) {

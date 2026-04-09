@@ -639,25 +639,15 @@ void PlotLOSMap(struct site source, double altitude,
 void PlotPropagationRadius(struct site source, double range, 
                             double altitude, PropModel prop_model, uint8_t number_threads)
 {
-
-    // Ensure number_threads is a logical value
-    if ((number_threads % 2 != 0) && (number_threads % 3 != 0))
-    {
-        spdlog::error("Segment number must be an multiple of either 2 or 3!");
-        exit(1);
-    }
-
     // Get plot type string
     char plotType[32];
-	if (LR.erp == 0.0 && debug)
-		sprintf(plotType, "path loss");
-	else {
-		if (debug) {
-			if (dbm)
+	if (debug) {
+        if (LR.erp == 0.0)
+            sprintf(plotType, "path loss");
+        else if (dbm)
 				sprintf(plotType, "signal power level");
 			else
 				sprintf(plotType, "field strength");
-		}
 	}
     // Print debug
 	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",

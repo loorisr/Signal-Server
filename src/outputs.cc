@@ -5,6 +5,7 @@
 #include <math.h>
 #include <algorithm>
 #include <climits>
+#include <vector>
 
 #include "tinycolormap.hpp"
 
@@ -14,7 +15,6 @@
 #include "main.hh"
 #include "inputs.hh"
 #include "models/los.hh"
-#include "image.hh"
 
 static tinycolormap::ColormapType get_colormap()
 {
@@ -36,25 +36,12 @@ static tinycolormap::ColormapType get_colormap()
 
 void DoPathLoss(char *filename)
 {
-	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format.  The image created is rotated counter-clockwise
-	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
-
-	unsigned terrain = 0;
 	int x, y, x0 = 0, y0 = 0, loss;
 	double lat, lon, conversion;
-	image_ctx_t ctx;
-	int success;
-
-	if( (success = image_init(&ctx, width, height)) != 0 ){
-		spdlog::error("Error initializing image: {}", strerror(success));
-		exit(success);
-	}
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( filename != NULL ) {
+	if (filename != NULL) {
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
@@ -66,62 +53,50 @@ void DoPathLoss(char *filename)
 	west = min_lon;
 	east = max_lon - dpp;
 
-	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename, width, height);
+	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
-	for (y = 0, lat = north; y < (int)height;
-	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = min_lon; x < (int)width;
-		     x++, lon = min_lon + (dpp * (double)x)) {
+	if (geotiff && filename != NULL) {
+		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
+		uint8_t *p = rgba.data();
 
-			if (find_dem_xy(lat, lon, x0, y0)) {
-				loss = dem_signal[x0][y0];
+		for (y = 0, lat = north; y < (int)height;
+		     y++, lat = north - (dpp * (double)y)) {
+			for (x = 0, lon = min_lon; x < (int)width;
+			     x++, lon = min_lon + (dpp * (double)x)) {
 
-				if (loss == 0 || (contour_threshold != 0 && loss > abs(contour_threshold))) {
-					if (ngs)
-						image_add_pixel(&ctx, 255, 255, 255);
-					else {
-						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-						image_add_pixel(&ctx, terrain, terrain, terrain);
+				uint8_t r = 0, g = 0, b = 0, a = 0;
+				if (find_dem_xy(lat, lon, x0, y0)) {
+					loss = dem_signal[x0][y0];
+					if (loss == 0 || (contour_threshold != 0 && loss > abs(contour_threshold))) {
+						if (!ngs) {
+							/* Grayscale terrain */
+							unsigned terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+							r = g = b = (uint8_t)terrain;
+							a = 255;
+						}
+						/* ngs: leave transparent (a=0) */
+					} else {
+						/* Low loss = warm color: reverse t */
+						double t = 1.0 - std::clamp((double)(loss - 80) / (230.0 - 80.0), 0.0, 1.0);
+						auto c = tinycolormap::GetColor(t, get_colormap());
+						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
-				} else {
-					/* Low loss = warm color: reverse t */
-					double t = 1.0 - std::clamp((double)(loss - 80) / (230.0 - 80.0), 0.0, 1.0);
-					auto c = tinycolormap::GetColor(t, get_colormap());
-					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
 				}
+				*p++ = r; *p++ = g; *p++ = b; *p++ = a;
 			}
 		}
+		write_geotiff_rgba(rgba.data(), width, height, filename);
 	}
-
-	if(geotiff && filename != NULL)
-		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
-
-	image_free(&ctx);
 }
 
 int DoSigStr(char *filename)
 {
-	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format based on the signal strength values held in the
-	   signal[][] array.  The image created is rotated counter-clockwise
-	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
-
-	unsigned terrain;
 	int x, y, x0 = 0, y0 = 0, signal;
 	double conversion, lat, lon;
-	image_ctx_t ctx;
-	int success;
-
-	if((success = image_init(&ctx, width, height)) != 0){
-		spdlog::error("Error initializing image: {}", strerror(success));
-		exit(success);
-	}
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( filename != NULL ) {
+	if (filename != NULL) {
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
@@ -133,158 +108,132 @@ int DoSigStr(char *filename)
 	west = min_lon;
 	east = max_lon - dpp;
 
-	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename, width, height);
+	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
-	for (y = 0, lat = north; y < (int)height;
-	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = min_lon; x < (int)width;
-		     x++, lon = min_lon + (dpp * (double)x)) {
+	if (geotiff && filename != NULL) {
+		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
+		uint8_t *p = rgba.data();
 
-			if (find_dem_xy(lat, lon, x0, y0)) {
-				signal = dem_signal[x0][y0] - 100;
+		for (y = 0, lat = north; y < (int)height;
+		     y++, lat = north - (dpp * (double)y)) {
+			for (x = 0, lon = min_lon; x < (int)width;
+			     x++, lon = min_lon + (dpp * (double)x)) {
 
-				if (contour_threshold != 0 && signal < contour_threshold) {
-					if (ngs)
-						image_add_pixel(&ctx, 255, 255, 255);
-					else {
-						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-						image_add_pixel(&ctx, terrain, terrain, terrain);
+				uint8_t r = 0, g = 0, b = 0, a = 0;
+				if (find_dem_xy(lat, lon, x0, y0)) {
+					signal = dem_signal[x0][y0] - 100;
+					if (contour_threshold != 0 && signal < contour_threshold) {
+						if (!ngs) {
+							/* Grayscale terrain */
+							unsigned terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+							r = g = b = (uint8_t)terrain;
+							a = 255;
+						}
+						/* ngs: leave transparent (a=0) */
+					} else {
+						/* Strong signal = warm color */
+						double t = std::clamp((double)(signal - 8) / (128.0 - 8.0), 0.0, 1.0);
+						auto c = tinycolormap::GetColor(t, get_colormap());
+						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
-				} else {
-					/* Strong signal = warm color */
-					double t = std::clamp((double)(signal - 8) / (128.0 - 8.0), 0.0, 1.0);
-					auto c = tinycolormap::GetColor(t, get_colormap());
-					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
 				}
+				*p++ = r; *p++ = g; *p++ = b; *p++ = a;
 			}
 		}
+		write_geotiff_rgba(rgba.data(), width, height, filename);
 	}
-
-	if(geotiff && filename != NULL)
-		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
-
-	image_free(&ctx);
 
 	return 0;
 }
 
 void DoRxdPwr(char *filename)
 {
-	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format based on the signal power level values held in the
-	   signal[][] array.  The image created is rotated counter-clockwise
-	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
-
-	unsigned terrain;
 	int x, y, x0 = 0, y0 = 0, dBm;
 	double conversion, lat, lon;
-	image_ctx_t ctx;
-	int success;
-
-	if( (success = image_init(&ctx, width, height)) != 0 ){
-		spdlog::error("Error initializing image: {}", strerror(success));
-		exit(success);
-	}
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	north = (double)max_north - dpp;
 
-	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename, width, height);
+	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
-	for (y = 0, lat = north; y < (int)height;
-	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = min_lon; x < (int)width;
-		     x++, lon = min_lon + (dpp * (double)x)) {
+	if (geotiff && filename != NULL) {
+		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
+		uint8_t *p = rgba.data();
 
-			if (find_dem_xy(lat, lon, x0, y0)) {
-				dBm = dem_signal[x0][y0];
+		for (y = 0, lat = north; y < (int)height;
+		     y++, lat = north - (dpp * (double)y)) {
+			for (x = 0, lon = min_lon; x < (int)width;
+			     x++, lon = min_lon + (dpp * (double)x)) {
 
-				if (contour_threshold != 0 && dBm < contour_threshold) {
-					if (ngs)
-						image_add_pixel(&ctx, 255, 255, 255);
-					else {
-						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-						image_add_pixel(&ctx, terrain, terrain, terrain);
+				uint8_t r = 0, g = 0, b = 0, a = 0;
+				if (find_dem_xy(lat, lon, x0, y0)) {
+					dBm = dem_signal[x0][y0];
+					if (contour_threshold != 0 && dBm < contour_threshold) {
+						if (!ngs) {
+							/* Grayscale terrain */
+							unsigned terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+							r = g = b = (uint8_t)terrain;
+							a = 255;
+						}
+						/* ngs: leave transparent (a=0) */
+					} else {
+						/* Strong dBm = warm color */
+						double t = (dBm - contour_threshold) / (-(double)contour_threshold);
+						auto c = tinycolormap::GetColor(t, get_colormap());
+						r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
 					}
-				} else {
-					/* Strong dBm = warm color */
-					//double t = std::clamp((double)(dBm - (-150)) / (0.0 - (-150.0)), 0.0, 1.0);
-					double t = (dBm - contour_threshold) / (-(double)contour_threshold);
-					auto c = tinycolormap::GetColor(t, get_colormap());
-					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
 				}
+				*p++ = r; *p++ = g; *p++ = b; *p++ = a;
 			}
 		}
+		write_geotiff_rgba(rgba.data(), width, height, filename);
 	}
-
-	if(geotiff && filename != NULL)
-		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
-
-	image_free(&ctx);
 }
 
 void DoLOS(char *filename)
 {
-	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format based on the signal power level values held in the
-	   signal[][] array.  The image created is rotated counter-clockwise
-	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
-
-	unsigned terrain;
 	int x, y, x0 = 0, y0 = 0;
 	double conversion, lat, lon;
-	image_ctx_t ctx;
-	int success;
-
-	if((success = image_init(&ctx, width, height)) != 0){
-		spdlog::error("Error initializing image: {}", strerror(success));
-		exit(success);
-	}
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( filename != NULL ){
+	if (filename != NULL) {
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-	} 
+	}
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	
+	south = (double)min_north;
 	west = min_lon;
 	east = max_lon - dpp;
 
-	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename, width, height);
+	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
-	for (y = 0, lat = north; y < (int)height;
-	     y++, lat = north - (dpp * (double)y)) {
-		for (x = 0, lon = min_lon; x < (int)width;
-		     x++, lon = min_lon + (dpp * (double)x)) {
+	if (geotiff && filename != NULL) {
+		std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
+		uint8_t *p = rgba.data();
 
-			if (find_dem_xy(lat, lon, x0, y0)) {
-						if (ngs)	/* No terrain */
-							image_add_pixel(&ctx, 255, 255, 255);
-						else {
-							/* Sea-level: Medium Blue */
-								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								image_add_pixel(&ctx, terrain, terrain, terrain);
-						}
+		for (y = 0, lat = north; y < (int)height;
+		     y++, lat = north - (dpp * (double)y)) {
+			for (x = 0, lon = min_lon; x < (int)width;
+			     x++, lon = min_lon + (dpp * (double)x)) {
+
+				uint8_t r = 0, g = 0, b = 0, a = 0;
+				if (find_dem_xy(lat, lon, x0, y0) && !ngs) {
+					/* Grayscale terrain */
+					unsigned terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+					r = g = b = (uint8_t)terrain;
+					a = 255;
+				}
+				/* ngs or outside dem: leave transparent (a=0) */
+				*p++ = r; *p++ = g; *p++ = b; *p++ = a;
 			}
 		}
+		write_geotiff_rgba(rgba.data(), width, height, filename);
 	}
-
-	if(geotiff && filename != NULL)
-		write_geotiff_from_canvas(ctx.canvas, ctx.width, ctx.height, filename);
-
-	image_free(&ctx);
 }
 
 void PathReport(struct site source, struct site destination, const char *name,

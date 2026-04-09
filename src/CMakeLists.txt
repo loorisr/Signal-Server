@@ -37,10 +37,8 @@ execute_process(
 include_directories(models)
 
 # internal libraries
-add_library(image STATIC image.cc)
 add_library(inputs STATIC inputs.cc)
 add_library(outputs STATIC outputs.cc)
-target_link_libraries(outputs PUBLIC image)
 add_library(geo STATIC geo.cc)
 add_library(cost STATIC models/cost.cc)
 add_library(ecc33 STATIC models/ecc33.cc)
@@ -78,7 +76,6 @@ target_compile_definitions(
 
 target_link_libraries(signalserver
 			PUBLIC cmdline
-			PUBLIC image
 			PUBLIC inputs
 			PUBLIC outputs
 			PUBLIC cost

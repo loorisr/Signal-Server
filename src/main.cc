@@ -41,7 +41,6 @@
 #include "models/itwom3.0.hh"
 #include "models/los.hh"
 #include "models/pel.hh"
-#include "image.hh"
 
 #include <chrono>
 #include <thread>
@@ -567,7 +566,7 @@ void do_allocs(void)
     /* dem is allocated later by alloc_dem() once the bounding box is known */
 }
 
-void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename)
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename)
 {
     char tif_file[300];
     double ulx, uly, lrx, lry;
@@ -591,10 +590,10 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
         lrx = east;
         lry = min_north;
     }
-    
+
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {
-        spdlog::error("write_geotiff_from_canvas: GTiff GDAL driver not available");
+        spdlog::error("write_geotiff_rgba: GTiff GDAL driver not available");
         return;
     }
 
@@ -608,7 +607,7 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
     };
     GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 4, GDT_Byte, create_opts);
     if (ds == NULL) {
-        spdlog::error("write_geotiff_from_canvas: failed to create {}", tif_file);
+        spdlog::error("write_geotiff_rgba: failed to create {}", tif_file);
         return;
     }
 
@@ -632,30 +631,17 @@ void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_hei
 
     GDALSetRasterColorInterpretation(GDALGetRasterBand(ds, 4), GCI_AlphaBand);
 
-    /* Build RGBA buffer: white pixels become transparent, others opaque */
-    int npixels = img_width * img_height;
-    std::vector<uint8_t> rgba(npixels * 4);
-    for (int i = 0; i < npixels; ++i) {
-        uint8_t r = canvas[i * RGB_SIZE + 0];
-        uint8_t g = canvas[i * RGB_SIZE + 1];
-        uint8_t b = canvas[i * RGB_SIZE + 2];
-        rgba[i * 4 + 0] = r;
-        rgba[i * 4 + 1] = g;
-        rgba[i * 4 + 2] = b;
-        rgba[i * 4 + 3] = (r == 255 && g == 255 && b == 255) ? 0 : 255;
-    }
-
-    /* Write interleaved RGBA buffer to 4 separate GDAL bands */
+    /* Write interleaved RGBA buffer directly to 4 separate GDAL bands */
     int bandMap[4] = {1, 2, 3, 4};
     CPLErr err = (CPLErr)GDALDatasetRasterIO(ds, GF_Write,
         0, 0, img_width, img_height,
-        rgba.data(), img_width, img_height, GDT_Byte,
+        (void *)rgba, img_width, img_height, GDT_Byte,
         4, bandMap,
         4,              /* nPixelSpace */
         img_width * 4,  /* nLineSpace  */
         1);             /* nBandSpace  */
     if (err != CE_None)
-        spdlog::error("write_geotiff_from_canvas: RasterIO write failed for {}", tif_file);
+        spdlog::error("write_geotiff_rgba: RasterIO write failed for {}", tif_file);
     else
         spdlog::info("GeoTIFF written: {}", tif_file);
 

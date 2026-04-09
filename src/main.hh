@@ -21,7 +21,7 @@
 
 #define VERT_SEP "----------------------------------------------------------------------------------"
 
-void write_geotiff_from_canvas(const uint8_t *canvas, int img_width, int img_height, const char *filename);
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename);
 
 bool find_dem_xy(double lat, double lon, int &x_out, int &y_out);
 void PutSignal(double lat, double lon, int signal);

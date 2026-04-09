@@ -6,7 +6,5 @@
 int LoadCopernicus(int tile_lat, int tile_lon);
 int LoadPAT(char *az_filename, char *el_filename);
 int LoadTopoData(bbox region);
-static const char AZ_FILE_SUFFIX[] = ".az";
-static const char EL_FILE_SUFFIX[] = ".el";
 
 #endif /* _INPUTS_HH_ */

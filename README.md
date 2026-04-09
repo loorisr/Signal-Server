@@ -14,7 +14,7 @@ Improvements:
 - No LIDAR mode
 - No more sdf for DEM, no more strm2sdf
 - better code lisibility
-- several color palette with -color
+- several color palettes with -color
 
 # Signal Server
 Multi-threaded radio propagation simulator based upon SPLAT! by Alex Farrant QCVS, 2E0TDW. 
@@ -39,39 +39,18 @@ WARNING: The accuracy of the output is directly proportional to the accuracy of 
 * Convert (part of ImageMagick)
 * For some additional scripts: Bash and Python interpreter
 * library pthread: POSIX threads library
-* library bz2: The bzip2 runtime library
 * library dl: Open and close a shared object - POSIX conform
 * library z: zlib is a general-purpose lossless data-compression library
 * Multicore CPU (optional but recomended)
 * ~2GB Memory
-* SRTM terrain tile(s) or ASCII Grid tile(s)
+* Copernicus terrain tile(s)
 
 Signal Server is a very resource intensive multicore application. Only publish it for common use if you know what you are doing and you are advised to wrap it with another script to perform input validation.
 
-Additional programs/scripts will be required to prepare inputs such as .hgt tiles (srtm2sdf.c), 3D antenna patterns (.ant) and user defined clutter (.udt) or manipulate the bitmap output (.ppm). More information can be found in the SPLAT! project.
-
 ## File extensions and types used by signalserver:
 ```
-.asc LIDAR topo data file in ASCII grid format
-.jpg LIDAR topo data file in JPEG format
-.sdf SPLAT! topo data file in SPLAT! format, lo-res 90m (from SRTM3)
-.sdf.gz topo data file in SPLAT! data format, gzip compressed, lo-res 90m
-.sdf.bz2 topo data file in SPLAT! data format, bzip2 compressed, lo-res 90m
--hd.sdf SPLAT! topo data file in SPLAT! format, hi-res 30m (from SRTM1)
--hd.sdf.gz topo data file in SPLAT! data format, gzip compressed, hi-res 30m
--hd.sdf.bz2 topo data file in SPLAT! data format, bzip2 compressed, lo-res 90m
-.scf signal level color palette file
-.lcf loss level color palette file
-.dcf dbm level color palette file
 .az SPLAT! antenna pattern azimuth data file
 .el SPLAT! antenna pattern elevation data file
-.lrp LIDAR antenna pattern data file
-.udt user defined terrain data clutter data text file
-.sh  miscellaneous shell scripts and batch files
-.ppm portable pixmap - output plot graphic rendering (native)
-.png portable network graphics - output plot graphic rendering (converted)
-.kml Google Earth Keyhole Markup Language - output viewable with Google Earth
-.kmz Google Earth Keyhole Markup Language, compressed
 ```
 
 ## Install dependencies
@@ -172,45 +151,10 @@ Signal server is designed for most of the environments and climates on Planet Ea
 
  It can run with or without terrain data and can even be used to simulate radiation of other EM emissions like light.
 
-#### -sdf 
+#### -dem
 ##### Directory containing Digital Elevation Models (DEM)
 SDF formatted tiles can be created by converting SRTM tiles (30m or 90m) in HGT format with the srtm2sdf or srtm2sdf-hd utility. At the time of writing these tiles can be obtained for free from the [Viewfinder Panoramas website](http://viewfinderpanoramas.org/dem3.html).
 
-Note these can be compressed using gzip or bzip2 if desired to save disk space and speed up loading the files.  For hi-res (HD) SRTM1 (30m) data, bzip2 compresses best, and for lo-res SRTM3 (90m) data, gzip seems to achieve the best compression.  Either will work fine for whichever data format and resolution is used.
-
-##### WARNING - BREAKING CHANGES
-Since 1st Oct 2023, .sdf filenames have been reformatted to address issue #35, replacing colons with underscores to enable compatibility with Python etc. The conversion utility has been updated so .hgt files may require reprocessing, or you can just rename files to replace : with _.
-
-
-#### -lid 
-##### WGS84 ASCII grid tile (LIDAR) with dimensions and resolution defined in header
-LIDAR data can be used providing it is in ASCII grid format with WGS84 projection. Resolutions up to 25cm have been tested. 2m is recommended for a good trade off. Cellsize should be in degrees and co-ordinates must be in WGS84 decimal degrees.
-
-To load multiple tiles use commas eg. -lid tile1.asc,tile2.asc. You can load in different resolution tiles and use -resample to set the desired resolution (limited by data limit).
-```
-ncols        2454
-nrows        1467
-xllcorner    -1.475333294357
-yllcorner    53.378635095801
-cellsize     0.000006170864
-NODATA_value 0
- 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
-```
-
-#### -udt 
-##### User defined CSV clutter file
-This text file allows you to define buildings with co-ordinates and heights.
-Elevations in the UDT file are evaluated and then copied into a temporary file under /tmp.  Then the contents of the temp file are scanned, and if found to be unique, are added to the ground elevations described by the digital elevation data in memory. Height units are determined by appending M for meters or nothing for feet.
-
-There is no special parsing for comments, so any lines of data that don't contain 3 numbers separated by commas are interpreted as a comment.
-
-Format: latitude,longitude,height(M)
-```
-// This is a comment!
-54.555,-2.221,10M
-54.555,-2.222,10M
-54.555,-2.223,10M
-```
 
 ### Antenna radiation pattern(s)
 Antenna  pattern  data is read from a pair of files having the same base name as the output file (-o), but with  .az  and .el  extensions  for azimuth and elevation patterns.  This name can be overridden with the command line option -ant followed by a base filename or path and base filename for the .az and .el files.  The program will first search for command line specified antenna files with -ant, then it will default to searching for antenna files having the same name as the output file.  
@@ -236,37 +180,3 @@ The remainder of the file consists of elevation angles and their radiation patte
 -8.5    0.155
 -8.0    0.157
 ```
-
-## Examples
-	
-### 90m resolution	
-- INPUTS: 900MHz tower at 25m AGL with 5W ERP, 30km radius
-- OUTPUTS: 1200 resolution, 30km radius, -90dBm receiver threshold, Longley Rice model
-```
-signalserver -sdf /data/SRTM3 -lat 51.849 -lon -2.2299 -txh 25 -f 900 -erp 5 -rxh 2 -rt -90 -dbm -m -o test1 -R 30 -res 1200 -pm 1
-```
-### 30m resolution
-- INPUTS: 450MHz tower at 25f AGL with 20W ERP, 10km radius
-- OUTPUTS: 3600 resolution, 30km radius, 10dBuV receiver threshold, Hata model
-```
-signalserverHD -sdf /data/SRTM1 -lat 51.849 -lon -2.2299 -txh 25 -f 450 -erp 20 -rxh 2 -rt 10 -o test2 -R 10 -res 3600 -pm 3
-```
-
-### 2m resolution (LIDAR)
-- INPUTS: 1800MHz tower at 15m AGL with 1W ERP, 1 km radius
-- OUTPUTS: 2m LIDAR resolution, 5km radius, -90dBm receiver threshold, Longley Rice model
-```
-signalserverLIDAR -lid /data/LIDAR/Gloucester_2m.asc -lat 51.849 -lon -2.2299 -txh 15 -f 1800 -erp 1 -rxh 2 -rt -90 -dbm -m -o test3 -R 1 -pm 1
-```
-### Scripting
-By using wrapper scripts like runsig.sh and genkmz.sh, you can streamline running signalserver by pre-setting some commonly used options in the runsig.sh file.  Those options should be the ones you use every time you run signalserver, like "-m" for metric or "-sdf ./sdf_file_path", for example, so you won't have to specify those options every time you run it.  The genkmz.sh file will convert the output ppm file into a .png with transparent background, then will convert it to a Google Earth Keyhole Markup Language (KML) file, and then it compresses it for size to a (KMZ) file.  Here is an example of using the provided sample runsig.sh and genkmz.sh:
-```
-### Plot 70cm Service contour, 700W ERP, 300 feet AGL, DB413-B, to 150 mi:
-cd output/GoogleEarth
-./runsig.sh -lat 42.428889 -lon -87.812500 -txh 300 -f 446.000 -erp 700 -R 150 -res 600 -rel 50 -rt 39 -ant ../../antenna/DB413-B -rot 225 -color ../../color/blue -o example-service | ./genkmz.sh
-
-### Plot 70cm Interference contour, 700W ERP, 300 feet AGL, DB413-B, to 150 mi:
-cd output/GoogleEarth
-./runsig.sh -lat 42.428889 -lon -87.812500 -txh 300 -f 446.000 -erp 700 -R 150 -res 600 -rel 10 -rt 21 -ant ../../antenna/DB413-B -rot 225 -color ../../color/blue -o example-interference | ./genkmz.sh
-```
-

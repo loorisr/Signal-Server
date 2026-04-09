@@ -60,12 +60,6 @@ struct LR {
 	float antenna_pattern[361][1001];
 };
 
-struct region {
-	unsigned char color[128][3];
-	int level[128];
-	int levels;
-};
-
 struct coord {
     double lat;
     double lon;
@@ -93,10 +87,6 @@ extern int height;
 extern int knifeedge;
 extern int pmenv;
 
-extern double north;
-extern double east;
-extern double south;
-extern double west;
 extern double max_range;
 extern double dpp;
 extern double ppd;
@@ -143,7 +133,6 @@ extern int dem_width_px;  /* tiles_lon * ippd */
 extern int dem_height_px; /* tiles_lat * ippd */
 extern __thread struct path path;
 extern struct LR LR;
-extern struct region region;
 
 extern int debug;
 

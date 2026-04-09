@@ -336,13 +336,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         "Copernicus_DSM_COG_{}_{}{:02d}_00_{}{:03d}_00_DEM.tif",
         res_str, ns, lat_abs, ew, lon_abs);
 
-    /* Try current working directory first, then DEM_path */
-    std::string path_plus_name = filename;
+    std::string path_plus_name = std::string(DEM_path) + filename;
     GDALDatasetH ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
-    if (ds == NULL) {
-        path_plus_name = std::string(DEM_path) + filename;
-        ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
-    }
     if (ds == NULL) {
         spdlog::debug("LoadCopernicus: file not found: {}", filename);
         return -ENOENT;
@@ -351,8 +346,6 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     spdlog::debug("LoadCopernicus: loading \"{}\"...", path_plus_name);
 
     GDALRasterBandH band = GDALGetRasterBand(ds, 1);
-    int nodata_valid = 0;
-    double nodata_val = GDALGetRasterNoDataValue(band, &nodata_valid);
 
     int src_x = GDALGetRasterXSize(ds);
     int src_y = GDALGetRasterYSize(ds);
@@ -370,43 +363,19 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         return -EIO;
     }
 
-    /* Compute global pixel offset for this tile.
-     * x increases northward: tile row 0 (south edge) maps to gx_base.
-     * y increases westward:  tile col 0 (west  edge) maps to gy_base + (ippd-1).
-     *
-     * GeoTIFF layout: row 0 = north, col 0 = west.
-     * Flat array:
-     *   x = gx_base + (ippd-1-r)   — row r=0 (north) → highest x in tile
-     *   y = gy_base + (ippd-1-c)   — col c=0 (west)  → highest y in tile
-     */
     int gx_base = (tile_lat - dem_min_lat) * ippd;
     int gy_base = (tile_lon - dem_min_lon) * ippd;
 
     double tile_min_el = 32768, tile_max_el = -32768;
 
-    if (nodata_valid) {
-        const float nd = (float)nodata_val;
-        for (int r = 0; r < ippd; r++) {
-            int gx = gx_base + (ippd - 1 - r);
-            std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
-            for (int c = 0; c < ippd; c++) {
-                float fval = buf[r * ippd + c];
-                double val = fabsf(fval - nd) < 0.5f ? 0.0 : fval;
-                dem_data[gx][gy_base + c] = val;
-                if (val > tile_max_el) tile_max_el = val;
-                if (val < tile_min_el) tile_min_el = val;
-            }
-        }
-    } else {
-        for (int r = 0; r < ippd; r++) {
-            int gx = gx_base + (ippd - 1 - r);
-            std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
-            for (int c = 0; c < ippd; c++) {
-                double val = buf[r * ippd + c];
-                dem_data[gx][gy_base + c] = val;
-                if (val > tile_max_el) tile_max_el = val;
-                if (val < tile_min_el) tile_min_el = val;
-            }
+    for (int r = 0; r < ippd; r++) {
+        int gx = gx_base + (ippd - 1 - r);
+        std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
+        for (int c = 0; c < ippd; c++) {
+            double val = buf[r * ippd + c];
+            dem_data[gx][gy_base + c] = val;
+            if (val > tile_max_el) tile_max_el = val;
+            if (val < tile_min_el) tile_min_el = val;
         }
     }
 

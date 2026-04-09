@@ -61,7 +61,7 @@ double max_range = 0.0, dpp, ppd, samples_per_radian,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     rxGain=0, antenna_rotation,
-    antenna_downtilt, antenna_dt_direction, cropLat=-70, cropLon=0;
+    antenna_downtilt, antenna_dt_direction;
 
 int mpi, max_elevation = -32768, min_elevation = 32768,
     contour_threshold, debug = 0,
@@ -93,7 +93,6 @@ int dem_width_px  = 0;
 int dem_height_px = 0;
 
 struct LR LR;
-struct region region;
 
 /* Convert (lat, lon) to flat-array pixel coordinates.
  * x increases northward from the south edge of the loaded area.
@@ -567,24 +566,13 @@ void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, cons
     double ulx, uly, lrx, lry;
 
     /* Build .tif output path */
-    size_t len = strlen(filename);
-    if (len > 4 && strcmp(filename + len - 4, ".ppm") == 0)
-        snprintf(tif_file, sizeof(tif_file), "%.*s.tif", (int)(len - 4), filename);
-    else
-        snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
+    snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
 
     /* Compute geographic bounds */
-    if (cropping) {
-        ulx = tx_site.lon - cropLon;
-        uly = tx_site.lat + cropLat;
-        lrx = tx_site.lon + cropLon;
-        lry = tx_site.lat - cropLat;
-    } else {
-        ulx = west;
-        uly = max_north;
-        lrx = east;
-        lry = min_north;
-    }
+    ulx = min_lon;
+    uly = max_north;
+    lrx = max_lon;
+    lry = min_north;
 
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {
@@ -741,9 +729,6 @@ int main(int argc, char *argv[])
             spdlog::debug("Finished PlotPropagationRadius()");
 
             if (cropping) {
-                // CROPPING Factor determined in propPathLoss().
-                // cropLon is the circle radius in pixels at it's widest (east/west) 
-
                 spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon, ppd);
 
                 max_north = plot_bounds.upper_right.lat;

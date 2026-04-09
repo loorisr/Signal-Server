@@ -107,7 +107,6 @@ extern double dBm;
 extern double loss;
 extern double field_strength;
 extern __thread double *elev;
-extern double delta;
 
 extern char string[];
 extern char DEM_path[];

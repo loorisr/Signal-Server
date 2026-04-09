@@ -834,15 +834,13 @@ void PathReport(struct site source, struct site destination, const char *name,
 void SeriesData(struct site source, struct site destination, const char *name,
 		unsigned char fresnel_plot, unsigned char normalised)
 {
-	int x, y, z;
-	char basename[255], term[30], ext[15], profilename[255],
-	    referencename[255], cluttername[255], curvaturename[255],
-	    fresnelname[255], fresnel60name[255];
+	int x;
+	char profilename[255], referencename[255], cluttername[255],
+	    curvaturename[255], fresnelname[255], fresnel60name[255];
 	double a, b, c, height = 0.0, refangle, cangle, maxheight =
 	    -100000.0, minheight = 100000.0, lambda = 0.0, f_zone =
 	    0.0, fpt6_zone = 0.0, nm = 0.0, nb = 0.0, ed = 0.0, es = 0.0, r =
-	    0.0, d = 0.0, d1 = 0.0, terrain, azimuth, distance, minterrain =
-	    100000.0, minearth = 100000.0;
+	    0.0, d = 0.0, d1 = 0.0, terrain, azimuth, distance;
 	struct site remote;
 	FILE *fd = NULL, *fd1 = NULL, *fd2 = NULL, *fd3 = NULL, *fd4 =
 	    NULL, *fd5 = NULL;
@@ -967,11 +965,6 @@ void SeriesData(struct site source, struct site destination, const char *name,
 		if (r > maxheight)
 			maxheight = r;
 
-		if (terrain < minterrain)
-			minterrain = terrain;
-
-		if ((height - terrain) < minearth)
-			minearth = height - terrain;
 	}			// End of loop
 
 	if (normalised)
@@ -1006,34 +999,4 @@ void SeriesData(struct site source, struct site destination, const char *name,
 		fclose(fd4);
 	}
 
-	if (name[0] == '.') {
-		strncpy(basename, "profile", 8);
-		strncpy(term, "png", 4);
-		strncpy(ext, "png", 4);
-	}
-
-	else {
-
-		ext[0] = 0;
-		y = strlen(name);
-		strncpy(basename, name, 254);
-
-		for (x = y - 1; x > 0 && name[x] != '.'; x--) ;
-
-		if (x > 0) {
-			for (z = x + 1; z <= y && (z - (x + 1)) < 10; z++) {
-				ext[z - (x + 1)] = tolower(name[z]);
-				term[z - (x + 1)] = name[z];
-			}
-
-			ext[z - (x + 1)] = 0;
-			term[z - (x + 1)] = 0;
-			basename[x] = 0;
-		}
-
-		if (ext[0] == 0) {
-			strncpy(term, "png", 4);
-			strncpy(ext, "png", 4);
-		}
-	}
 }

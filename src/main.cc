@@ -60,7 +60,7 @@ double max_range = 0.0, dpp, ppd, samples_per_radian,
     fzone_clearance = 0.6, clutter, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
-    delta=0, rxGain=0, antenna_rotation,
+    rxGain=0, antenna_rotation,
     antenna_downtilt, antenna_dt_direction, cropLat=-70, cropLon=0;
 
 int mpi, max_elevation = -32768, min_elevation = 32768,
@@ -648,7 +648,6 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now();
 
     int result;
-    double rxlat, rxlon;
 
     CmdlineArgs args = parse_cmdline(argc, argv);
     int ppa             = args.ppa;
@@ -687,20 +686,17 @@ int main(int argc, char *argv[])
     // TODO: update this so it makes sense with the new approach
 
     if (ppa == 1) {
-        rxlat = rx_site.lat;
-        rxlon = rx_site.lon;
+        if (rx_site.lat < min_lat)
+            min_lat = rx_site.lat;
 
-        if (rxlat < min_lat)
-            min_lat = rxlat;
+        if (rx_site.lat > max_lat)
+            max_lat = rx_site.lat;
 
-        if (rxlat > max_lat)
-            max_lat = rxlat;
+        if (LonDiff(rx_site.lon, min_lon) < 0.0)
+            min_lon = rx_site.lon;
 
-        if (LonDiff(rxlon, min_lon) < 0.0)
-            min_lon = rxlon;
-
-        if (LonDiff(rxlon, max_lon) >= 0.0)
-            max_lon = rxlon;
+        if (LonDiff(rx_site.lon, max_lon) >= 0.0)
+            max_lon = rx_site.lon;
 
         spdlog::debug("RX site location expanded plot bounds to {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", min_lat, min_lon, max_lat, max_lon);
     }

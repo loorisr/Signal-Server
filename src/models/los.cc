@@ -450,26 +450,28 @@ void PlotPropPath(
 )
 {
 	if (debug) cnt_PlotPropPath++;
-	int x, y, ifs, errnum;
+	int x, y, errnum, azimuth;
 	char block = 0, strmode[100];
-	double loss, azimuth, pattern = 0.0,
+	double loss, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
 	    cos_rcvr_angle, cos_test_angle = 0.0, test_alt,
-	    elevation = 0.0, distance = 0.0,
+	    elevation = 0.0, distance = 0.0, distance_test,
 	    field_strength = 0.0, rxp, dBm, diffloss;
-	struct site temp;
-	float dm;
 
 	ReadPath(source, destination);
 
+	azimuth = rint(Azimuth(source, destination)); // for antenna pattern
+
+	elev[1] = path.distance[2] - path.distance[1]; // distance between samples
+    // add clutter
 	for (x = 1; x < path.length - 1; x++)
-		elev[x + 2] = (path.elevation[x] == 0.0 ? path.elevation[x] : (clutter + path.elevation[x]));
+		elev[x + 2] = clutter + path.elevation[x];
 
 	/* Copy ending points without clutter */
 
 	elev[2] = path.elevation[0];
-
 	elev[path.length + 1] = path.elevation[path.length - 1];
+
 
 	/* Since the only energy the Longley-Rice model considers
 	   reaching the destination is based on what is scattered
@@ -484,7 +486,7 @@ void PlotPropPath(
 	xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 	xmtr_alt2 = xmtr_alt * xmtr_alt;
     
-	for (y = 2; (y < (path.length - 1) && path.distance[y] <= max_range);  y++) {
+	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
 		if (can_process(path.lat[y], path.lon[y])) {
@@ -496,37 +498,22 @@ void PlotPropPath(
 			/* Calculate the cosine of the elevation of
 			   the receiver as seen by the transmitter. */
 
-			cos_rcvr_angle =
-			    ((xmtr_alt2) + (distance * distance) -
-			     (dest_alt2)) / (2.0 * xmtr_alt * distance);
-
-			
+			cos_rcvr_angle = ((xmtr_alt2) + (distance * distance) - (dest_alt2)) / (2.0 * xmtr_alt * distance);
             cos_rcvr_angle = MIN(1.0, MAX(-1.0, cos_rcvr_angle));
 
 			if (got_elevation_pattern) {
 				/* Determine the elevation angle to the first obstruction
-				   along the path IF elevation pattern data is available
-				   or an output (.ano) file has been designated. */
-
+				   along the path IF elevation pattern data is available */
 				for (x = 2, block = 0; (x < y && block == 0); x++) {
-					distance = path.distance[x];
+					distance_test = path.distance[x];
 
-					test_alt =
-					    FOUR_THIRDS_EARTH +
-					    (path.elevation[x] ==
-					     0.0 ? path.elevation[x] : path.
-					     elevation[x] + clutter);
+					test_alt = FOUR_THIRDS_EARTH + path.elevation[x] + clutter;
 
 					/* Calculate the cosine of the elevation
 					   angle of the terrain (test point)
 					   as seen by the transmitter. */
 
-					cos_test_angle = ((xmtr_alt2) +
-					     (distance * distance) -
-					     (test_alt * test_alt)) / (2.0 *
-								       xmtr_alt * distance);
-
-
+					cos_test_angle = ((xmtr_alt2) + (distance_test * distance_test) - (test_alt * test_alt)) / (2.0 * xmtr_alt * distance_test);
                     cos_test_angle = MIN(1.0, MAX(-1.0, cos_test_angle));    
 
 					/* Compare these two angles to determine if
@@ -554,30 +541,20 @@ void PlotPropPath(
 
 			elev[0] = y - 1;	/* (number of points - 1) */
 
-			/* Distance between elevation samples (meters) */
-
-			elev[1] = path.distance[y] - path.distance[y - 1];
-
 			if (path.elevation[y] < 1) {
 				path.elevation[y] = 1;
 			}
 
-			dm = elev[1] * elev[0];	// m
-
 			loss = computeLoss(prop_model, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, dm,
+			                   path.elevation[y] + destination.alt, distance,
 			                   strmode, errnum);
 
 			if (knifeedge == 1 && prop_model > 1) {
-				diffloss = ked(LR.frq_mhz, destination.alt, dm);
-				loss += (diffloss);	// ;)
+				diffloss = ked(LR.frq_mhz, destination.alt, distance);
+				loss += diffloss;	
 			}
 			//Key stage. Link dB for p2p is returned as 'loss'.
 
-			temp.lat = path.lat[y];
-			temp.lon = path.lon[y];
-
-			azimuth = (Azimuth(source, temp));
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
@@ -585,10 +562,7 @@ void PlotPropPath(
 			x = (int)rint(10.0 * (10.0 - elevation));
 
 			if (x >= 0 && x <= 1000) {
-				azimuth = rint(azimuth);
-
-				pattern =
-				    (double)LR.antenna_pattern[(int)azimuth][x];
+				pattern =  (double)LR.antenna_pattern[azimuth][x];
 
 				if (pattern != 0.0) {
 					pattern = 20.0 * log10(pattern);
@@ -599,37 +573,18 @@ void PlotPropPath(
 			if (LR.erp != 0.0) {
 				if (dbm) {
 					/* dBm is based on EIRP (ERP + 2.14) */
-
 					rxp = LR.erp / (pow(10.0, (loss - 2.14) / 10.0));
-
 					dBm = 30.0 + 10.0 * (log10(rxp));
-
-
-					/* Scale roughly between 0 and 255 */
-
-					ifs = (int)rint(dBm);
-
-					PutSignal(path.lat[y], path.lon[y], ifs);
+					PutSignal(path.lat[y], path.lon[y], dBm);
 				}
-
 				else {
-					field_strength =
-					    (139.4 +
-					     (20.0 * log10(LR.frq_mhz)) -
-					     loss) +
-					    (10.0 * log10(LR.erp / 1000.0));
-
-					ifs = (int)rint(field_strength);
-
-					PutSignal(path.lat[y], path.lon[y], ifs);
-
+					field_strength = (139.4 +  (20.0 * log10(LR.frq_mhz)) - loss) +  (10.0 * log10(LR.erp / 1000.0));
+					PutSignal(path.lat[y], path.lon[y], field_strength);
 				}
 			}
 
 			else {
-				ifs = (int)rint(loss);
-				
-				PutSignal(path.lat[y], path.lon[y], ifs);
+				PutSignal(path.lat[y], path.lon[y], loss);
 			}
 		}
 	}

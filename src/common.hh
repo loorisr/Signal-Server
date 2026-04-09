@@ -120,7 +120,6 @@ extern bool got_azimuth_pattern;
 extern bool dbm;
 extern bool geotiff;
 extern bool ngs;
-extern bool to_stdout;
 extern bool cropping;
 
 extern struct site tx_site;

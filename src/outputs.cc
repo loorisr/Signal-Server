@@ -19,7 +19,6 @@ void DoPathLoss(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	char mapfile[255];
 	unsigned red, green, blue, terrain = 0;
 	int x, y, z, x0 = 0, y0 = 0, loss, match;
 	double lat, lon, conversion;
@@ -51,7 +50,7 @@ void DoPathLoss(char *filename)
 	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename != NULL ? mapfile : "to stdout", width, height);
+			filename, width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
@@ -127,7 +126,6 @@ int DoSigStr(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
 	double conversion, lat, lon;
@@ -159,7 +157,7 @@ int DoSigStr(char *filename)
 	east = max_lon - dpp;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			filename != NULL ? mapfile : "to stdout", width, height);
+			filename, width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
@@ -238,7 +236,6 @@ void DoRxdPwr(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	char mapfile[255];
 	unsigned terrain, red, green, blue;
 	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
 	double conversion, lat, lon;
@@ -263,7 +260,7 @@ void DoRxdPwr(char *filename)
 	east = (double)(max_lon - dpp);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
-			(filename != NULL ? mapfile : "to stdout"), width, height);
+			filename, width, height);
 
 	// Draw image of x by y pixels
 	for (y = 0, lat = north; y < (int)height;
@@ -335,7 +332,6 @@ void DoLOS(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	char mapfile[255];
 	unsigned terrain;
 	int x, y, x0 = 0, y0 = 0;
 	double conversion, lat, lon;
@@ -350,23 +346,19 @@ void DoLOS(char *filename)
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
 	if( filename != NULL ){
-
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-
-	} else {
-		spdlog::info("Writing to stdout");
-	}
+	} 
 
 	north = (double)max_north - dpp;
 	south = (double)min_north;	
 	west = min_lon;
 	east = max_lon - dpp;
 
-	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...\n",
-			filename != NULL ? mapfile : "to stdout", width, height);
+	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
+			filename, width, height);
 
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {

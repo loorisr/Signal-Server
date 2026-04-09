@@ -77,7 +77,7 @@ std::atomic<int> cnt_PlotPropagation{0};
 bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
 bool ngs = false;
-bool to_stdout = false, cropping = true;
+bool cropping = true;
 int knifeedge = 0;
 int pmenv = 1;
 

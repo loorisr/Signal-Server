@@ -331,247 +331,85 @@ int LoadPAT(char *az_filename, char *el_filename)
 	return 0;
 }
 
+struct ColorEntry { int level; unsigned char r, g, b; };
+
+static void load_colors(const ColorEntry *entries, int n)
+{
+	for (int i = 0; i < n; i++) {
+		region.level[i]    = entries[i].level;
+		region.color[i][0] = entries[i].r;
+		region.color[i][1] = entries[i].g;
+		region.color[i][2] = entries[i].b;
+	}
+	region.levels = n;
+}
+
 int LoadSignalColors()
 {
-	region.level[0] = 128;
-	region.color[0][0] = 255;
-	region.color[0][1] = 0;
-	region.color[0][2] = 0;
-
-	region.level[1] = 118;
-	region.color[1][0] = 255;
-	region.color[1][1] = 165;
-	region.color[1][2] = 0;
-
-	region.level[2] = 108;
-	region.color[2][0] = 255;
-	region.color[2][1] = 206;
-	region.color[2][2] = 0;
-
-	region.level[3] = 98;
-	region.color[3][0] = 255;
-	region.color[3][1] = 255;
-	region.color[3][2] = 0;
-
-	region.level[4] = 88;
-	region.color[4][0] = 184;
-	region.color[4][1] = 255;
-	region.color[4][2] = 0;
-
-	region.level[5] = 78;
-	region.color[5][0] = 0;
-	region.color[5][1] = 255;
-	region.color[5][2] = 0;
-
-	region.level[6] = 68;
-	region.color[6][0] = 0;
-	region.color[6][1] = 208;
-	region.color[6][2] = 0;
-
-	region.level[7] = 58;
-	region.color[7][0] = 0;
-	region.color[7][1] = 196;
-	region.color[7][2] = 196;
-
-	region.level[8] = 48;
-	region.color[8][0] = 0;
-	region.color[8][1] = 148;
-	region.color[8][2] = 255;
-
-	region.level[9] = 38;
-	region.color[9][0] = 80;
-	region.color[9][1] = 80;
-	region.color[9][2] = 255;
-
-	region.level[10] = 28;
-	region.color[10][0] = 0;
-	region.color[10][1] = 38;
-	region.color[10][2] = 255;
-
-	region.level[11] = 18;
-	region.color[11][0] = 142;
-	region.color[11][1] = 63;
-	region.color[11][2] = 255;
-
-	region.level[12] = 8;
-	region.color[12][0] = 140;
-	region.color[12][1] = 0;
-	region.color[12][2] = 128;
-
-	region.levels = 13;
+	static const ColorEntry t[] = {
+		{128, 255,   0,   0},
+		{118, 255, 165,   0},
+		{108, 255, 206,   0},
+		{ 98, 255, 255,   0},
+		{ 88, 184, 255,   0},
+		{ 78,   0, 255,   0},
+		{ 68,   0, 208,   0},
+		{ 58,   0, 196, 196},
+		{ 48,   0, 148, 255},
+		{ 38,  80,  80, 255},
+		{ 28,   0,  38, 255},
+		{ 18, 142,  63, 255},
+		{  8, 140,   0, 128},
+	};
+	load_colors(t, 13);
+	return 0;
 }
 
 int LoadLossColors()
 {
-	region.level[0] = 80;
-	region.color[0][0] = 255;
-	region.color[0][1] = 0;
-	region.color[0][2] = 0;
-
-	region.level[1] = 90;
-	region.color[1][0] = 255;
-	region.color[1][1] = 128;
-	region.color[1][2] = 0;
-
-	region.level[2] = 100;
-	region.color[2][0] = 255;
-	region.color[2][1] = 165;
-	region.color[2][2] = 0;
-
-	region.level[3] = 110;
-	region.color[3][0] = 255;
-	region.color[3][1] = 206;
-	region.color[3][2] = 0;
-
-	region.level[4] = 120;
-	region.color[4][0] = 255;
-	region.color[4][1] = 255;
-	region.color[4][2] = 0;
-
-	region.level[5] = 130;
-	region.color[5][0] = 184;
-	region.color[5][1] = 255;
-	region.color[5][2] = 0;
-
-	region.level[6] = 140;
-	region.color[6][0] = 0;
-	region.color[6][1] = 255;
-	region.color[6][2] = 0;
-
-	region.level[7] = 150;
-	region.color[7][0] = 0;
-	region.color[7][1] = 208;
-	region.color[7][2] = 0;
-
-	region.level[8] = 160;
-	region.color[8][0] = 0;
-	region.color[8][1] = 196;
-	region.color[8][2] = 196;
-
-	region.level[9] = 170;
-	region.color[9][0] = 0;
-	region.color[9][1] = 148;
-	region.color[9][2] = 255;
-
-	region.level[10] = 180;
-	region.color[10][0] = 80;
-	region.color[10][1] = 80;
-	region.color[10][2] = 255;
-
-	region.level[11] = 190;
-	region.color[11][0] = 0;
-	region.color[11][1] = 38;
-	region.color[11][2] = 255;
-
-	region.level[12] = 200;
-	region.color[12][0] = 142;
-	region.color[12][1] = 63;
-	region.color[12][2] = 255;
-
-	region.level[13] = 210;
-	region.color[13][0] = 196;
-	region.color[13][1] = 54;
-	region.color[13][2] = 255;
-
-	region.level[14] = 220;
-	region.color[14][0] = 255;
-	region.color[14][1] = 0;
-	region.color[14][2] = 255;
-
-	region.level[15] = 230;
-	region.color[15][0] = 255;
-	region.color[15][1] = 194;
-	region.color[15][2] = 204;
-
-	region.levels = 16;
-	
+	static const ColorEntry t[] = {
+		{ 80, 255,   0,   0},
+		{ 90, 255, 128,   0},
+		{100, 255, 165,   0},
+		{110, 255, 206,   0},
+		{120, 255, 255,   0},
+		{130, 184, 255,   0},
+		{140,   0, 255,   0},
+		{150,   0, 208,   0},
+		{160,   0, 196, 196},
+		{170,   0, 148, 255},
+		{180,  80,  80, 255},
+		{190,   0,  38, 255},
+		{200, 142,  63, 255},
+		{210, 196,  54, 255},
+		{220, 255,   0, 255},
+		{230, 255, 194, 204},
+	};
+	load_colors(t, 16);
 	return 0;
 }
 
 int LoadDBMColors()
 {
-	region.level[0] = 0;
-	region.color[0][0] = 255;
-	region.color[0][1] = 0;
-	region.color[0][2] = 0;
-
-	region.level[1] = -10;
-	region.color[1][0] = 255;
-	region.color[1][1] = 128;
-	region.color[1][2] = 0;
-
-	region.level[2] = -20;
-	region.color[2][0] = 255;
-	region.color[2][1] = 165;
-	region.color[2][2] = 0;
-
-	region.level[3] = -30;
-	region.color[3][0] = 255;
-	region.color[3][1] = 206;
-	region.color[3][2] = 0;
-
-	region.level[4] = -40;
-	region.color[4][0] = 255;
-	region.color[4][1] = 255;
-	region.color[4][2] = 0;
-
-	region.level[5] = -50;
-	region.color[5][0] = 184;
-	region.color[5][1] = 255;
-	region.color[5][2] = 0;
-
-	region.level[6] = -60;
-	region.color[6][0] = 0;
-	region.color[6][1] = 255;
-	region.color[6][2] = 0;
-
-	region.level[7] = -70;
-	region.color[7][0] = 0;
-	region.color[7][1] = 208;
-	region.color[7][2] = 0;
-
-	region.level[8] = -80;
-	region.color[8][0] = 0;
-	region.color[8][1] = 196;
-	region.color[8][2] = 196;
-
-	region.level[9] = -90;
-	region.color[9][0] = 0;
-	region.color[9][1] = 148;
-	region.color[9][2] = 255;
-
-	region.level[10] = -100;
-	region.color[10][0] = 80;
-	region.color[10][1] = 80;
-	region.color[10][2] = 255;
-
-	region.level[11] = -110;
-	region.color[11][0] = 0;
-	region.color[11][1] = 38;
-	region.color[11][2] = 255;
-
-	region.level[12] = -120;
-	region.color[12][0] = 142;
-	region.color[12][1] = 63;
-	region.color[12][2] = 255;
-
-	region.level[13] = -130;
-	region.color[13][0] = 196;
-	region.color[13][1] = 54;
-	region.color[13][2] = 255;
-
-	region.level[14] = -140;
-	region.color[14][0] = 255;
-	region.color[14][1] = 0;
-	region.color[14][2] = 255;
-
-	region.level[15] = -150;
-	region.color[15][0] = 255;
-	region.color[15][1] = 194;
-	region.color[15][2] = 204;
-
-	region.levels = 16;
-
+	static const ColorEntry t[] = {
+		{   0, 255,   0,   0},
+		{ -10, 255, 128,   0},
+		{ -20, 255, 165,   0},
+		{ -30, 255, 206,   0},
+		{ -40, 255, 255,   0},
+		{ -50, 184, 255,   0},
+		{ -60,   0, 255,   0},
+		{ -70,   0, 208,   0},
+		{ -80,   0, 196, 196},
+		{ -90,   0, 148, 255},
+		{-100,  80,  80, 255},
+		{-110,   0,  38, 255},
+		{-120, 142,  63, 255},
+		{-130, 196,  54, 255},
+		{-140, 255,   0, 255},
+		{-150, 255, 194, 204},
+	};
+	load_colors(t, 16);
 	return 0;
 }
 

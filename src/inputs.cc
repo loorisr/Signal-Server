@@ -7,7 +7,9 @@
 #include <errno.h>
 #include <format>
 #include <fstream>
+#include <future>
 #include <math.h>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <string>
@@ -16,6 +18,8 @@
 #include "main.hh"
 
 extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
+
+static std::mutex dem_stats_mutex;
 
 int LoadPAT(char *az_filename, char *el_filename)
 {
@@ -408,13 +412,15 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     delete[] buf;
 
-    if (tile_min_el < min_elevation) min_elevation = (int)tile_min_el;
-    if (tile_max_el > max_elevation) max_elevation = (int)tile_max_el;
-
-    if ((tile_lat + 1) > max_north) max_north = tile_lat + 1;
-    if (tile_lat       < min_north) min_north = tile_lat;
-    if ((tile_lon + 1) > max_lon)   max_lon   = tile_lon + 1;
-    if (tile_lon       < min_lon)   min_lon   = tile_lon;
+    {
+        std::lock_guard<std::mutex> lock(dem_stats_mutex);
+        if (tile_min_el < min_elevation) min_elevation = (int)tile_min_el;
+        if (tile_max_el > max_elevation) max_elevation = (int)tile_max_el;
+        if ((tile_lat + 1) > max_north) max_north = tile_lat + 1;
+        if (tile_lat       < min_north) min_north = tile_lat;
+        if ((tile_lon + 1) > max_lon)   max_lon   = tile_lon + 1;
+        if (tile_lon       < min_lon)   min_lon   = tile_lon;
+    }
 
     spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
                  filename, tile_min_el, tile_max_el,
@@ -456,19 +462,24 @@ int LoadTopoData(bbox region)
     /* Allocate flat DEM arrays now that the bounding box is known */
     alloc_dem(r_min_lat, r_min_lon, tiles_lat, tiles_lon);
 
-    // Load the data
+    // Load all tiles in parallel — each tile writes to a non-overlapping region of dem_data/dem_signal
+    std::vector<std::future<int>> futures;
+    futures.reserve(tiles_lat * tiles_lon);
     for (int lon_i = 0; lon_i < tiles_lon; lon_i++) {
         for (int lat_i = 0; lat_i < tiles_lat; lat_i++) {
             int tile_lon = r_min_lon + lon_i;
             int tile_lat = r_min_lat + lat_i;
-            spdlog::debug("Loading topo for tile {}N {}E to {}N {}E", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
-            int success = LoadCopernicus(tile_lat, tile_lon);
-            if (success < 0 && success != -ENOENT) {
-                return -success;
-            }
+            spdlog::debug("Queuing topo tile {}N {}E to {}N {}E", tile_lat, tile_lon, tile_lat + 1, tile_lon + 1);
+            futures.push_back(std::async(std::launch::async, LoadCopernicus, tile_lat, tile_lon));
         }
     }
 
-	return 0;
+    int rc = 0;
+    for (auto& f : futures) {
+        int result = f.get();
+        if (result < 0 && result != -ENOENT)
+            rc = -result;
+    }
+    return rc;
 }
 

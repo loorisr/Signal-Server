@@ -25,6 +25,7 @@ enum PropModel {
     PLANE_EARTH = 10,
     ELGI_V_U = 11,
     SOIL = 12,
+    ITM_NTIA = 13,
 };
 
 // Rectangular bounding box propagation range

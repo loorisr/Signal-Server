@@ -75,7 +75,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
         spdlog::info("     -R Radius (kilometers)");
         spdlog::info("     -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,");
         spdlog::info("          5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,");
-        spdlog::info("          10: Plane earth, 11: Egli VHF/UHF, 12: Soil");
+        spdlog::info("          10: Plane earth, 11: Egli VHF/UHF, 12: Soil, 13: NTIA ITM");
         spdlog::info("     -pe Propagation model mode: 1=Urban,2=Suburban,3=Rural");
         spdlog::info("     -ked Knife edge diffraction (Already on for ITM)");
         spdlog::info("     -geotiff Output a geotiff file");

@@ -10,6 +10,8 @@
 #include "fspl.hh"
 #include "hata.hh"
 #include "itwom3.0.hh"
+#include "include/itm.h"
+#include "include/Enums.h"
 #include "sui.hh"
 #include "pel.hh"
 #include "egli.hh"
@@ -18,7 +20,6 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <limits.h>
-
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -374,6 +375,17 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
                            LR.eps_dielect, LR.sgm_conductivity, LR.eno_ns_surfref,
                            LR.frq_mhz, LR.radio_climate, LR.pol, LR.conf, LR.rel,
                            loss, mode, errnum);
+        break;
+    case ITM_NTIA:
+        {
+            long warnings = 0;
+
+            errnum = ITM_P2P_CR(tx_alt, rx_alt, elev, LR.radio_climate, LR.eno_ns_surfref,
+                                LR.frq_mhz, LR.pol, LR.eps_dielect, LR.sgm_conductivity,
+                                MDVAR__SINGLE_MESSAGE_MODE, LR.conf * 100.0, LR.rel * 100.0,
+                                &loss, &warnings);
+            mode = PROP_MODE_NONE;
+        }
         break;
     case HATA:
         loss = HATApathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);

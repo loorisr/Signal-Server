@@ -72,8 +72,8 @@ struct coord {
 };
 
 struct bbox {
-    coord lower_right;
-    coord upper_left;
+    coord lower_left;   /* SW corner: min lat, min lon */
+    coord upper_right;  /* NE corner: max lat, max lon */
 };
 
 extern int MAX_DISTANCE_DEGRES;

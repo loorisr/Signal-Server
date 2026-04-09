@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "geo.hh"
 
 double arccos(double x, double y)
@@ -17,16 +18,15 @@ double LonDiff(double lon1, double lon2)
 
 double Distance(struct site site1, struct site site2)
 {
-    double lat1, lon1, lat2, lon2, distance;
+    double lat1 = site1.lat * DEG2RAD;
+    double lon1 = site1.lon * DEG2RAD;
+    double lat2 = site2.lat * DEG2RAD;
+    double lon2 = site2.lon * DEG2RAD;
 
-    lat1 = site1.lat * DEG2RAD;
-    lon1 = site1.lon * DEG2RAD;
-    lat2 = site2.lat * DEG2RAD;
-    lon2 = site2.lon * DEG2RAD;
+    double dot = sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2);
+    dot = std::clamp(dot, -1.0, 1.0);  /* guard against floating-point overshoot */
 
-    distance = EARTHRADIUS * acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon1) - (lon2)));
-
-    return distance;
+    return EARTHRADIUS * acos(dot);
 }
 
 double Azimuth(struct site source, struct site destination)
@@ -46,23 +46,16 @@ double Azimuth(struct site source, struct site destination)
 
     num = sin(dest_lat) - (sin(src_lat) * cos(beta));
     den = cos(src_lat) * sin(beta);
-    fraction = num / den;
 
-    if (fraction >= 1.0)
-        fraction = 1.0;
+    if (den == 0.0)
+        return 0.0;  /* source at pole or source == destination */
 
-    if (fraction <= -1.0)
-        fraction = -1.0;
-
+    fraction = std::clamp(num / den, -1.0, 1.0);
     azimuth = acos(fraction);
 
     diff = dest_lon - src_lon;
-
-    if (diff <= -PI)
-        diff += TWOPI;
-
-    if (diff >= PI)
-        diff -= TWOPI;
+    if (diff <= -PI) diff += TWOPI;
+    if (diff >=  PI) diff -= TWOPI;
 
     if (diff > 0.0)
         azimuth = TWOPI - azimuth;
@@ -80,7 +73,7 @@ double earthRadius(double lat)
     double Ad = WGS84_a * cos(lat_rad);
     double Bd = WGS84_b * sin(lat_rad);
 
-    return double(sqrt( (An*An + Bn*Bn) / (Ad*Ad + Bd*Bd) ));
+    return sqrt((An*An + Bn*Bn) / (Ad*Ad + Bd*Bd));
 }
 
 coord getPointAtDistance(const coord center, double distance, double bearing_rad)
@@ -138,8 +131,8 @@ bbox getCircularBoundingBox(coord center, double radius)
     double lonMin = lon_rad - (radius / p_rad);
     double lonMax = lon_rad + (radius / p_rad);
     
-    result.lower_right = { latMin * RAD2DEG, lonMin * RAD2DEG };
-    result.upper_left = { latMax * RAD2DEG, lonMax * RAD2DEG };
+    result.lower_left = { latMin * RAD2DEG, lonMin * RAD2DEG };
+    result.upper_right = { latMax * RAD2DEG, lonMax * RAD2DEG };
 
     return result;
 }

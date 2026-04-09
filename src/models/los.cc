@@ -667,8 +667,8 @@ void PlotPropagationRadius(struct site source, double range,
     bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
 
     // Calculate plot width & height in degrees
-    double plot_width = bounds.upper_left.lon - bounds.lower_right.lon;
-    double plot_height = bounds.upper_left.lat - bounds.lower_right.lat; 
+    double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
+    double plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
 
     // Calculate the radius of our circle, in pixels
     //double radius_px = (plot_width / 2.0) * ppd;

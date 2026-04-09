@@ -712,14 +712,14 @@ int main(int argc, char *argv[])
 
     bbox plot_bounds;
     plot_bounds = getCircularBoundingBox( {tx_site.lat, tx_site.lon}, max_range);
-    //plot_bounds.lower_right = {min_lat, min_lon};
-    //plot_bounds.upper_left = {max_lat, max_lon};
+    //plot_bounds.lower_left = {min_lat, min_lon};
+    //plot_bounds.upper_right = {max_lat, max_lon};
 
     spdlog::debug("Calculated plot boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
-        plot_bounds.lower_right.lat, 
-        plot_bounds.lower_right.lon, 
-        plot_bounds.upper_left.lat, 
-        plot_bounds.upper_left.lon
+        plot_bounds.lower_left.lat, 
+        plot_bounds.lower_left.lon, 
+        plot_bounds.upper_right.lat, 
+        plot_bounds.upper_right.lon
     );
 
     /* Load the required tiles */
@@ -754,12 +754,12 @@ int main(int argc, char *argv[])
                 // CROPPING Factor determined in propPathLoss().
                 // cropLon is the circle radius in pixels at it's widest (east/west) 
 
-                spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_left.lat, plot_bounds.lower_right.lat, plot_bounds.upper_left.lon, plot_bounds.lower_right.lon, ppd);
+                spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon, ppd);
 
-                max_north = plot_bounds.upper_left.lat;
-                min_north = plot_bounds.lower_right.lat;
-                max_lon = plot_bounds.upper_left.lon;
-                min_lon = plot_bounds.lower_right.lon;
+                max_north = plot_bounds.upper_right.lat;
+                min_north = plot_bounds.lower_left.lat;
+                max_lon = plot_bounds.upper_right.lon;
+                min_lon = plot_bounds.lower_left.lon;
                 width = (unsigned)(ippd * (max_lon - min_lon));
                 height = (unsigned)(ippd * (max_north - min_north));
                 spdlog::info("width/height: {}/{}", width, height);

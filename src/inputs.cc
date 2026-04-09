@@ -426,19 +426,19 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 int LoadTopoData(bbox region)
 {
     spdlog::info("Loading topo data for boundaries: ({:.6f}N, {:.6f}E) to ({:.6f}N, {:.6f}E)",
-        region.lower_right.lat,
-        region.lower_right.lon,
-        region.upper_left.lat,
-        region.upper_left.lon
+        region.lower_left.lat,
+        region.lower_left.lon,
+        region.upper_right.lat,
+        region.upper_right.lon
     );
 
     // TODO: we don't handle loading data around 0/360 W
 
     // Get the nearest whole number lat/lons based on coords
-    int r_min_lat = floor(region.lower_right.lat);
-    int r_max_lat = ceil(region.upper_left.lat);
-    int r_min_lon = floor(region.lower_right.lon);
-    int r_max_lon = ceil(region.upper_left.lon);
+    int r_min_lat = floor(region.lower_left.lat);
+    int r_max_lat = ceil(region.upper_right.lat);
+    int r_min_lon = floor(region.lower_left.lon);
+    int r_max_lon = ceil(region.upper_right.lon);
 
     int tiles_lat = r_max_lat - r_min_lat;
     int tiles_lon = r_max_lon - r_min_lon;

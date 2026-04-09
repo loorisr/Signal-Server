@@ -3,6 +3,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <algorithm>
+#include <climits>
+
+#include "tinycolormap.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -12,6 +16,24 @@
 #include "models/los.hh"
 #include "image.hh"
 
+static tinycolormap::ColormapType get_colormap()
+{
+	if (color_palette == "parula")    return tinycolormap::ColormapType::Parula;
+	if (color_palette == "magma")     return tinycolormap::ColormapType::Magma;
+	if (color_palette == "inferno")   return tinycolormap::ColormapType::Inferno;
+	if (color_palette == "plasma")    return tinycolormap::ColormapType::Plasma;
+	if (color_palette == "viridis")   return tinycolormap::ColormapType::Viridis;
+	if (color_palette == "cividis")   return tinycolormap::ColormapType::Cividis;
+	if (color_palette == "heat")      return tinycolormap::ColormapType::Heat;
+	if (color_palette == "hot")       return tinycolormap::ColormapType::Hot;
+	if (color_palette == "turbo")     return tinycolormap::ColormapType::Turbo;
+	if (color_palette == "hsv")       return tinycolormap::ColormapType::HSV;
+	if (color_palette == "cubehelix") return tinycolormap::ColormapType::Cubehelix;
+	if (color_palette == "github")    return tinycolormap::ColormapType::Github;
+	if (color_palette == "gray")      return tinycolormap::ColormapType::Gray;
+	return get_colormap();
+}
+
 void DoPathLoss(char *filename)
 {
 	/* This function generates a topographic map in Portable Pix Map
@@ -19,8 +41,8 @@ void DoPathLoss(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	unsigned red, green, blue, terrain = 0;
-	int x, y, z, x0 = 0, y0 = 0, loss, match;
+	unsigned terrain = 0;
+	int x, y, x0 = 0, y0 = 0, loss;
 	double lat, lon, conversion;
 	image_ctx_t ctx;
 	int success;
@@ -32,11 +54,6 @@ void DoPathLoss(char *filename)
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( (success = LoadLossColors()) != 0 ){
-		spdlog::error("Error loading loss colors");
-		exit(success);  // Now a fatal error!
-	}
-
 	if( filename != NULL ) {
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
@@ -45,7 +62,7 @@ void DoPathLoss(char *filename)
 	}
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	
+	south = (double)min_north;
 	west = min_lon;
 	east = max_lon - dpp;
 
@@ -58,56 +75,21 @@ void DoPathLoss(char *filename)
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			if (find_dem_xy(lat, lon, x0, y0)) {
-				loss = (dem_signal[x0][y0]);
+				loss = dem_signal[x0][y0];
 
-				match = 255;
-
-				red = 0;
-				green = 0;
-				blue = 0;
-
-				if (loss <= region.level[0])
-					match = 0;
-				else {
-					for (z = 1;
-					     (z < region.levels
-					      && match == 255); z++) {
-						if (loss >= region.level[z - 1]
-						    && loss < region.level[z])
-							match = z;
-					}
-				}
-
-				if (match < region.levels) {
-					red = region.color[match][0];
-					green = region.color[match][1];
-					blue = region.color[match][2];
-				}
-
-					if (loss == 0 || (contour_threshold != 0 && loss > abs(contour_threshold))) {
-						if (ngs)	/* No terrain */
-							image_add_pixel(&ctx,  255, 255, 255);
-						else {
-							/* Display land or sea elevation */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								image_add_pixel(&ctx, terrain, terrain, terrain);
-							}
-					}
+				if (loss == 0 || (contour_threshold != 0 && loss > abs(contour_threshold))) {
+					if (ngs)
+						image_add_pixel(&ctx, 255, 255, 255);
 					else {
-						/* Plot path loss in color */
-
-						if (red != 0 || green != 0 || blue != 0)
-							image_add_pixel(&ctx, red, green, blue);
-						else {	/* terrain / sea-level */
-							if (ngs)
-								image_add_pixel(&ctx, 255, 255, 255); // WHITE
-							else {
-								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								image_add_pixel(&ctx, terrain, terrain, terrain);
-							}
-						}
+						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+						image_add_pixel(&ctx, terrain, terrain, terrain);
 					}
+				} else {
+					/* Low loss = warm color: reverse t */
+					double t = 1.0 - std::clamp((double)(loss - 80) / (230.0 - 80.0), 0.0, 1.0);
+					auto c = tinycolormap::GetColor(t, get_colormap());
+					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
+				}
 			}
 		}
 	}
@@ -126,8 +108,8 @@ int DoSigStr(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	unsigned terrain, red, green, blue;
-	int x, y, z = 1, x0 = 0, y0 = 0, signal, match;
+	unsigned terrain;
+	int x, y, x0 = 0, y0 = 0, signal;
 	double conversion, lat, lon;
 	image_ctx_t ctx;
 	int success;
@@ -139,20 +121,15 @@ int DoSigStr(char *filename)
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( (success = LoadSignalColors()) != 0 ){
-		spdlog::error("Error loading signal colors");
-		//exit(success);
-	}
-
 	if( filename != NULL ) {
 		if (filename[0] == 0) {
 			strncpy(filename, output_filename.c_str(), 254);
 			filename[strlen(filename) - 4] = 0;	/* Remove .qth */
 		}
-	} 
+	}
 
 	north = (double)max_north - dpp;
-	south = (double)min_north;	
+	south = (double)min_north;
 	west = min_lon;
 	east = max_lon - dpp;
 
@@ -165,57 +142,21 @@ int DoSigStr(char *filename)
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			if (find_dem_xy(lat, lon, x0, y0)) {
-				signal = (dem_signal[x0][y0]) - 100;
-				match = 255;
+				signal = dem_signal[x0][y0] - 100;
 
-				red = 0;
-				green = 0;
-				blue = 0;
-
-				if (signal >= region.level[0])
-					match = 0;
-				else {
-					for (z = 1;
-					     (z < region.levels
-					      && match == 255); z++) {
-						if (signal < region.level[z - 1]
-						    && signal >=
-						    region.level[z])
-							match = z;
-					}
-				}
-
-				if (match < region.levels) {
-					red = region.color[match][0];
-					green = region.color[match][1];
-					blue = region.color[match][2];
-				}
-
-					if (contour_threshold != 0 && signal < contour_threshold) {
-							if (ngs)
-								image_add_pixel(&ctx, 255, 255, 255); // WHITE
-							else {
-								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								image_add_pixel(&ctx, terrain, terrain, terrain);
-							}
-					}
-
+				if (contour_threshold != 0 && signal < contour_threshold) {
+					if (ngs)
+						image_add_pixel(&ctx, 255, 255, 255);
 					else {
-						/* Plot field strength regions in color */
-
-						if (red != 0 || green != 0 || blue != 0)
-							image_add_pixel(&ctx, red, green, blue);
-						else {	/* terrain / sea-level */
-							if (ngs)
-								image_add_pixel(&ctx, 255, 255, 255); // WHITE
-							else {
-									/* Elevation: Greyscale */
-									terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-									image_add_pixel(&ctx, terrain, terrain, terrain);
-							}
-						}
+						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+						image_add_pixel(&ctx, terrain, terrain, terrain);
 					}
+				} else {
+					/* Strong signal = warm color */
+					double t = std::clamp((double)(signal - 8) / (128.0 - 8.0), 0.0, 1.0);
+					auto c = tinycolormap::GetColor(t, get_colormap());
+					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
+				}
 			}
 		}
 	}
@@ -236,8 +177,8 @@ void DoRxdPwr(char *filename)
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	unsigned terrain, red, green, blue;
-	int x, y, z = 1, x0 = 0, y0 = 0, dBm, match;
+	unsigned terrain;
+	int x, y, x0 = 0, y0 = 0, dBm;
 	double conversion, lat, lon;
 	image_ctx_t ctx;
 	int success;
@@ -249,71 +190,33 @@ void DoRxdPwr(char *filename)
 
 	conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 
-	if( (success = LoadDBMColors()) != 0 ){
-		spdlog::error("Error loading DBM colors");
-		exit(success);  //Now a fatal error!
-	}
-
 	north = (double)max_north - dpp;
-	south = (double)min_north;	
-	west = (double)min_lon;
-	east = (double)(max_lon - dpp);
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...",
 			filename, width, height);
 
-	// Draw image of x by y pixels
 	for (y = 0, lat = north; y < (int)height;
 	     y++, lat = north - (dpp * (double)y)) {
 		for (x = 0, lon = min_lon; x < (int)width;
 		     x++, lon = min_lon + (dpp * (double)x)) {
 
 			if (find_dem_xy(lat, lon, x0, y0)) {
-				dBm =  dem_signal[x0][y0];
-				match = 255;
+				dBm = dem_signal[x0][y0];
 
-				red = 0;
-				green = 0;
-				blue = 0;
-
-				if (dBm >= region.level[0])
-					match = 0;
-				else {
-					for (z = 1;  (z < region.levels && match == 255); z++) {
-						if (dBm < region.level[z - 1]  && dBm >= region.level[z])
-							match = z;
-					}
-				}
-
-				if (match < region.levels) {
-					red = region.color[match][0];
-					green = region.color[match][1];
-					blue = region.color[match][2];
-				}
-
-					if (contour_threshold != 0 && dBm < contour_threshold) {
-						if (ngs)	/* No terrain */
-							image_add_pixel(&ctx, 255, 255, 255);
-						else {
-							/* Display land or sea elevation */
-							terrain = (unsigned) (0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-							image_add_pixel(&ctx, terrain, terrain, terrain);
-						}
-					}
+				if (contour_threshold != 0 && dBm < contour_threshold) {
+					if (ngs)
+						image_add_pixel(&ctx, 255, 255, 255);
 					else {
-						/* Plot signal power level regions in color */
-						if (red != 0 || green != 0 || blue != 0)
-							image_add_pixel(&ctx, red, green, blue);
-						else {	
-							if (ngs)
-								image_add_pixel(&ctx, 255, 255, 255); // WHITE
-							else {
-								/* Elevation: Greyscale */
-								terrain = (unsigned) (0.5 + pow ((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-								image_add_pixel(&ctx, terrain, terrain, terrain);
-							}
-						}
+						terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+						image_add_pixel(&ctx, terrain, terrain, terrain);
 					}
+				} else {
+					/* Strong dBm = warm color */
+					//double t = std::clamp((double)(dBm - (-150)) / (0.0 - (-150.0)), 0.0, 1.0);
+					double t = (dBm - contour_threshold) / (-(double)contour_threshold);
+					auto c = tinycolormap::GetColor(t, get_colormap());
+					image_add_pixel(&ctx, c.ri(), c.gi(), c.bi());
+				}
 			}
 		}
 	}

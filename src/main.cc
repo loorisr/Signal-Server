@@ -52,7 +52,8 @@ int ippd = 1200;
 int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
 int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
 
-char DEM_path[255], *color_file = NULL;
+char DEM_path[255];
+std::string color_palette = "heat";
 std::string output_filename;
 
 double max_range = 0.0,  dpp, ppd, samples_per_radian,

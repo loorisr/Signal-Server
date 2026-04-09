@@ -113,6 +113,7 @@ extern double delta;
 
 extern char string[];
 extern char DEM_path[];
+extern std::string color_palette;
 extern std::string output_filename;
 
 extern bool got_elevation_pattern;

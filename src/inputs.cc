@@ -15,8 +15,6 @@
 #include "common.hh"
 #include "main.hh"
 
-extern char *color_file;
-
 extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
 
 int LoadPAT(char *az_filename, char *el_filename)
@@ -331,87 +329,6 @@ int LoadPAT(char *az_filename, char *el_filename)
 	return 0;
 }
 
-struct ColorEntry { int level; unsigned char r, g, b; };
-
-static void load_colors(const ColorEntry *entries, int n)
-{
-	for (int i = 0; i < n; i++) {
-		region.level[i]    = entries[i].level;
-		region.color[i][0] = entries[i].r;
-		region.color[i][1] = entries[i].g;
-		region.color[i][2] = entries[i].b;
-	}
-	region.levels = n;
-}
-
-int LoadSignalColors()
-{
-	static const ColorEntry t[] = {
-		{128, 255,   0,   0},
-		{118, 255, 165,   0},
-		{108, 255, 206,   0},
-		{ 98, 255, 255,   0},
-		{ 88, 184, 255,   0},
-		{ 78,   0, 255,   0},
-		{ 68,   0, 208,   0},
-		{ 58,   0, 196, 196},
-		{ 48,   0, 148, 255},
-		{ 38,  80,  80, 255},
-		{ 28,   0,  38, 255},
-		{ 18, 142,  63, 255},
-		{  8, 140,   0, 128},
-	};
-	load_colors(t, 13);
-	return 0;
-}
-
-int LoadLossColors()
-{
-	static const ColorEntry t[] = {
-		{ 80, 255,   0,   0},
-		{ 90, 255, 128,   0},
-		{100, 255, 165,   0},
-		{110, 255, 206,   0},
-		{120, 255, 255,   0},
-		{130, 184, 255,   0},
-		{140,   0, 255,   0},
-		{150,   0, 208,   0},
-		{160,   0, 196, 196},
-		{170,   0, 148, 255},
-		{180,  80,  80, 255},
-		{190,   0,  38, 255},
-		{200, 142,  63, 255},
-		{210, 196,  54, 255},
-		{220, 255,   0, 255},
-		{230, 255, 194, 204},
-	};
-	load_colors(t, 16);
-	return 0;
-}
-
-int LoadDBMColors()
-{
-	static const ColorEntry t[] = {
-		{   0, 255,   0,   0},
-		{ -10, 255, 128,   0},
-		{ -20, 255, 165,   0},
-		{ -30, 255, 206,   0},
-		{ -40, 255, 255,   0},
-		{ -50, 184, 255,   0},
-		{ -60,   0, 255,   0},
-		{ -70,   0, 208,   0},
-		{ -80,   0, 196, 196},
-		{ -90,   0, 148, 255},
-		{-100,  80,  80, 255},
-		{-110,   0,  38, 255},
-		{-120, 142,  63, 255},
-		{-130, 196,  54, 255},
-		{-140, 255,   0, 255},
-		{-150, 255, 194, 204},
-	};
-	load_colors(t, 16);
-	return 0;
-}
 
 /**
  * Load a single Copernicus DSM GeoTIFF COG tile into a free dem[] page.

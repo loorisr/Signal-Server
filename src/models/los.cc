@@ -571,7 +571,6 @@ void PlotPropagationRadius(struct site source)
 
     // Wait for futures to finish
     spdlog::debug("Waiting for threads to finish...");
-    //finishProgress(); //indicate the progress but it is slow
     for (auto& f : futures)
         f.get();
     futures.clear();

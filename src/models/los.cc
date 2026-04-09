@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <stdio.h>
 #include <math.h>
 #include <atomic>
@@ -296,19 +297,12 @@ void PlotLOSPath(struct site source, struct site destination)
 
     bool bStop;
     int x, iCounter;
-    double cos_angle, cos_test_angle, cos_horizon_angle, cos_limit_angle, rx_alt2;
-    double distance, rx_alt, tx_alt, limit_alt, distance2, tx_alt2, test_alt, test_alt2, limit_alt2;
+    double cos_test_angle, cos_horizon_angle, cos_limit_angle;
+    double distance, tx_alt, limit_alt, distance2, tx_alt2, test_alt, test_alt2, limit_alt2;
 
     ReadPath(source, destination);
 
     distance = 0.0;
-    tx_alt = 0.0;
-    distance2 = 0.0;
-    tx_alt2 = 0.0;
-    rx_alt2 = 0.0;
-    test_alt = 0.0;
-    test_alt2 = 0.0;
-    limit_alt2 = 0.0;
     cos_horizon_angle = 1.0;
     bStop = false;
     iCounter = 0;
@@ -325,19 +319,8 @@ void PlotLOSPath(struct site source, struct site destination)
         if (x > 0) {
             distance = path.distance[x];
             distance2 = distance * distance;
-
-            rx_alt = EARTHRADIUS + destination.alt + path.elevation[x];
-            rx_alt2 = rx_alt * rx_alt;
-
-            /* Calculate the cosine of the elevation between
-               transmitter and receiver. */
-
-            cos_angle = (distance2 + tx_alt2 - rx_alt2) / (2.0 * distance * tx_alt);
-
-            cos_angle = MIN(1.0, MAX(-1.0, cos_angle));
-
-
-            test_alt = EARTHRADIUS + (path.elevation[x] == 0.0 ? path.elevation[x] : path.elevation[x] + clutter);
+            
+            test_alt = EARTHRADIUS + path.elevation[x] + clutter;
             test_alt2 = test_alt * test_alt;
 
             /* Calculate the cosine of the elevation between
@@ -346,7 +329,6 @@ void PlotLOSPath(struct site source, struct site destination)
             cos_test_angle = (distance2 + tx_alt2 - test_alt2) / (2.0 * distance * tx_alt);
         }
         else {
-            cos_angle = -1.0;
             cos_test_angle = 1.0;
         }
 
@@ -367,6 +349,7 @@ void PlotLOSPath(struct site source, struct site destination)
 
                 if (cos_limit_angle > cos_horizon_angle) {
                     bStop = true;
+					PutSignal(path.lat[x], path.lon[x], 200);
                 }
 
                 iCounter = 0;
@@ -529,9 +512,9 @@ void PlotPropPath(
 				}
 
 				if (block)
-					elevation = ((acos(cos_test_angle)) * RAD2DEG) - 90.0;
+					elevation = (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
 				else
-					elevation = ((acos(cos_rcvr_angle)) * RAD2DEG) - 90.0;
+					elevation = (acos(std::clamp(cos_rcvr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
 			}
 
 			/* Determine attenuation for each point along the
@@ -632,7 +615,9 @@ void PlotLOSMap(struct site source, double altitude,
 		futures.push_back( std::async( std::launch::async, rangePropagation, std::ref(thread_progress[i]), &r[i] ) );
 	}
 
-	finishThreads();
+	for (auto& f : futures)
+		f.get();
+	futures.clear();
 
 	delete[] r;
 }
@@ -643,11 +628,11 @@ void PlotPropagationRadius(struct site source, double range,
     char plotType[32];
 	if (debug) {
         if (LR.erp == 0.0)
-            sprintf(plotType, "path loss");
+            snprintf(plotType, sizeof(plotType), "path loss");
         else if (dbm)
-				sprintf(plotType, "signal power level");
-			else
-				sprintf(plotType, "field strength");
+            snprintf(plotType, sizeof(plotType), "signal power level");
+        else
+            snprintf(plotType, sizeof(plotType), "field strength");
 	}
     // Print debug
 	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
@@ -747,10 +732,6 @@ void PlotPropagationRadius(struct site source, double range,
         f.get();
     futures.clear();
 
-    // Clean up our radii
-	for(size_t i = 0; i < radii.size(); i++){
-		radii.erase(radii.begin() + i);
-	}
 }
 
 void PlotPath(struct site source, struct site destination)
@@ -765,43 +746,40 @@ void PlotPath(struct site source, struct site destination)
 
 	ReadPath(source, destination);
 
-	for (y = 0; y < path.length; y++) {
-		/* Test this point only if it hasn't been already
-		   tested and found to be free of obstructions. */
+	for (y = 1; y < path.length; y++) {
+		distance = path.distance[y];
+		tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
+		rx_alt = EARTHRADIUS + destination.alt + path.elevation[y];
 
-			distance = path.distance[y];
-			tx_alt = EARTHRADIUS + source.alt + path.elevation[0];
-			rx_alt = EARTHRADIUS + destination.alt + path.elevation[y];
+		/* Calculate the cosine of the elevation of the
+		   transmitter as seen at the temp rx point. */
 
-			/* Calculate the cosine of the elevation of the
-			   transmitter as seen at the temp rx point. */
+		cos_xmtr_angle =
+		    ((rx_alt * rx_alt) + (distance * distance) -
+		     (tx_alt * tx_alt)) / (2.0 * rx_alt * distance);
 
-			cos_xmtr_angle =
+		for (x = y - 1, block = 0; x >= 0 && block == 0; x--) {
+			distance = path.distance[y] - path.distance[x];
+			if (distance == 0.0)
+				continue;
+			test_alt =
+			    EARTHRADIUS + (path.elevation[x] == 0.0
+			                   ? path.elevation[x]
+			                   : path.elevation[x] + clutter);
+
+			cos_test_angle =
 			    ((rx_alt * rx_alt) + (distance * distance) -
-			     (tx_alt * tx_alt)) / (2.0 * rx_alt * distance);
+			     (test_alt * test_alt)) / (2.0 * rx_alt * distance);
 
-			for (x = y, block = 0; x >= 0 && block == 0; x--) {
-				distance = path.distance[y] - path.distance[x];
-				test_alt =
-				    EARTHRADIUS + (path.elevation[x] ==
-						   0.0 ? path.
-						   elevation[x] : path.
-						   elevation[x] + clutter);
+			/* Compare these two angles to determine if
+			   an obstruction exists.  Since we're comparing
+			   the cosines of these angles rather than
+			   the angles themselves, the following "if"
+			   statement is reversed from what it would
+			   be if the actual angles were compared. */
 
-				cos_test_angle =
-				    ((rx_alt * rx_alt) + (distance * distance) -
-				     (test_alt * test_alt)) / (2.0 * rx_alt *
-							       distance);
-
-				/* Compare these two angles to determine if
-				   an obstruction exists.  Since we're comparing
-				   the cosines of these angles rather than
-				   the angles themselves, the following "if"
-				   statement is reversed from what it would
-				   be if the actual angles were compared. */
-
-				if (cos_xmtr_angle >= cos_test_angle)
-					block = 1;
-			}
+			if (cos_xmtr_angle >= cos_test_angle)
+				block = 1;
+		}
 	}
 }

@@ -378,15 +378,14 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int gx_base = (tile_lat - dem_min_lat) * ippd;
     int gy_base = (tile_lon - dem_min_lon) * ippd;
 
-    int tile_min_el = 32768, tile_max_el = -32768;
+    double tile_min_el = 32768, tile_max_el = -32768;
 
     for (int r = 0; r < ippd; r++) {
         int gx = gx_base + (ippd - 1 - r);
         for (int c = 0; c < ippd; c++) {
             int gy = gy_base + c;
             float fval = buf[r * ippd + c];
-            //short val = (nodata_valid && fval == (float)nodata_val) ? 0 : (short)roundf(fval);
-            double val = (nodata_valid && fval == (float)nodata_val) ? 0 : fval;
+            double val = (nodata_valid && fabsf(fval - (float)nodata_val) < 0.5f) ? 0.0 : fval;
 
             dem_data[gx][gy]   = val;
             dem_signal[gx][gy] = -200;
@@ -398,19 +397,13 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     delete[] buf;
 
+    if (tile_min_el < min_elevation) min_elevation = (int)tile_min_el;
+    if (tile_max_el > max_elevation) max_elevation = (int)tile_max_el;
 
-        if (tile_min_el < min_elevation) min_elevation = tile_min_el;
-        if (tile_max_el > max_elevation) max_elevation = tile_max_el;
-
-        float f_max_north = (float)(tile_lat + 1);
-        float f_min_north = (float)tile_lat;
-        float f_max_lon   = (float)(tile_lon + 1);
-        float f_min_lon   = (float)tile_lon;
-
-        if (max_north == -90 || f_max_north > max_north) max_north = f_max_north;
-        if (min_north ==  90 || f_min_north < min_north) min_north = f_min_north;
-        if (f_max_lon > max_lon) max_lon = f_max_lon;
-        if (f_min_lon < min_lon) min_lon = f_min_lon;
+    if ((tile_lat + 1) > max_north) max_north = tile_lat + 1;
+    if (tile_lat       < min_north) min_north = tile_lat;
+    if ((tile_lon + 1) > max_lon)   max_lon   = tile_lon + 1;
+    if (tile_lon       < min_lon)   min_lon   = tile_lon;
 
     spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
                  filename, tile_min_el, tile_max_el,

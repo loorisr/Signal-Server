@@ -5,15 +5,16 @@ This is a fork of [W3AXL Signal-Server](https://github.com/W3AXL/Signal-Server).
 Thanks to all contributors of SPLAT! and Signal Server!
 
 Improvements:
-- use the total number of cores of a computer. Can be overrided by `-segments X`
+- use the total number of cores of a computer. Can be overrided by `-number_threads X`
 - better compilation flags
 - `-geotiff` for geotiff image output
 - `-hd` for HD mode (30m resolution)
 - use [Copernicus DEM](https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM) (GLO-30 or GLO-90) DEM (more accurate than SRTM) https://registry.opendata.aws/copernicus-dem/
 - simplification: remove of useless vars, functions
 - No LIDAR mode
-- No more sdf for DEM, no more srtrm2sdf
+- No more sdf for DEM, no more strm2sdf
 - better code lisibility
+- several color palette with -color
 
 # Signal Server
 Multi-threaded radio propagation simulator based upon SPLAT! by Alex Farrant QCVS, 2E0TDW. 

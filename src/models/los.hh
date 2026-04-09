@@ -28,15 +28,6 @@ enum PropModel {
     ITM_NTIA = 13,
 };
 
-// Rectangular bounding box propagation range
-struct PropagationRange {
-    double min_lon, max_lon, min_north, max_north;
-    double altitude;
-    bool eastwest, los;
-    site source;
-    PropModel prop_model;
-};
-
 // Angular propagation area
 struct PropagationRadius {
     double start_angle_rad, stop_angle_rad;
@@ -48,6 +39,8 @@ struct PropagationRadius {
     int points;
 };
 
+extern PropModel prop_model;
+
 // Struct for storing thread progress
 struct progress_t {
     int id;
@@ -57,15 +50,12 @@ struct progress_t {
 
 void PlotLOSPath(struct site source, struct site destination);
 
-void PlotPropPath(struct site source, struct site destination, PropModel propmodel);
+void PlotPropPath(struct site source, struct site destination, PropModel prop_model);
 
-void PlotLOSMap(struct site source, double range, double altitude, uint8_t number_threads);
-
-void PlotPropagationRadius(struct site source, double range, double altitude, PropModel prop_model, uint8_t number_threads);
+void PlotPropagationRadius(struct site source);
 
 void PlotPath(struct site source, struct site destination);
 
-double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dm, PropagationMode &mode, int &errnum);
+double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt, double dm, PropagationMode &mode, int &errnum);
 
 #endif /* _LOS_HH_ */

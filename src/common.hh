@@ -107,6 +107,11 @@ extern int width;
 extern int height;
 extern int knifeedge;
 extern int pmenv;
+extern int number_threads;
+
+extern int ppa;
+extern int normalise;
+extern char mapfile[255];
 
 extern double max_range;
 extern double dpp;
@@ -117,6 +122,7 @@ extern double clutter;
 extern double dBm;
 extern double loss;
 extern double field_strength;
+extern double altitudeLR;
 extern __thread double *elev;
 
 extern char string[];

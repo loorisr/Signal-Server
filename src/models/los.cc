@@ -125,6 +125,7 @@ namespace {
         return NULL;
     }
 
+
     /// @brief Wait for the progress accumulators to finish, then finish out any running threads
     void finishProgress()
     {
@@ -481,25 +482,24 @@ void PlotPropPath(
 	}
 }
 
-void PlotLOSMap(struct site source, double range, double altitude,
-		uint8_t number_threads)
+void PlotPropagationRadius(struct site source)
 {
     // Get plot type string
-    char plotType[32];
 	if (debug) {
+        char plotType[32];
         if (LR.erp == 0.0)
             snprintf(plotType, sizeof(plotType), "path loss");
         else if (dbm)
             snprintf(plotType, sizeof(plotType), "signal power level");
         else
             snprintf(plotType, sizeof(plotType), "field strength");
+        // Print debug
+        spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
+                plotType,
+                max_range,
+                altitudeLR
+        );
 	}
-    // Print debug
-	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
-            plotType,
-			range,
-			altitude
-    );
 
     // Optional clutter debug print
 	if (clutter > 0.0)
@@ -509,7 +509,7 @@ void PlotLOSMap(struct site source, double range, double altitude,
     spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
 
     // Get bounding box of plot
-    bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
+    bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, max_range);
 
     // Calculate plot width & height in degrees
     double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
@@ -534,114 +534,12 @@ void PlotLOSMap(struct site source, double range, double altitude,
         PropagationRadius propRadius;
         // Populate static data
         propRadius.source = source;
-        propRadius.radius = range;
+        propRadius.radius = max_range;
         propRadius.points = section_pixels;
-        propRadius.altitude = altitude;
-        // We're not doing LOS
-        propRadius.los = true;
-        // Calculate start and stop angles
-        propRadius.start_angle_rad = i * section_size_rad;
-        propRadius.stop_angle_rad = (i + 1) * section_size_rad;
-
-        // Add to list
-        radii.push_back(propRadius);
-    }
-
-	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) segments", 
-                    number_threads, circle_pixels, section_size_rad * RAD2DEG, section_pixels);
-
-    // Make sure we didn't do anythng wrong
-    if (radii.size() != number_threads) {
-        spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), number_threads);
-        exit(1);
-    }
-
-    // Size our progress vector appropriately
-    thread_progress = std::vector<progress_t>(number_threads);
-
-    // Init our vector for storing processing progress
-    if (!has_init_processed) {
-        init_processed();
-    }
-
-    // Iterate over the final list of ranges
-    for (size_t i = 0; i < radii.size(); i++) {
-        // Set the segment id
-        thread_progress[i].id = i;
-        // Start a thread
-        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad * RAD2DEG, radii[i].stop_angle_rad * RAD2DEG);
-        futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
-
-    }
-
-    // Wait for futures to finish
-    spdlog::debug("Waiting for threads to finish...");
-    //finishProgress(); //indicate the progress but it is slow
-    for (auto& f : futures)
-        f.get();
-    futures.clear();
-
-}
-
-void PlotPropagationRadius(struct site source, double range, 
-                            double altitude, PropModel prop_model, uint8_t number_threads)
-{
-    // Get plot type string
-    char plotType[32];
-	if (debug) {
-        if (LR.erp == 0.0)
-            snprintf(plotType, sizeof(plotType), "path loss");
-        else if (dbm)
-            snprintf(plotType, sizeof(plotType), "signal power level");
-        else
-            snprintf(plotType, sizeof(plotType), "field strength");
-	}
-    // Print debug
-	spdlog::debug("Plotting {} contours out to a radius of {:.2f} km with Rx antenna(s) at {:.2f} m AGL",
-            plotType,
-			range,
-			altitude
-    );
-
-    // Optional clutter debug print
-	if (clutter > 0.0)
-        spdlog::debug("Using {:.2f} meters of ground clutter", clutter);
-
-    // TX site location print
-    spdlog::debug("TX site location: {:.6f}N {:.6f}W at {:.2f} m AGL", source.lat, source.lon, source.alt);
-
-    // Get bounding box of plot
-    bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, range);
-
-    // Calculate plot width & height in degrees
-    double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
-    double plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
-
-    // Ramanujan
-    int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
-
-    // Calculate the size of each angular degree section, in rads
-    double section_size_rad = 360.0 / number_threads * DEG2RAD;
-
-    // Calculate the number of points/pixels in each segment
-    int section_pixels = (int)(circle_pixels / number_threads);
-
-    // Create our ranges
-    std::vector<PropagationRadius> radii;
-
-    // Iterate through our number_threads
-    for (int i = 0; i < number_threads; i++)
-    {
-        // Create a new radius
-        PropagationRadius propRadius;
-        // Populate static data
-        propRadius.source = source;
-        propRadius.radius = range;
-        propRadius.points = section_pixels;
-        propRadius.altitude = altitude;
+        propRadius.altitude = altitudeLR;
         propRadius.prop_model = prop_model;
         // We're not doing LOS
-        propRadius.los = false;
+        propRadius.los = (prop_model==LOS);
         // Calculate start and stop angles
         propRadius.start_angle_rad = i * section_size_rad;
         propRadius.stop_angle_rad = (i + 1) * section_size_rad;

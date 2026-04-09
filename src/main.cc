@@ -80,6 +80,12 @@ bool ngs = false;
 bool cropping = true;
 int knifeedge = 0;
 int pmenv = 1;
+int number_threads = 4;
+double altitudeLR = 0.1;
+PropModel prop_model = ITM_LR;
+int ppa = 0;
+int normalise = 0;
+char mapfile[255] = "";
 
 __thread double *elev;
 __thread struct path path;
@@ -639,14 +645,7 @@ int main(int argc, char *argv[])
 
     int result;
 
-    CmdlineArgs args = parse_cmdline(argc, argv);
-    int ppa             = args.ppa;
-    int normalise       = args.normalise;
-    int number_threads  = args.number_threads;
-    double altitudeLR   = args.altitudeLR;
-    PropModel prop_model = args.prop_model;
-    char *mapfile       = args.mapfile;
-
+    parse_cmdline(argc, argv);
 
     /**
      * Calculate the required data bounds to the nearest whole degree using WGS 84 approximation
@@ -717,34 +716,31 @@ int main(int argc, char *argv[])
     mpi = ippd-1; 
 
     if (ppa == 0) {
-        if (prop_model == LOS) {  // Model 2 = LOS
-            PlotLOSMap(tx_site, max_range, altitudeLR, number_threads);
-            DoLOS(mapfile);
-        } else {
-            // 90% of effort here
-            PlotPropagationRadius(tx_site, max_range, altitudeLR, prop_model, (uint8_t)number_threads);
-            spdlog::debug("Finished PlotPropagationRadius()");
+        // 90% of effort here
+        PlotPropagationRadius(tx_site);
+        spdlog::debug("Finished PlotPropagationRadius()");
 
-            if (cropping) {
-                spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon, ppd);
+        if (cropping) {
+            spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon, ppd);
 
-                max_north = plot_bounds.upper_right.lat;
-                min_north = plot_bounds.lower_left.lat;
-                max_lon = plot_bounds.upper_right.lon;
-                min_lon = plot_bounds.lower_left.lon;
-                width = (unsigned)(ippd * (max_lon - min_lon));
-                height = (unsigned)(ippd * (max_north - min_north));
-                spdlog::info("width/height: {}/{}", width, height);
-            }
-
-            // Write bitmap
-            if (LR.erp == 0.0)
-                DoPathLoss(mapfile);
-            else if (dbm)
-                DoRxdPwr(mapfile);
-            else if ((result = DoSigStr(mapfile)) != 0)
-                return result;
+            max_north = plot_bounds.upper_right.lat;
+            min_north = plot_bounds.lower_left.lat;
+            max_lon = plot_bounds.upper_right.lon;
+            min_lon = plot_bounds.lower_left.lon;
+            width = (unsigned)(ippd * (max_lon - min_lon));
+            height = (unsigned)(ippd * (max_north - min_north));
+            spdlog::info("width/height: {}/{}", width, height);
         }
+
+        // Write image
+        if (prop_model == LOS)
+            DoLOS(mapfile);
+        else if (LR.erp == 0.0)
+            DoPathLoss(mapfile);
+        else if (dbm)
+            DoRxdPwr(mapfile);
+        else if ((result = DoSigStr(mapfile)) != 0)
+            return result;
 
 
         spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,max_lon,min_north,min_lon);

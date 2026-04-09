@@ -14,18 +14,16 @@
 #include "inputs.hh"
 #include "models/los.hh"
 
-CmdlineArgs parse_cmdline(int argc, char *argv[])
+void parse_cmdline(int argc, char *argv[])
 {
     int x, y, z = 0;
-    int number_threads = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
 
-    CmdlineArgs args;
-    args.ppa       = 0;
-    args.normalise = 0;
-    args.number_threads = number_threads;
-    args.altitudeLR = 0.1;
-    args.prop_model = ITM_LR;
-    args.mapfile[0] = '\0';
+    ppa            = 0;
+    normalise      = 0;
+    altitudeLR     = 0.1;
+    prop_model     = ITM_LR;
+    number_threads = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
+    mapfile[0]     = '\0';
 
     char antenna_file[255];
     char *az_filename, *el_filename = NULL;
@@ -216,13 +214,13 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
                 /* Antenna pattern files have the same basic name as the output file
                  * but with a different extension. If they exist, load them now */
                 size_t base_len = strlen(argv[z]);
-                if(base_len >= sizeof(args.mapfile)){
-                    spdlog::error("Output name too long (max {} chars)", sizeof(args.mapfile)-2);
+                if(base_len >= sizeof(mapfile)){
+                    spdlog::error("Output name too long (max {} chars)", sizeof(mapfile)-2);
                     exit(1);
                 }
                 // Copy base name into mapfile and tx_site structures
-                strncpy(args.mapfile, argv[z], sizeof(args.mapfile)-1);
-                args.mapfile[sizeof(args.mapfile)-1] = '\0';
+                strncpy(mapfile, argv[z], sizeof(mapfile)-1);
+                mapfile[sizeof(mapfile)-1] = '\0';
                 output_filename = argv[z];
 
                 const char *az_base = (antenna_file[0] != '\0') ? antenna_file : argv[z];
@@ -311,7 +309,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                args.ppa = 1;
+                ppa = 1;
                 rx_site.lat = atof(argv[z]);
 
             }
@@ -336,7 +334,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &args.altitudeLR);
+                sscanf(argv[z], "%lf", &altitudeLR);
                 sscanf(argv[z], "%f", &rx_site.alt);
             }
         }
@@ -457,7 +455,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
             if (z <= y && argv[z][0]) {
                 int temp;
                 sscanf(argv[z], "%d", &temp);
-                args.prop_model = (PropModel)temp;
+                prop_model = (PropModel)temp;
             }
         }
         // Prop model variant eg. urban/suburban
@@ -475,7 +473,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
 
         //Normalise Path Profile chart
         if (strcmp(argv[x], "-ng") == 0) {
-            args.normalise = 1;
+            normalise = 1;
         }
 
         // Reliability % for ITM model
@@ -507,7 +505,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                sscanf(argv[z], "%d", &args.number_threads);
+                sscanf(argv[z], "%d", &number_threads);
             }
         }
     }
@@ -555,7 +553,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
             tx_site.alt);
         exit(EINVAL);
     }
-    if (args.altitudeLR < 0 || args.altitudeLR > 60000) {
+    if (altitudeLR < 0 || altitudeLR > 60000) {
         spdlog::error("Rx altitude above ground was too high!");
         exit(EINVAL);
     }
@@ -569,7 +567,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
         spdlog::error("Receiver threshold out of range (-200 / +240)");
         exit(EINVAL);
     }
-    if (args.prop_model > 2 && args.prop_model < 7 && LR.frq_mhz < 150) {
+    if (prop_model > 2 && prop_model < 7 && LR.frq_mhz < 150) {
         spdlog::error("Frequency too low for Propagation model");
         exit(EINVAL);
     }
@@ -586,7 +584,7 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
         }
     }
 
-    if (args.number_threads % 2 != 0 || args.number_threads < 4) {
+    if (number_threads % 2 != 0 || number_threads < 4) {
         spdlog::error("Number of worker threads must be even and >= 4");
         exit(EINVAL);
     }
@@ -595,11 +593,9 @@ CmdlineArgs parse_cmdline(int argc, char *argv[])
     spdlog::info("    TX site parameters: {:.6f}N, {:.6f}E, {:.0f} m AGL", tx_site.lat, tx_site.lon, tx_site.alt);
     spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range/1000, ippd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
-    spdlog::info("    Worker threads: {}", args.number_threads);
+    spdlog::info("    Worker threads: {}", number_threads);
     spdlog::info("");
     spdlog::info("    Directories:");
     spdlog::info("        DEM: {}", DEM_path);
     spdlog::info(VERT_SEP);
-
-    return args;
 }

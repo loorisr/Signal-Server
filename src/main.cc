@@ -59,7 +59,7 @@ std::string output_filename;
 double max_range = 0.0,
     fzone_clearance = 0.6, clutter, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
-    min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
+    min_lat = 90, max_lat = -90, min_lon = 180.0, max_lon = -180.0,
     rxGain=0, antenna_rotation,
     antenna_downtilt, antenna_dt_direction;
 
@@ -76,7 +76,6 @@ std::atomic<int> cnt_PlotPropagation{0};
 bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
 bool ngs = false;
-bool cropping = true;
 int knifeedge = 0;
 int pmenv = 1;
 int number_threads = 4;
@@ -104,79 +103,40 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now();
 
     parse_cmdline(argc, argv);
+    bbox geo_bounds;
 
-    if (ppa) {
-
+    if (ppa) { // TODO: to correct
+        min_lat = MIN(rx_site.lat, tx_site.lat);
+        max_lat = MAX(rx_site.lat, tx_site.lat);
+        min_lon = MIN(rx_site.lon, tx_site.lon);
+        max_lon = MAX(rx_site.lon, tx_site.lon);
+        geo_bounds.lower_left = {min_lat, min_lon};
+        geo_bounds.upper_right = {max_lat, max_lon};
     } else {
-        bbox geo_bounds = getCircularBoundingBox({tx_site.lat, tx_site.lon}, max_range);
+        geo_bounds = getCircularBoundingBox({tx_site.lat, tx_site.lon}, max_range);
     }
     
-
-
-    // Get latitude in radians
-    double tx_lat_rad = tx_site.lat * DEG2RAD;
-
-    // Find the distance in lat and lon per degree using the above referenced formulas
-    double m_per_deg_lon = (111412.84 * cos(tx_lat_rad)) - (93.5 * cos(3 * tx_lat_rad)) + (0.118 * cos(5 * tx_lat_rad));
-    double m_per_deg_lat = 111132.92 - (559.82 * cos(2 * tx_lat_rad)) + (1.175 * cos(4 * tx_lat_rad)) - (0.0023 * cos(6 * tx_lat_rad));
-
-    // Calculate angular distance from the above numbers
-    double dist_deg_lon = max_range / m_per_deg_lon;
-    double dist_deg_lat = max_range / m_per_deg_lat;
-
-    spdlog::debug("Radius of {:.3f} m is approx {:.6f} deg EW and {:.6f} deg NS", max_range, dist_deg_lon, dist_deg_lat);
-
-    // Calculate our plot bounds based on these numbers
-    min_lon = tx_site.lon - dist_deg_lon;
-    max_lon = tx_site.lon + dist_deg_lon;
-    double min_lat = tx_site.lat - dist_deg_lat;
-    double max_lat = tx_site.lat + dist_deg_lat;
-
-    // If doing P2P analysis, we need to make sure the RX site is within our whole degree bounds as well, so data is loaded
-    // TODO: update this so it makes sense with the new approach
-
-    if (ppa) {
-        if (rx_site.lat < min_lat)
-            min_lat = rx_site.lat;
-
-        if (rx_site.lat > max_lat)
-            max_lat = rx_site.lat;
-
-        if (LonDiff(rx_site.lon, min_lon) < 0.0)
-            min_lon = rx_site.lon;
-
-        if (LonDiff(rx_site.lon, max_lon) >= 0.0)
-            max_lon = rx_site.lon;
-
-        spdlog::debug("RX site location expanded plot bounds to {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", min_lat, min_lon, max_lat, max_lon);
-    }
-
-    bbox plot_bounds = getCircularBoundingBox({tx_site.lat, tx_site.lon}, max_range);
-
-    spdlog::debug("Calculated plot boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
-        plot_bounds.lower_left.lat, 
-        plot_bounds.lower_left.lon, 
-        plot_bounds.upper_right.lat, 
-        plot_bounds.upper_right.lon
+    spdlog::info("Calculated boundaries: {:.6f}N {:.6f}E to {:.6f}N {:.6f}E", 
+        geo_bounds.lower_left.lat, 
+        geo_bounds.lower_left.lon, 
+        geo_bounds.upper_right.lat, 
+        geo_bounds.upper_right.lon
     );
 
     /* Load the required DEM tiles */
-    if( (LoadTopoData(plot_bounds)) != 0 ){
-        // This only fails on errors loading DEM tiles
+    if( (LoadTopoData(geo_bounds)) != 0 ){
         spdlog::error("Error loading topo data");
     }
+
+    //for plots
+    min_lon = geo_bounds.lower_left.lon;
+    max_lon = geo_bounds.upper_right.lon;
+    min_lat = geo_bounds.lower_left.lat;
+    max_lat = geo_bounds.upper_right.lat;
 
     if (!ppa) {
         PlotPropagationRadius(tx_site);
         spdlog::debug("Finished PlotPropagationRadius()");
-
-        if (cropping) {
-            spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon);
-            max_north = plot_bounds.upper_right.lat;
-            min_north = plot_bounds.lower_left.lat;
-            max_lon = plot_bounds.upper_right.lon;
-            min_lon = plot_bounds.lower_left.lon;
-        }
 
         // Write image
         if (prop_model == LOS)
@@ -187,7 +147,7 @@ int main(int argc, char *argv[])
             DoRxdPwr(mapfile);
         else DoSigStr(mapfile);
 
-        spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,max_lon,min_north,min_lon);
+        spdlog::debug("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",geo_bounds.upper_right.lat, geo_bounds.lower_left.lat, geo_bounds.upper_right.lon, geo_bounds.lower_left.lon);
 
     } else {
         PlotPath(tx_site, rx_site);

@@ -94,8 +94,8 @@ inline PropagationMode &operator|=(PropagationMode &lhs, PropagationMode rhs)
 extern int MAX_DISTANCE_DEGRES;
 extern int ARRAYSIZE;
 
-extern double min_north;
-extern double max_north;
+extern double min_lat;
+extern double max_lat;
 extern double min_lon;
 extern double max_lon;
 extern int max_elevation;
@@ -129,7 +129,6 @@ extern bool got_azimuth_pattern;
 extern bool dbm;
 extern bool geotiff;
 extern bool ngs;
-extern bool cropping;
 
 extern struct site tx_site;
 extern struct site rx_site;

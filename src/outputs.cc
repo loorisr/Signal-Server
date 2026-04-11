@@ -33,9 +33,9 @@ void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, cons
 
     /* Compute geographic bounds */
     ulx = min_lon;
-    uly = max_north;
+    uly = max_lat;
     lrx = max_lon;
-    lry = min_north;
+    lry = min_lat;
 
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {
@@ -121,8 +121,8 @@ static void render_geotiff(const char *filename,
                             double scale_min, double scale_max, bool reverse,
                             ClassifyFn classify)
 {
-	const int width  = (int)(ppd * (max_lon - min_lon));
-	const int height = (int)(ppd * (max_north - min_north));
+	const int width  = (int)((double)ppd * (max_lon - min_lon));
+	const int height = (int)((double)ppd * (max_lat - min_lat));
 	const double conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 	const double scale_range = scale_max - scale_min;
 
@@ -133,7 +133,7 @@ static void render_geotiff(const char *filename,
 	std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 	uint8_t *p = rgba.data();
 
-	const int x_base = (int)rint(ppd * (max_north - dem_min_lat));
+	const int x_base = (int)rint(ppd * (max_lat - dem_min_lat));
 	const int y_base = (int)rint(ppd * (min_lon   - dem_min_lon));
 
 	for (int y = 0; y < height; y++) {

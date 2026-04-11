@@ -385,8 +385,8 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         std::lock_guard<std::mutex> lock(dem_stats_mutex);
         if (tile_min_el < min_elevation) min_elevation = (int)tile_min_el;
         if (tile_max_el > max_elevation) max_elevation = (int)tile_max_el;
-        if ((tile_lat + 1) > max_north) max_north = tile_lat + 1;
-        if (tile_lat       < min_north) min_north = tile_lat;
+        if ((tile_lat + 1) > max_lat) max_lat = tile_lat + 1;
+        if (tile_lat       < min_lat) min_lat = tile_lat;
         if ((tile_lon + 1) > max_lon)   max_lon   = tile_lon + 1;
         if (tile_lon       < min_lon)   min_lon   = tile_lon;
     }

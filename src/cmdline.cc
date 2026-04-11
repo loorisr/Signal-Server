@@ -462,7 +462,7 @@ void parse_cmdline(int argc, char *argv[])
         }
         //Knife edge diffraction
         if (strcmp(argv[x], "-ked") == 0) {
-            knifeedge = 1;
+            knifeedge = true;
         }
 
         //Normalise Path Profile chart

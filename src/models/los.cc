@@ -123,40 +123,6 @@ namespace {
 
         return NULL;
     }
-
-
-    /// @brief Wait for the progress accumulators to finish, then finish out any running threads
-    void finishProgress()
-    {
-        unsigned int total_points = 0;
-        unsigned int points_processed = 0;
-        
-        // Calculate the expected total progress count
-        for (const auto& p : thread_progress)
-        {
-            if (p.total <= 0) { std::this_thread::sleep_for( std::chrono::milliseconds(2) ); }
-            total_points += p.total;
-        }
-
-        spdlog::debug("{} total points to process", total_points);
-        
-        // Await progress completion
-        while (points_processed < total_points)
-        {
-            std::this_thread::sleep_for( std::chrono::milliseconds(500) );
-
-            // Reset count for this check
-            points_processed = 0;
-
-            for (const auto& p : thread_progress)
-            {
-                points_processed += p.count;
-            }
-
-            // Update print
-            spdlog::info("[{: 3d}%] Processing {}/{} points", int(points_processed * 100 / total_points), points_processed, total_points);
-        }
-    }
 }
 
 /*
@@ -439,7 +405,7 @@ void PlotPropPath(
 			                   path.elevation[y] + destination.alt, distance,
 			                   mode, errnum);
 
-			if (knifeedge == 1 && prop_model > 1) {
+			if (knifeedge && prop_model > 1) {
 				diffloss = ked(LR.frq_mhz, destination.alt, distance);
 				loss += diffloss;	
 			}

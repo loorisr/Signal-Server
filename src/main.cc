@@ -56,7 +56,7 @@ std::string output_filename;
 
 double max_range = 0.0,
     fzone_clearance = 0.6, clutter, tercon, terdic,
-    north, east, south, west, dBm, loss, field_strength,
+    dBm, loss, field_strength,
     min_lat = 90, max_lat = -90, min_lon = 180.0, max_lon = -180.0,
     rxGain=0, antenna_rotation,
     antenna_downtilt, antenna_dt_direction;
@@ -74,7 +74,7 @@ std::atomic<int> cnt_PlotPropagation{0};
 bool got_elevation_pattern = false, got_azimuth_pattern = false, dbm = false;
 bool geotiff = false;
 bool ngs = false;
-int knifeedge = 0;
+bool knifeedge = false;
 int pmenv = 1;
 int number_threads = 4;
 double altitudeLR = 1;

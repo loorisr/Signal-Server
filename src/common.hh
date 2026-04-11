@@ -99,7 +99,7 @@ extern double max_lon;
 extern int max_elevation;
 extern int min_elevation;
 extern int contour_threshold;
-extern int knifeedge;
+extern bool knifeedge;
 extern int pmenv;
 extern int number_threads;
 
@@ -116,7 +116,6 @@ extern double loss;
 extern double field_strength;
 extern double altitudeLR;
 
-extern char string[];
 extern char DEM_path[];
 extern std::string color_palette;
 extern std::string output_filename;

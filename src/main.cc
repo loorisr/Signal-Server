@@ -87,6 +87,7 @@ char mapfile[255] = "";
 
 __thread double *elev;
 __thread struct path path;
+__thread int path_allocated = 0;
 site tx_site;
 site rx_site;
 double         **dem_data   = nullptr;
@@ -105,7 +106,7 @@ int main(int argc, char *argv[])
     parse_cmdline(argc, argv);
     bbox geo_bounds;
 
-    if (ppa) { // TODO: to correct
+    if (ppa) { // TODO: handle +-90 and +/- 180° wrap 
         min_lat = MIN(rx_site.lat, tx_site.lat);
         max_lat = MAX(rx_site.lat, tx_site.lat);
         min_lon = MIN(rx_site.lon, tx_site.lon);
@@ -122,6 +123,8 @@ int main(int argc, char *argv[])
         geo_bounds.upper_right.lat, 
         geo_bounds.upper_right.lon
     );
+    
+    alloc_elev();
 
     /* Load the required DEM tiles */
     if( (LoadTopoData(geo_bounds)) != 0 ){

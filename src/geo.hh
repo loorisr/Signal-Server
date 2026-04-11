@@ -60,10 +60,8 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *out
 /* Memory management */
 void alloc_elev(void);
 void free_elev(void);
-void alloc_path(void);
 void free_path(void);
 void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon);
 void free_dem(void);
-void do_allocs(void);
 
 #endif

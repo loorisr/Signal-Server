@@ -96,8 +96,6 @@ void parse_cmdline(int argc, char *argv[])
 
     GDALAllRegister();
 
-    do_allocs();
-
     y = argc - 1;
     dbm = false;
     DEM_path[0] = 0;
@@ -262,12 +260,8 @@ void parse_cmdline(int argc, char *argv[])
 
         if (strcmp(argv[x], "-hd") == 0) {
             spdlog::info("    hd mode");
-            free_elev();
-            free_path();
-            free_dem();
             ppd = 3600;
             ARRAYSIZE = (MAX_DISTANCE_DEGRES * ppd) + 10;
-            do_allocs();
             spdlog::info("    Built for {} ppd", ppd);
         }
 
@@ -325,7 +319,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%f", &tx_site.alt);
+                sscanf(argv[z], "%lf", &tx_site.alt);
 
             }
         }
@@ -335,7 +329,7 @@ void parse_cmdline(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 sscanf(argv[z], "%lf", &altitudeLR);
-                sscanf(argv[z], "%f", &rx_site.alt);
+                sscanf(argv[z], "%lf", &rx_site.alt);
             }
         }
 

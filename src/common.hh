@@ -36,7 +36,7 @@
 struct site {
 	double lat;
 	double lon;
-	float alt;
+	double alt;
 };
 
 struct path {
@@ -152,6 +152,7 @@ extern int dem_min_lon;   /* westernmost  tile_lon */
 extern int dem_width_px;  /* tiles_lon * ppd */
 extern int dem_height_px; /* tiles_lat * ppd */
 extern __thread struct path path;
+extern __thread int path_allocated;
 extern struct LR LR;
 
 extern int debug;

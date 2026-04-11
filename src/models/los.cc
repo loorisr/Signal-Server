@@ -72,7 +72,7 @@ namespace {
         // Thread buffer allocation
         
 		alloc_elev();
-		alloc_path();
+		/* path is allocated dynamically by ReadPath on first call */
 
         // Check if our start & stop angles are the same
         if (r->start_angle_rad == r->stop_angle_rad)

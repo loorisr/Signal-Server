@@ -201,6 +201,15 @@ double ElevationAngle(struct site source, struct site destination)
     return (acos(cos_angle) * RAD2DEG) - 90.0;
 }
 
+static void alloc_path(int size)
+{
+    path.lat = new double[size];
+    path.lon = new double[size];
+    path.elevation = new double[size];
+    path.distance = new double[size];
+    path_allocated = size;
+}
+
 /* This function generates a sequence of latitude and
        longitude positions between source and destination
        locations along a great circle path, and stores
@@ -228,9 +237,15 @@ void ReadPath(struct site source, struct site destination)
     path_length = sqrt((dx * dx) + (dy * dy));
     m_per_sample = total_distance / path_length;
 
+    /* +2: one extra for the destination point written after the loop, one for safety */
+    int needed = (int)ceil(path_length) + 2;
+    if (needed > path_allocated) {
+        free_path();
+        alloc_path(needed);
+    }
+
     for (distance = 0.0, c = 0;
-         (total_distance != 0.0 && distance <= total_distance
-          && c < ARRAYSIZE); c++, distance = m_per_sample * (double)c) {
+         (total_distance != 0.0 && distance <= total_distance); c++, distance = m_per_sample * (double)c) {
 
         beta = distance / EARTHRADIUS;
         lat2 = asin(std::clamp(sin(lat1) * cos(beta) + cos(azimuth) * sin(beta) * cos(lat1), -1.0, 1.0));
@@ -263,7 +278,7 @@ void ReadPath(struct site source, struct site destination)
 
         path.lat[c] = lat2;
         path.lon[c] = lon2;
-        path.elevation[c] = GetElevation({lat2, lon2, 0.0f});
+        path.elevation[c] = GetElevation({lat2, lon2, 0.0});
         path.distance[c] = distance;
     }
 
@@ -292,9 +307,6 @@ double ElevationAngle2(struct site source, struct site destination, double er)
     double source_alt, destination_alt, cos_xmtr_angle,
         cos_test_angle, test_alt, elevation, distance,
         source_alt2, first_obstruction_angle = 0.0;
-    struct path temp;
-
-    temp = path;
 
     ReadPath(source, destination);
 
@@ -349,8 +361,6 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 
     else
         elevation = (acos(std::clamp(cos_xmtr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
-
-    path = temp;
 
     return elevation;
 }
@@ -568,6 +578,7 @@ void free_path(void)
     delete [] path.lon;
     delete [] path.elevation;
     delete [] path.distance;
+    path_allocated = 0;
 }
 
 void alloc_elev(void)
@@ -594,17 +605,4 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     }
 }
 
-void alloc_path(void)
-{
-    path.lat = new double[ARRAYSIZE + 1];
-    path.lon = new double[ARRAYSIZE + 1];
-    path.elevation = new double[ARRAYSIZE + 1];
-    path.distance = new double[ARRAYSIZE + 1];
-}
 
-void do_allocs(void)
-{
-    alloc_elev();
-    alloc_path();
-    /* dem is allocated later by alloc_dem() once the bounding box is known */
-}

@@ -118,7 +118,7 @@ Input:
      -hd Use HD mode (30m), default 90m
 Output:
      -o basename (Output file basename - required, min 5 chars)
-     -dbm Plot Rxd signal power instead of field strength in dBuV/m
+     -dbm Plot Rxd signal power in dBm, instead of field strength in dBuV/m
      -rt Rx Threshold (dB / dBm / dBuV/m)
      -R Radius (kilometers)
      -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,
@@ -130,7 +130,7 @@ Output:
 Antenna:
      -ant (antenna pattern file basename+path for .az and .el files)
      -txh Tx Height (above ground)
-     -rxh Rx Height(s) (optional. Default=0.1)
+     -rxh Rx Height(s) (optional. Default=1)
      -rxg Rx gain dBd (optional for PPA text report)
      -hp Horizontal Polarisation (default=vertical)
      -rot  (  0.0 - 359.0 degrees, default 0.0) Antenna Pattern Rotation

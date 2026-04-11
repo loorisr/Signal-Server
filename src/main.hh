@@ -1,8 +1,6 @@
 #ifndef _MAIN_HH_
 #define _MAIN_HH_
 
-#include <stdint.h>
-#include <stdio.h>
 #include <string>
 
 #include "common.hh"
@@ -20,23 +18,5 @@
 #endif
 
 #define VERT_SEP "----------------------------------------------------------------------------------"
-
-void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename);
-
-bool find_dem_xy(double lat, double lon, int &x_out, int &y_out);
-void PutSignal(double lat, double lon, int signal);
-int GetSignal(double lat, double lon);
-double GetElevation(struct site location);
-double ElevationAngle(struct site source, struct site destination);
-void ReadPath(struct site source, struct site destination);
-double ElevationAngle2(struct site source, struct site destination, double er);
-void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *outfile);
-void free_elev(void);
-void free_path(void);
-void free_dem(void);
-void alloc_elev(void);
-void alloc_path(void);
-void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon);
-void do_allocs(void);
 
 #endif /* _MAIN_HH_ */

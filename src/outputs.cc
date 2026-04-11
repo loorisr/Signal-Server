@@ -1,3 +1,8 @@
+/* GDAL must come before any header that defines MAX */
+#include <gdal.h>
+#include <cpl_conv.h>
+#include <ogr_srs_api.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +21,80 @@
 #include "main.hh"
 #include "inputs.hh"
 #include "models/los.hh"
+#include "outputs.hh"
+
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename)
+{
+    char tif_file[300];
+    double ulx, uly, lrx, lry;
+
+    /* Build .tif output path */
+    snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
+
+    /* Compute geographic bounds */
+    ulx = min_lon;
+    uly = max_north;
+    lrx = max_lon;
+    lry = min_north;
+
+    GDALDriverH drv = GDALGetDriverByName("GTiff");
+    if (drv == NULL) {
+        spdlog::error("write_geotiff_rgba: GTiff GDAL driver not available");
+        return;
+    }
+
+    char *create_opts[] = {
+        (char *)"COMPRESS=LZW",
+        (char *)"PREDICTOR=2",
+        (char *)"TILED=YES",
+        (char *)"BLOCKXSIZE=256",
+        (char *)"BLOCKYSIZE=256",
+        (char *)"INTERLEAVE=PIXEL",
+        (char *)"NUM_THREADS=ALL_CPUS",
+        NULL
+    };
+    GDALDatasetH ds = GDALCreate(drv, tif_file, img_width, img_height, 4, GDT_Byte, create_opts);
+    if (ds == NULL) {
+        spdlog::error("write_geotiff_rgba: failed to create {}", tif_file);
+        return;
+    }
+
+    double gt[6] = {
+        ulx,
+        (lrx - ulx) / img_width,
+        0.0,
+        uly,
+        0.0,
+        (lry - uly) / img_height   /* negative → north-up raster */
+    };
+    GDALSetGeoTransform(ds, gt);
+
+    OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL);
+    OSRImportFromEPSG(srs, 4326);
+    char *wkt = NULL;
+    OSRExportToWkt(srs, &wkt);
+    GDALSetProjection(ds, wkt);
+    CPLFree(wkt);
+    OSRDestroySpatialReference(srs);
+
+    GDALSetRasterColorInterpretation(GDALGetRasterBand(ds, 4), GCI_AlphaBand);
+
+    /* Write interleaved RGBA buffer directly to 4 separate GDAL bands */
+    int bandMap[4] = {1, 2, 3, 4};
+    CPLErr err = (CPLErr)GDALDatasetRasterIO(ds, GF_Write,
+        0, 0, img_width, img_height,
+        (void *)rgba, img_width, img_height, GDT_Byte,
+        4, bandMap,
+        4,              /* nPixelSpace */
+        img_width * 4,  /* nLineSpace  */
+        1);             /* nBandSpace  */
+    if (err != CE_None)
+        spdlog::error("write_geotiff_rgba: RasterIO write failed for {}", tif_file);
+    else
+        spdlog::info("GeoTIFF written: {}", tif_file);
+
+    GDALClose(ds);
+}
 
 static tinycolormap::ColormapType get_colormap()
 {
@@ -42,6 +121,8 @@ static void render_geotiff(const char *filename,
                             double scale_min, double scale_max, bool reverse,
                             ClassifyFn classify)
 {
+	const int width  = (int)(ippd * (max_lon - min_lon));
+	const int height = (int)(ippd * (max_north - min_north));
 	const double conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 	const double scale_range = scale_max - scale_min;
 

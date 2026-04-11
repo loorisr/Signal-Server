@@ -1,7 +1,11 @@
 #ifndef _OUTPUT_HH_
 #define _OUTPUT_HH_
 
+#include <stdint.h>
+
 #include "models/los.hh"
+
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename);
 
 void DoPathLoss(char *filename);
 

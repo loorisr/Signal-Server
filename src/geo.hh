@@ -45,4 +45,25 @@ coord getPointAtDistance(coord center, double distance, double bearing_rad);
 /// @return bounding box
 bbox getCircularBoundingBox(coord center, double radius);
 
+/* DEM access */
+bool find_dem_xy(double lat, double lon, int &x_out, int &y_out);
+double GetElevation(struct site location);
+void PutSignal(double lat, double lon, int signal);
+int GetSignal(double lat, double lon);
+
+/* Path / elevation geometry */
+double ElevationAngle(struct site source, struct site destination);
+double ElevationAngle2(struct site source, struct site destination, double er);
+void ReadPath(struct site source, struct site destination);
+void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *outfile);
+
+/* Memory management */
+void alloc_elev(void);
+void free_elev(void);
+void alloc_path(void);
+void free_path(void);
+void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon);
+void free_dem(void);
+void do_allocs(void);
+
 #endif

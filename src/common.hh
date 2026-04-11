@@ -103,8 +103,6 @@ extern int mpi;
 extern int max_elevation;
 extern int min_elevation;
 extern int contour_threshold;
-extern int width;
-extern int height;
 extern int knifeedge;
 extern int pmenv;
 extern int number_threads;

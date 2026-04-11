@@ -20,9 +20,9 @@ void parse_cmdline(int argc, char *argv[])
 
     ppa            = 0;
     normalise      = 0;
-    altitudeLR     = 0.1;
+    altitudeLR     = 1;
     prop_model     = ITM_LR;
-    number_threads = std::max(4u, (std::thread::hardware_concurrency() / 2) * 2);
+    number_threads = std::thread::hardware_concurrency();
     mapfile[0]     = '\0';
 
     char antenna_file[255];
@@ -80,7 +80,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("Antenna:");
         spdlog::info("     -ant (antenna pattern file basename+path for .az and .el files)");
         spdlog::info("     -txh Tx Height (above ground)");
-        spdlog::info("     -rxh Rx Height(s) (optional. Default=0.1)");
+        spdlog::info("     -rxh Rx Height(s) (optional. Default=1)");
         spdlog::info("     -rxg Rx gain dBd (optional for PPA text report)");
         spdlog::info("     -hp Horizontal Polarisation (default=vertical)");
         spdlog::info("     -rot  (  0.0 - 359.0 degrees, default 0.0) Antenna Pattern Rotation");
@@ -584,8 +584,8 @@ void parse_cmdline(int argc, char *argv[])
         }
     }
 
-    if (number_threads % 2 != 0 || number_threads < 4) {
-        spdlog::error("Number of worker threads must be even and >= 4");
+    if (number_threads < 1) {
+        spdlog::error("Number of worker threads must be >= 1");
         exit(EINVAL);
     }
 

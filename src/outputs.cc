@@ -121,8 +121,8 @@ static void render_geotiff(const char *filename,
                             double scale_min, double scale_max, bool reverse,
                             ClassifyFn classify)
 {
-	const int width  = (int)(ippd * (max_lon - min_lon));
-	const int height = (int)(ippd * (max_north - min_north));
+	const int width  = (int)(ppd * (max_lon - min_lon));
+	const int height = (int)(ppd * (max_north - min_north));
 	const double conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
 	const double scale_range = scale_max - scale_min;
 
@@ -133,13 +133,16 @@ static void render_geotiff(const char *filename,
 	std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 	uint8_t *p = rgba.data();
 
-	for (int y = 0; y < (int)height; y++) {
-		double lat = max_north - dpp * y;
-		for (int x = 0; x < (int)width; x++) {
-			double lon = min_lon + dpp * x;
+	const int x_base = (int)rint(ppd * (max_north - dem_min_lat));
+	const int y_base = (int)rint(ppd * (min_lon   - dem_min_lon));
+
+	for (int y = 0; y < height; y++) {
+		const int x0 = x_base - y;
+		const bool x_ok = (x0 >= 0 && x0 < dem_height_px);
+		for (int x = 0; x < width; x++) {
 			uint8_t r = 0, g = 0, b = 0, a = 0;
-			int x0, y0;
-			if (find_dem_xy(lat, lon, x0, y0)) {
+			const int y0 = y_base + x;
+			if (x_ok && y0 >= 0 && y0 < dem_width_px) {
 				auto sig = classify(dem_signal[x0][y0]);
 				if (!sig) {
 					if (!ngs) {

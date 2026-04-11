@@ -223,8 +223,8 @@ void ReadPath(struct site source, struct site destination)
     azimuth = Azimuth(source, destination) * DEG2RAD;
     total_distance = Distance(source, destination);
 
-    dx = samples_per_radian * (lon1 - lon2);
-    dy = samples_per_radian * (lat1 - lat2);
+    dx = ppd * RAD2DEG * (lon1 - lon2);
+    dy = ppd * RAD2DEG * (lat1 - lat2);
     path_length = sqrt((dx * dx) + (dy * dy));
     m_per_sample = total_distance / path_length;
 
@@ -583,8 +583,8 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
 
     dem_min_lat   = min_lat;
     dem_min_lon   = min_lon;
-    dem_height_px = tiles_lat * ippd;
-    dem_width_px  = tiles_lon * ippd;
+    dem_height_px = tiles_lat * ppd;
+    dem_width_px  = tiles_lon * ppd;
 
     dem_data   = new double         *[dem_height_px];
     dem_signal = new int *[dem_height_px];

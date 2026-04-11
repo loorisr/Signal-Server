@@ -98,8 +98,6 @@ extern double min_north;
 extern double max_north;
 extern double min_lon;
 extern double max_lon;
-extern int ippd;
-extern int mpi;
 extern int max_elevation;
 extern int min_elevation;
 extern int contour_threshold;
@@ -107,14 +105,12 @@ extern int knifeedge;
 extern int pmenv;
 extern int number_threads;
 
-extern int ppa;
+extern bool ppa;
 extern int normalise;
 extern char mapfile[255];
 
 extern double max_range;
-extern double dpp;
-extern double ppd;
-extern double samples_per_radian;
+extern int ppd;
 extern double fzone_clearance;
 extern double clutter;
 extern double dBm;
@@ -146,16 +142,16 @@ extern double tercon;
 extern double terdic;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
- * x: 0 = global south edge, increases northward  (rows = ippd * tiles_lat)
- * y: 0 = global west  edge, increases eastward   (cols = ippd * tiles_lon)
+ * x: 0 = global south edge, increases northward  (rows = ppd * tiles_lat)
+ * y: 0 = global west  edge, increases eastward   (cols = ppd * tiles_lon)
  * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
 extern double         **dem_data;
 extern int **dem_signal;
 /* Geographic origin of the flat arrays (south-west corner, integer degrees) */
 extern int dem_min_lat;   /* southernmost tile_lat */
 extern int dem_min_lon;   /* westernmost  tile_lon */
-extern int dem_width_px;  /* tiles_lon * ippd */
-extern int dem_height_px; /* tiles_lat * ippd */
+extern int dem_width_px;  /* tiles_lon * ppd */
+extern int dem_height_px; /* tiles_lat * ppd */
 extern __thread struct path path;
 extern struct LR LR;
 

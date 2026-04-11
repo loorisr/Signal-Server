@@ -80,8 +80,8 @@ namespace {
             spdlog::warn("Start & stop angles are the same, this radius segment will be a single line");
         }
 
-        spdlog::debug("Starting radiusPropagation for range {:.2f} to {:.2f}, {} points, {:.8f} dpp",
-            r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, dpp);
+        spdlog::debug("Starting radiusPropagation for range {:.2f} to {:.2f}, {} points, {:d} ppd",
+            r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, ppd);
 
         // Get the amount in radians to increment per iteration
         double rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;

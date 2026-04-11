@@ -48,22 +48,22 @@
 
 #include <spdlog/spdlog.h>
 
-int ippd = 1200;
+int ppd = 1200;
 int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
-int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
+int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ppd) + 10;
 
 char DEM_path[255];
 std::string color_palette = "heat";
 std::string output_filename;
 
-double max_range = 0.0, dpp, ppd, samples_per_radian,
+double max_range = 0.0,
     fzone_clearance = 0.6, clutter, tercon, terdic,
     north, east, south, west, dBm, loss, field_strength,
     min_north = 90, max_north = -90, min_lon = 180.0, max_lon = -180.0,
     rxGain=0, antenna_rotation,
     antenna_downtilt, antenna_dt_direction;
 
-int mpi, max_elevation = -32768, min_elevation = 32768,
+int max_elevation = -32768, min_elevation = 32768,
     contour_threshold, debug = 0;
 
 std::atomic<int> cnt_point_to_point_ITM{0};
@@ -82,7 +82,7 @@ int pmenv = 1;
 int number_threads = 4;
 double altitudeLR = 1;
 PropModel prop_model = ITM_LR;
-int ppa = 0;
+bool ppa = false;
 int normalise = 0;
 char mapfile[255] = "";
 
@@ -103,14 +103,15 @@ int main(int argc, char *argv[])
 {
     auto start_time = std::chrono::steady_clock::now();
 
-    int result;
-
     parse_cmdline(argc, argv);
 
-    /**
-     * Calculate the required data bounds to the nearest whole degree using WGS 84 approximation
-     * https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
-    */
+    if (ppa) {
+
+    } else {
+        bbox geo_bounds = getCircularBoundingBox({tx_site.lat, tx_site.lon}, max_range);
+    }
+    
+
 
     // Get latitude in radians
     double tx_lat_rad = tx_site.lat * DEG2RAD;
@@ -134,7 +135,7 @@ int main(int argc, char *argv[])
     // If doing P2P analysis, we need to make sure the RX site is within our whole degree bounds as well, so data is loaded
     // TODO: update this so it makes sense with the new approach
 
-    if (ppa == 1) {
+    if (ppa) {
         if (rx_site.lat < min_lat)
             min_lat = rx_site.lat;
 
@@ -160,25 +161,17 @@ int main(int argc, char *argv[])
     );
 
     /* Load the required DEM tiles */
-    if( (result = LoadTopoData(plot_bounds)) != 0 ){
+    if( (LoadTopoData(plot_bounds)) != 0 ){
         // This only fails on errors loading DEM tiles
         spdlog::error("Error loading topo data");
-        return result;
     }
 
-    ppd=(double)ippd;
-    samples_per_radian = ppd * RAD2DEG;
-
-    dpp = 1.0 / ppd;
-    mpi = ippd-1; 
-
-    if (ppa == 0) {
+    if (!ppa) {
         PlotPropagationRadius(tx_site);
         spdlog::debug("Finished PlotPropagationRadius()");
 
         if (cropping) {
-            spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f} dpp {:.5f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon, ppd);
-
+            spdlog::debug("Cropping 1: N: {:.4f} S: {:.4f} E: {:.4f} W: {:.4f}",plot_bounds.upper_right.lat, plot_bounds.lower_left.lat, plot_bounds.upper_right.lon, plot_bounds.lower_left.lon);
             max_north = plot_bounds.upper_right.lat;
             min_north = plot_bounds.lower_left.lat;
             max_lon = plot_bounds.upper_right.lon;
@@ -192,8 +185,7 @@ int main(int argc, char *argv[])
             DoPathLoss(mapfile);
         else if (dbm)
             DoRxdPwr(mapfile);
-        else if ((result = DoSigStr(mapfile)) != 0)
-            return result;
+        else DoSigStr(mapfile);
 
         spdlog::info("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",max_north,max_lon,min_north,min_lon);
 

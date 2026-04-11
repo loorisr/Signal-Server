@@ -317,7 +317,7 @@ int LoadPAT(char *az_filename, char *el_filename)
  *                  -73 for 73W–72W). min_lon = tile_lon, max_lon = tile_lon + 1.
  *
  * Filename built from DEM_path:
- *   ippd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
+ *   ppd==3600 → Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif
  *   otherwise  → Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif
  *
  * Returns 1 on success, 0 if already loaded, negative errno on error.
@@ -330,7 +330,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int  lon_abs = abs(tile_lon);
     char ns = (tile_lat >= 0) ? 'N' : 'S';
     int  lat_abs = abs(tile_lat);
-    const char *res_str = (ippd == 3600) ? "10" : "30";
+    const char *res_str = (ppd == 3600) ? "10" : "30";
 
     std::string filename = std::format(
         "Copernicus_DSM_COG_{}_{}{:02d}_00_{}{:03d}_00_DEM.tif",
@@ -350,10 +350,10 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int src_x = GDALGetRasterXSize(ds);
     int src_y = GDALGetRasterYSize(ds);
 
-    float *buf = new float[ippd * ippd];
+    float *buf = new float[ppd * ppd];
     CPLErr err = (CPLErr)GDALRasterIO(band, GF_Read,
                                       0, 0, src_x, src_y,
-                                      buf, ippd, ippd,
+                                      buf, ppd, ppd,
                                       GDT_Float32, 0, 0);
     GDALClose(ds);
 
@@ -363,16 +363,16 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         return -EIO;
     }
 
-    int gx_base = (tile_lat - dem_min_lat) * ippd;
-    int gy_base = (tile_lon - dem_min_lon) * ippd;
+    int gx_base = (tile_lat - dem_min_lat) * ppd;
+    int gy_base = (tile_lon - dem_min_lon) * ppd;
 
     double tile_min_el = 32768, tile_max_el = -32768;
 
-    for (int r = 0; r < ippd; r++) {
-        int gx = gx_base + (ippd - 1 - r);
-        std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ippd, -200);
-        for (int c = 0; c < ippd; c++) {
-            double val = buf[r * ippd + c];
+    for (int r = 0; r < ppd; r++) {
+        int gx = gx_base + (ppd - 1 - r);
+        std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ppd, -200);
+        for (int c = 0; c < ppd; c++) {
+            double val = buf[r * ppd + c];
             dem_data[gx][gy_base + c] = val;
             if (val > tile_max_el) tile_max_el = val;
             if (val < tile_min_el) tile_min_el = val;

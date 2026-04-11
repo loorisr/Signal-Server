@@ -18,7 +18,7 @@ void parse_cmdline(int argc, char *argv[])
 {
     int x, y, z = 0;
 
-    ppa            = 0;
+    ppa            = false;
     normalise      = 0;
     altitudeLR     = 1;
     prop_model     = ITM_LR;
@@ -265,10 +265,10 @@ void parse_cmdline(int argc, char *argv[])
             free_elev();
             free_path();
             free_dem();
-            ippd = 3600;
-            ARRAYSIZE = (MAX_DISTANCE_DEGRES * ippd) + 10;
+            ppd = 3600;
+            ARRAYSIZE = (MAX_DISTANCE_DEGRES * ppd) + 10;
             do_allocs();
-            spdlog::info("    Built for {} ppd", ippd);
+            spdlog::info("    Built for {} ppd", ppd);
         }
 
         if (strcmp(argv[x], "-t") == 0) {
@@ -309,7 +309,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                ppa = 1;
+                ppa = true;
                 rx_site.lat = atof(argv[z]);
 
             }
@@ -558,7 +558,7 @@ void parse_cmdline(int argc, char *argv[])
         exit(EINVAL);
     }
 
-    if (ippd < 300 || ippd > 10000) {
+    if (ppd < 300 || ppd > 10000) {
         spdlog::error("resolution out of range!");
         exit(EINVAL);
     }
@@ -591,7 +591,7 @@ void parse_cmdline(int argc, char *argv[])
 
     spdlog::info("-------------------------------- Plot Information --------------------------------");
     spdlog::info("    TX site parameters: {:.6f}N, {:.6f}E, {:.0f} m AGL", tx_site.lat, tx_site.lon, tx_site.alt);
-    spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range/1000, ippd);
+    spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range/1000, ppd);
     spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
     spdlog::info("    Worker threads: {}", number_threads);
     spdlog::info("");

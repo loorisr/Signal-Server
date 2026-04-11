@@ -91,8 +91,6 @@ inline PropagationMode &operator|=(PropagationMode &lhs, PropagationMode rhs)
     return lhs;
 }
 
-extern int MAX_DISTANCE_DEGRES;
-extern int ARRAYSIZE;
 
 extern double min_lat;
 extern double max_lat;
@@ -117,7 +115,6 @@ extern double dBm;
 extern double loss;
 extern double field_strength;
 extern double altitudeLR;
-extern __thread double *elev;
 
 extern char string[];
 extern char DEM_path[];
@@ -151,6 +148,8 @@ extern int dem_min_lat;   /* southernmost tile_lat */
 extern int dem_min_lon;   /* westernmost  tile_lon */
 extern int dem_width_px;  /* tiles_lon * ppd */
 extern int dem_height_px; /* tiles_lat * ppd */
+extern __thread double *elev;
+extern __thread int elev_allocated;
 extern __thread struct path path;
 extern __thread int path_allocated;
 extern struct LR LR;

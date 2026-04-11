@@ -71,8 +71,7 @@ namespace {
         PropagationRadius *r = (PropagationRadius*)parameters;
         // Thread buffer allocation
         
-		alloc_elev();
-		/* path is allocated dynamically by ReadPath on first call */
+		/* elev and path are allocated dynamically by ReadPath on first call */
 
         // Check if our start & stop angles are the same
         if (r->start_angle_rad == r->stop_angle_rad)

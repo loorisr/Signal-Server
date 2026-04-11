@@ -49,8 +49,6 @@
 #include <spdlog/spdlog.h>
 
 int ppd = 1200;
-int MAX_DISTANCE_DEGRES = 3; // max distance : 3° so around 300 km
-int ARRAYSIZE = (MAX_DISTANCE_DEGRES * ppd) + 10;
 
 char DEM_path[255];
 std::string color_palette = "heat";
@@ -86,6 +84,7 @@ int normalise = 0;
 char mapfile[255] = "";
 
 __thread double *elev;
+__thread int elev_allocated = 0;
 __thread struct path path;
 __thread int path_allocated = 0;
 site tx_site;
@@ -124,7 +123,6 @@ int main(int argc, char *argv[])
         geo_bounds.upper_right.lon
     );
     
-    alloc_elev();
 
     /* Load the required DEM tiles */
     if( (LoadTopoData(geo_bounds)) != 0 ){

@@ -261,7 +261,7 @@ void parse_cmdline(int argc, char *argv[])
         if (strcmp(argv[x], "-hd") == 0) {
             spdlog::info("    hd mode");
             ppd = 3600;
-            ARRAYSIZE = (MAX_DISTANCE_DEGRES * ppd) + 10;
+
             spdlog::info("    Built for {} ppd", ppd);
         }
 

@@ -58,7 +58,6 @@ void ReadPath(struct site source, struct site destination);
 void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *outfile);
 
 /* Memory management */
-void alloc_elev(void);
 void free_elev(void);
 void free_path(void);
 void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon);

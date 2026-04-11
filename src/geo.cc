@@ -243,6 +243,12 @@ void ReadPath(struct site source, struct site destination)
         free_path();
         alloc_path(needed);
     }
+    /* elev needs path.length + 2 slots (indices 0..path.length+1) */
+    if (needed + 2 > elev_allocated) {
+        delete [] elev;
+        elev = new double[needed + 2];
+        elev_allocated = needed + 2;
+    }
 
     for (distance = 0.0, c = 0;
          (total_distance != 0.0 && distance <= total_distance); c++, distance = m_per_sample * (double)c) {
@@ -570,6 +576,7 @@ void free_dem(void)
 
 void free_elev(void) {
   delete [] elev;
+  elev_allocated = 0;
 }
 
 void free_path(void)
@@ -581,10 +588,6 @@ void free_path(void)
     path_allocated = 0;
 }
 
-void alloc_elev(void)
-{
-  elev  = new double[ARRAYSIZE + 10];
-}
 
 /* Allocate the flat DEM arrays for a known bounding box.
  * Called from LoadTopoData() after tiles_lat/tiles_lon are computed. */

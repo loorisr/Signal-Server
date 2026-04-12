@@ -57,7 +57,7 @@ struct LR {
 	double erp;
 	int radio_climate;
 	int pol;
-	float antenna_pattern[361][1001];
+	double antenna_pattern[361][1001];
 };
 
 struct coord {

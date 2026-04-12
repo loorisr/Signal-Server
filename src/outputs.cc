@@ -267,7 +267,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 		if (x >= 0 && x <= 1000)
 			pattern =
-			    (double)LR.antenna_pattern[(int)rint(azimuth)][x];
+			    LR.antenna_pattern[(int)rint(azimuth)][x];
 
 		patterndB = 20.0 * log10(pattern);
 	}
@@ -581,7 +581,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			if (x >= 0 && x <= 1000) {
 				pattern =
-				    (double)LR.antenna_pattern[(int)azimuth][x];
+				    LR.antenna_pattern[(int)azimuth][x];
 
 				if (pattern != 0.0){
 					patterndB = 20.0 * log10(pattern);

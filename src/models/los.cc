@@ -325,7 +325,7 @@ void PlotPropPath(
 
 	ReadPath(source, destination);
 
-	azimuth = rint(Azimuth(destination, source)); // for antenna pattern
+	azimuth = rint(Azimuth(source, destination)); // for antenna pattern
 
 	elev[1] = path.distance[2] - path.distance[1]; // distance between samples
     // add clutter
@@ -441,7 +441,7 @@ void PlotPropPath(
 			x = (int)rint(10.0 * (10.0 - elevation));
 
 			if (x >= 0 && x <= 1000) {
-				pattern =  (double)LR.antenna_pattern[azimuth][x];
+				pattern =  LR.antenna_pattern[azimuth][x];
 
 				if (pattern != 0.0) {
 					pattern = 20.0 * log10(pattern);
@@ -454,7 +454,7 @@ void PlotPropPath(
 					/* dBm is based on EIRP (ERP + 2.14) */
 					rxp = LR.erp / (pow(10.0, (loss - 2.14) / 10.0));
 					dBm = 30.0 + 10.0 * (log10(rxp));
-					PutSignal(path.lat[y], path.lon[y], dBm);
+                    PutSignal(path.lat[y], path.lon[y], dBm);
 				}
 				else {
 					field_strength = (139.4 +  (20.0 * log10(LR.frq_mhz)) - loss) +  (10.0 * log10(LR.erp / 1000.0));

@@ -7,13 +7,6 @@
 #include "main.hh"
 #include "common.hh"
 
-// Return an angle in the correct quadrant from a cosine ratio and sign.
-double arccos(double x, double y)
-{
-    if (y == 0.0) return 0.0;
-    double result = acos(x / y);
-    return y < 0.0 ? PI + result : result;
-}
 
 // Compute the wrapped longitude difference between two coordinates.
 double LonDiff(double lon1, double lon2)
@@ -41,36 +34,16 @@ double Distance(struct site site1, struct site site2)
 // Compute the forward azimuth from the source site to the destination site.
 double Azimuth(struct site source, struct site destination)
 {
-    double dest_lat, dest_lon, src_lat, src_lon,
-        beta, azimuth, diff, num, den, fraction;
+    const double src_lat  = source.lat      * DEG2RAD;
+    const double src_lon  = source.lon      * DEG2RAD;
+    const double dest_lat = destination.lat * DEG2RAD;
+    const double dest_lon = destination.lon * DEG2RAD;
+    const double dlon     = dest_lon - src_lon;
 
-    dest_lat = destination.lat * DEG2RAD;
-    dest_lon = destination.lon * DEG2RAD;
-
-    src_lat = source.lat * DEG2RAD;
-    src_lon = source.lon * DEG2RAD;
-
-    beta =
-        acos(sin(src_lat) * sin(dest_lat) +
-         cos(src_lat) * cos(dest_lat) * cos(src_lon - dest_lon));
-
-    num = sin(dest_lat) - (sin(src_lat) * cos(beta));
-    den = cos(src_lat) * sin(beta);
-
-    if (den == 0.0)
-        return 0.0;  /* source at pole or source == destination */
-
-    fraction = std::clamp(num / den, -1.0, 1.0);
-    azimuth = acos(fraction);
-
-    diff = dest_lon - src_lon;
-    if (diff <= -PI) diff += TWOPI;
-    if (diff >=  PI) diff -= TWOPI;
-
-    if (diff > 0.0)
-        azimuth = TWOPI - azimuth;
-
-    return (azimuth * RAD2DEG);
+    double az = atan2(sin(dlon) * cos(dest_lat),
+                      cos(src_lat) * sin(dest_lat) - sin(src_lat) * cos(dest_lat) * cos(dlon));
+    if (az < 0.0) az += TWOPI;
+    return az * RAD2DEG;
 }
 
 // Return the WGS84 Earth radius at the given latitude.
@@ -222,31 +195,22 @@ static void alloc_path(int size)
     path_allocated = size;
 }
 
-/* This function generates a sequence of latitude and
-       longitude positions between source and destination
-       locations along a great circle path, and stores
-       elevation and distance information for points
-       along that path in the "path" structure.
-*/
 // Generate the sampled great-circle path and cache terrain samples along it.
 void ReadPath(struct site source, struct site destination)
 {
     if (debug) cnt_ReadPath++;
-    int c;
-    double azimuth, distance, lat1, lon1, beta, den, num,
-        lat2, lon2, total_distance, dx, dy, path_length,
-        m_per_sample;
 
-    lat1 = source.lat * DEG2RAD;
-    lon1 = source.lon * DEG2RAD;
-    lat2 = destination.lat * DEG2RAD;
-    lon2 = destination.lon * DEG2RAD;
+    double azimuth, distance, lat2, lon2, beta,
+        total_distance, dx, dy, path_length, m_per_sample;
 
-    azimuth = Azimuth(source, destination) * DEG2RAD;
+    const double lat1 = source.lat * DEG2RAD;
+    const double lon1 = source.lon * DEG2RAD;
+
+    azimuth        = Azimuth(source, destination) * DEG2RAD;
     total_distance = Distance(source, destination);
 
-    dx = ppd * RAD2DEG * (lon1 - lon2);
-    dy = ppd * RAD2DEG * (lat1 - lat2);
+    dx          = ppd * RAD2DEG * (lon1 - destination.lon * DEG2RAD);
+    dy          = ppd * RAD2DEG * (lat1 - destination.lat * DEG2RAD);
     path_length = sqrt((dx * dx) + (dy * dy));
     m_per_sample = total_distance / path_length;
 
@@ -263,54 +227,36 @@ void ReadPath(struct site source, struct site destination)
         elev_allocated = needed + 2;
     }
 
-    for (distance = 0.0, c = 0;
-         (total_distance != 0.0 && distance <= total_distance); c++, distance = m_per_sample * (double)c) {
+    /* Hoist loop-invariant trig */
+    const double sin_lat1 = sin(lat1);
+    const double cos_lat1 = cos(lat1);
+    const double cos_az   = cos(azimuth);
+    const double sin_az   = sin(azimuth);
 
-        beta = distance / EARTHRADIUS;
-        lat2 = asin(std::clamp(sin(lat1) * cos(beta) + cos(azimuth) * sin(beta) * cos(lat1), -1.0, 1.0));
-        num = cos(beta) - (sin(lat1) * sin(lat2));
-        den = cos(lat1) * cos(lat2);
+    int c = 0;
+    if (total_distance != 0.0) {
+        for (distance = 0.0; distance <= total_distance; c++, distance = m_per_sample * c) {
+            beta = distance / EARTHRADIUS;
+            const double cos_beta  = cos(beta);
+            const double sin_beta  = sin(beta);
+            const double sin_lat2  = std::clamp(sin_lat1 * cos_beta + cos_az * sin_beta * cos_lat1, -1.0, 1.0);
+            lat2 = asin(sin_lat2) * RAD2DEG;
+            lon2 = (lon1 + atan2(sin_az * sin_beta * cos_lat1, cos_beta - sin_lat1 * sin_lat2)) * RAD2DEG;
 
-        if (azimuth == 0.0 && (beta > HALFPI - lat1))
-            lon2 = lon1 + PI;
-
-        else if (azimuth == HALFPI && (beta > HALFPI + lat1))
-            lon2 = lon1 + PI;
-
-        else if (fabs(num / den) > 1.0)
-            lon2 = lon1;
-
-        else {
-            if ((PI - azimuth) >= 0.0)
-                lon2 = lon1 - arccos(num, den);
-            else
-                lon2 = lon1 + arccos(num, den);
+            path.lat[c]       = lat2;
+            path.lon[c]       = lon2;
+            path.elevation[c] = GetElevation({lat2, lon2, 0.0});
+            path.distance[c]  = distance;
         }
-
-        if (lon2 < -PI)
-            lon2 += TWOPI;
-        else if (lon2 > PI)
-            lon2 -= TWOPI;
-
-        lat2 = lat2 * RAD2DEG;
-        lon2 = lon2 * RAD2DEG;
-
-        path.lat[c] = lat2;
-        path.lon[c] = lon2;
-        path.elevation[c] = GetElevation({lat2, lon2, 0.0});
-        path.distance[c] = distance;
     }
 
     /* Make sure exact destination point is recorded at path.length-1 */
-    /* Check if really useful */
-
-    path.lat[c] = destination.lat;
-    path.lon[c] = destination.lon;
+    path.lat[c]       = destination.lat;
+    path.lon[c]       = destination.lon;
     path.elevation[c] = GetElevation(destination);
-    path.distance[c] = total_distance;
-    c++;
+    path.distance[c]  = total_distance;
 
-    path.length = c;
+    path.length = c + 1;
 }
 
 // Return the destination elevation angle or the first obstruction angle.
@@ -393,7 +339,6 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
        path between receiver and transmitter. */
 
     int x;
-    struct site site_x;
     double h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
         cos_tx_angle_f1, cos_tx_angle_fpt6, d_tx, d_x,
         h_r_f1, h_r_fpt6, h_f, h_los, lambda = 0.0;
@@ -435,12 +380,8 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
        acos(A) > acos(B), then B > A. */
 
     for (x = path.length - 1; x > 0; x--) {
-        site_x.lat = path.lat[x];
-        site_x.lon = path.lon[x];
-        site_x.alt = 0.0;
-
-        h_x = GetElevation(site_x) + EARTHRADIUS + clutter;
-        d_x = Distance(rcvr, site_x);
+        h_x = path.elevation[x] + EARTHRADIUS + clutter;
+        d_x = d_tx - path.distance[x];
 
         /* Deal with the LOS path first. */
 
@@ -453,18 +394,16 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
                 fprintf(outfile,
                     "Between RX and TX, obstructions were detected :\n\n");
 
-            if (site_x.lat >= 0.0) {
+            if (path.lat[x] >= 0.0) {
                 fprintf(outfile,
                     "   %8.4f N,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                    site_x.lat, site_x.lon,
+                    path.lat[x], path.lon[x],
                     d_x / 1000.0,
                     h_x - EARTHRADIUS);
-            }
-
-            else {
+            } else {
                 fprintf(outfile,
                     "   %8.4f S,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                    -site_x.lat, site_x.lon,
+                    -path.lat[x], path.lon[x],
                     d_x / 1000.0,
                     h_x - EARTHRADIUS);
             }
@@ -627,4 +566,31 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     }
 }
 
+// TODO: temporary test — delete after validation
+void test_Azimuth(void)
+{
+    struct { const char *name; site a; site b; double expected; } cases[] = {
+        // Due North: az should be 0
+        {"N",  {45.0, 0.0, 0.0}, {46.0, 0.0, 0.0}, 0.0},
+        {"E",  {0.0, 5.0, 0.0}, {0.0, 7.0, 0.0}, 90.0},
+        {"S",  {45.0, 5.0, 0.0}, {44.0, 5.0, 0.0}, 180.0},
+        {"W",  {45.0, 7.0, 0.0}, {45.0, 5.0, 0.0}, 270.0},
+        {"NE", {45.7, 6.4, 0.0}, {45.8, 6.5, 0.0}, 45.0},
+    };
 
+    spdlog::info("--- Azimuth unit tests ---");
+    bool all_ok = true;
+    for (auto &c : cases) {
+        double got = Azimuth(c.a, c.b);
+        double err = fabs(got - c.expected);
+        bool ok = err < 1.0; // 1 degree tolerance
+        spdlog::info("  {}: expected {:.1f}, got {:.2f} {}",
+                     c.name, c.expected, got, ok ? "OK" : "FAIL");
+        if (!ok) all_ok = false;
+    }
+    if (!all_ok)
+        spdlog::error("Azimuth test FAILED");
+    else
+        spdlog::info("Azimuth test PASSED");
+    spdlog::info("--------------------------");
+}

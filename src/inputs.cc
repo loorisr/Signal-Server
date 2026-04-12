@@ -302,7 +302,6 @@ int LoadPAT(char *az_filename, char *el_filename)
 					az        = got_azimuth_pattern   ? azimuth_pattern[x]      : 1.0f;
 					LR.antenna_pattern[x][y] = az * elevation;
 				}
-				y = 50;
 			}
 		}
 	} // el_fd scope

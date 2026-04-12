@@ -19,7 +19,6 @@
 #define WGS84_a 6378137.0
 #define WGS84_b 6356752.3
 
-double arccos(double x, double y);
 double LonDiff(double lon1, double lon2);
 double Distance(struct site site1, struct site site2);
 double Azimuth(struct site source, struct site destination);

@@ -27,7 +27,7 @@ void parse_cmdline(int argc, char *argv[])
     mapfile[0]     = '\0';
 
     char antenna_file[255];
-    char *az_filename, *el_filename = NULL;
+    char *az_filename = NULL, *el_filename = NULL;
 
     spdlog::info("Version {} ({} {})", VERSION, GIT_BRANCH, GIT_COMMIT_HASH);
     spdlog::info("    Compile date: {} {}", __DATE__, __TIME__);
@@ -211,8 +211,6 @@ void parse_cmdline(int argc, char *argv[])
                     exit(1);
                 }
 
-                /* Antenna pattern files have the same basic name as the output file
-                 * but with a different extension. If they exist, load them now */
                 size_t base_len = strlen(argv[z]);
                 if(base_len >= sizeof(mapfile)){
                     spdlog::error("Output name too long (max {} chars)", sizeof(mapfile)-2);
@@ -222,31 +220,6 @@ void parse_cmdline(int argc, char *argv[])
                 strncpy(mapfile, argv[z], sizeof(mapfile)-1);
                 mapfile[sizeof(mapfile)-1] = '\0';
                 output_filename = argv[z];
-
-                const char *az_base = (antenna_file[0] != '\0') ? antenna_file : argv[z];
-                const char *el_base = az_base; // same logic
-                size_t az_needed = strlen(az_base) + 3 + 1;
-                size_t el_needed = strlen(el_base) + 3 + 1;
-
-                az_filename = (char*)calloc(az_needed, sizeof(char));
-                if(az_filename == NULL) exit(ENOMEM);
-                el_filename = (char*)calloc(el_needed, sizeof(char));
-                if(el_filename == NULL){
-                    free(az_filename);
-                    exit(ENOMEM);
-                }
-                snprintf(az_filename, az_needed, "%s%s", az_base, ".az");
-                snprintf(el_filename, el_needed, "%s%s", el_base, ".el");
-
-                int result;
-                if( (result = LoadPAT(az_filename,el_filename)) != 0 ){
-                    spdlog::error("Permissions error reading antenna pattern file");
-                    free(az_filename);
-                    free(el_filename);
-                    exit(result);
-                }
-                free(az_filename);
-                free(el_filename);
             } else if (z <= y && argv[z][0] && argv[z][0] == '-' && argv[z][1] == '\0' ) {
                 /* default file name */
                 output_filename = "output";
@@ -511,6 +484,31 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::debug("Debug logging enabled");
     } else {
         spdlog::set_level(spdlog::level::info);
+    }
+
+    /* Load antenna pattern files now that all arguments have been parsed.
+     * Use -ant basename if provided, otherwise fall back to the output basename. */
+    if (!output_filename.empty()) {
+        const char *az_base = (antenna_file[0] != '\0') ? antenna_file : output_filename.c_str();
+        size_t az_needed = strlen(az_base) + 3 + 1;
+
+        az_filename = (char*)calloc(az_needed, sizeof(char));
+        if (az_filename == NULL) exit(ENOMEM);
+        el_filename = (char*)calloc(az_needed, sizeof(char));
+        if (el_filename == NULL) { free(az_filename); exit(ENOMEM); }
+
+        snprintf(az_filename, az_needed, "%s.az", az_base);
+        snprintf(el_filename, az_needed, "%s.el", az_base);
+
+        int result;
+        if ((result = LoadPAT(az_filename, el_filename)) != 0) {
+            spdlog::error("Permissions error reading antenna pattern file");
+            free(az_filename);
+            free(el_filename);
+            exit(result);
+        }
+        free(az_filename);
+        free(el_filename);
     }
 
     /* ERROR DETECTION */

@@ -350,7 +350,16 @@ void PlotPropPath(
 
 	xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
 	xmtr_alt2 = xmtr_alt * xmtr_alt;
-    
+
+	/* Init the precomputed ITM context once for this path; avoids repeating
+	 * constant-parameter work (qerfi, complex sqrt, etc.) on every point. */
+	const bool fast_itm = (prop_model == ITM_LR);
+	ITM_ctx itm_ctx;
+	if (fast_itm)
+		itm_ctx = ITM_ctx_init(source.alt, LR.eps_dielect, LR.sgm_conductivity,
+		                       LR.eno_ns_surfref, LR.frq_mhz, LR.radio_climate,
+		                       LR.pol, LR.conf, LR.rel);
+
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
@@ -410,9 +419,14 @@ void PlotPropPath(
 				path.elevation[y] = 1;
 			}
 
-			loss = computeLoss(prop_model, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, distance,
-			                   mode, errnum);
+			if (fast_itm) {
+				if (debug) cnt_computeLoss++;
+				point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum);
+			} else {
+				loss = computeLoss(prop_model, source.alt, destination.alt,
+				                   path.elevation[y] + destination.alt, distance,
+				                   mode, errnum);
+			}
 
 			if (knifeedge && prop_model > 1) {
 				diffloss = ked(LR.frq_mhz, destination.alt, distance);

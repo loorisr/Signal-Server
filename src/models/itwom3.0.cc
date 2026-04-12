@@ -49,6 +49,7 @@
 #include <immintrin.h>
 
 #include "../common.hh"
+#include "itwom3.0.hh"
 
 #define THIRD (1.0/3.0)
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -2451,6 +2452,109 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	}
 
 	dbloss = avar(zr, 0.0, zc, prop, propv) + fs;
+	errnum = prop.kwx;
+}
+
+/* Build a precomputed context from the parameters that are constant across an
+ * area coverage run (everything except rht_m and elev[]). */
+ITM_ctx ITM_ctx_init(double tht_m, double eps_dielect, double sgm_conductivity,
+		     double eno_ns_surfref, double frq_mhz, int radio_climate,
+		     int pol, double conf, double rel)
+{
+	ITM_ctx ctx;
+	ctx.tht_m  = tht_m;
+	ctx.eno    = eno_ns_surfref;
+	ctx.klim   = radio_climate;
+	ctx.mdvar  = 12;
+	ctx.zc     = qerfi(conf);
+	ctx.zr     = qerfi(rel);
+	ctx.wn     = frq_mhz / 47.7;
+	ctx.fs_fmhz = 32.45 + 20.0 * log10(frq_mhz);
+
+	/* Precompute the ground-impedance term from qlrps.
+	 * This part depends only on eps, sgm, wn, and pol — none of which
+	 * change between receiver points. */
+	complex<double> zq(eps_dielect, 376.62 * sgm_conductivity / ctx.wn);
+	complex<double> prop_zgnd = sqrt(zq - 1.0);
+	if (pol != 0)
+		prop_zgnd = prop_zgnd / zq;
+	ctx.zgndreal = prop_zgnd.real();
+	ctx.zgndimag = prop_zgnd.imag();
+
+	return ctx;
+}
+
+/* Optimised variant for area coverage: skips all constant-parameter work.
+ * Only rht_m and elev[] differ between calls; everything else is in ctx.
+ *
+ * Per-call work that still happens:
+ *   - zsys (mean terrain height) from elev[]
+ *   - prop.ens and prop.gme (depend on zsys)
+ *   - qlrpfl() — full terrain profile analysis
+ *   - avar()   — variability calculation
+ *
+ * Saved vs. point_to_point_ITM():
+ *   - 2x qerfi() calls (sqrt + polynomial each)
+ *   - complex sqrt (and optional division) in qlrps()
+ *   - partial log10(frq_mhz) term
+ */
+void point_to_point_ITM_fast(const ITM_ctx &ctx, double rht_m, double elev[],
+			     double &dbloss, PropagationMode &mode, int &errnum)
+{
+	if (debug) cnt_point_to_point_ITM++;
+	prop_type  prop  = {};
+	propv_type propv = {};
+	propa_type propa = {};
+	double zsys = 0;
+	double q, fs;
+	long ja, jb, i, np;
+
+	prop.hg[0]  = ctx.tht_m;
+	prop.hg[1]  = rht_m;
+	propv.klim  = ctx.klim;
+	prop.kwx    = 0;
+	propv.lvar  = 5;
+	prop.mdp    = -1;
+
+	np = (long)elev[0];
+	ja = (long)(3.0 + 0.1 * elev[0]);
+	jb = np - ja + 6;
+
+	for (i = ja - 1; i < jb; ++i)
+		zsys += elev[i];
+	zsys /= (jb - ja + 1);
+
+	/* Inline the constant-optimised portion of qlrps():
+	 *   wn and zgnd are precomputed; only ens and gme depend on zsys. */
+	prop.wn       = ctx.wn;
+	prop.ens      = ctx.eno;
+	if (zsys != 0.0)
+		prop.ens *= exp(-zsys / 9460.0);
+	prop.gme      = 157e-9 * (1.0 - 0.04665 * exp(prop.ens / 179.3));
+	prop.zgndreal = ctx.zgndreal;
+	prop.zgndimag = ctx.zgndimag;
+
+	propv.mdvar = ctx.mdvar;
+	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv);
+
+	fs = ctx.fs_fmhz + 20.0 * log10(prop.dist / 1000.0);
+	q  = prop.dist - propa.dla;
+
+	if (int(q) < 0.0)
+		mode = PROP_MODE_LOS;
+	else if (int(q) == 0.0)
+		mode = PROP_MODE_1_HRZN;
+	else if (int(q) > 0.0)
+		mode = PROP_MODE_2_HRZN;
+
+	if (mode != PROP_MODE_LOS) {
+		if (prop.dist <= propa.dlsa || prop.dist <= propa.dx)
+			mode |= PROP_MODE_DIFFRACTION;
+		else if (prop.dist > propa.dx)
+			mode |= PROP_MODE_TROPOSCATTER;
+	}
+
+	dbloss = avar(ctx.zr, 0.0, ctx.zc, prop, propv) + fs;
 	errnum = prop.kwx;
 }
 

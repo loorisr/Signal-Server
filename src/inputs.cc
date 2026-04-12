@@ -40,7 +40,6 @@ int LoadPAT(char *az_filename, char *el_filename)
 	got_elevation_pattern = false;
 
 	/* Load .az antenna pattern file */
-
 	{
 		std::ifstream fd;
 		if (az_filename != NULL) {

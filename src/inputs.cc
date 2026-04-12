@@ -300,7 +300,11 @@ int LoadPAT(char *az_filename, char *el_filename)
 				for (y = 0; y <= 1000; y++) {
 					elevation = got_elevation_pattern ? elevation_pattern[x][y] : 1.0f;
 					az        = got_azimuth_pattern   ? azimuth_pattern[x]      : 1.0f;
-					LR.antenna_pattern[x][y] = az * elevation;
+					float linear = az * elevation;
+					/* Store pre-computed dB value to avoid log10() at every sample.
+					 * linear == 0.0 maps to 0.0 dB (no adjustment) to preserve
+					 * legacy behaviour for missing/null pattern entries. */
+					LR.antenna_pattern[x][y] = (linear > 0.0f) ? 20.0 * log10(linear) : 0.0;
 				}
 			}
 		}

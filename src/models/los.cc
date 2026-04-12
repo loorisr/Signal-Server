@@ -441,12 +441,8 @@ void PlotPropPath(
 			x = (int)rint(10.0 * (10.0 - elevation));
 
 			if (x >= 0 && x <= 1000) {
-				pattern =  LR.antenna_pattern[azimuth][x];
-
-				if (pattern != 0.0) {
-					pattern = 20.0 * log10(pattern);
-					loss -= pattern;
-				}
+				pattern = LR.antenna_pattern[azimuth][x]; /* already in dB */
+				loss -= pattern;
 			}
 
 			if (LR.erp != 0.0) {

@@ -230,7 +230,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 	char basename[255], term[30], ext[15], report_name[80], block = 0;
 	PropagationMode mode = PROP_MODE_NONE;
 	double maxloss = -100000.0, minloss = 100000.0, angle1, angle2,
-	    azimuth, pattern = 1.0, patterndB = 0.0,
+	    azimuth, pattern = 0.0, patterndB = 0.0,
 	    total_loss = 0.0, cos_xmtr_angle, cos_test_angle = 0.0,
 	    source_alt, test_alt, dest_alt, source_alt2, dest_alt2,
 	    distance, elevation,
@@ -266,10 +266,9 @@ void PathReport(struct site source, struct site destination, const char *name,
 		x = (int)rint(10.0 * (10.0 - angle2));
 
 		if (x >= 0 && x <= 1000)
-			pattern =
-			    LR.antenna_pattern[(int)rint(azimuth)][x];
+			pattern = LR.antenna_pattern[(int)rint(azimuth)][x]; /* already in dB */
 
-		patterndB = 20.0 * log10(pattern);
+		patterndB = pattern;
 	}
 
 	fprintf(fd2, "Distance to Rx: %.2f kilometers\n",
@@ -579,17 +578,8 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			x = (int)rint(10.0 * (10.0 - elevation));
 
-			if (x >= 0 && x <= 1000) {
-				pattern =
-				    LR.antenna_pattern[(int)azimuth][x];
-
-				if (pattern != 0.0){
-					patterndB = 20.0 * log10(pattern);
-				}else{
-					patterndB = 0.0;
-				}
-			}
-
+			if (x >= 0 && x <= 1000)
+				patterndB = LR.antenna_pattern[(int)azimuth][x]; /* already in dB */
 			else
 				patterndB = 0.0;
 

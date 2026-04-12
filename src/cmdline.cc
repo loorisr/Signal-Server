@@ -24,7 +24,7 @@ void parse_cmdline(int argc, char *argv[])
     altitudeLR     = 1;
     prop_model     = ITM_LR;
     number_threads = std::thread::hardware_concurrency();
-    mapfile[0]     = '\0';
+    mapfile.clear();
 
     char antenna_file[255];
     char *az_filename = NULL, *el_filename = NULL;
@@ -100,7 +100,7 @@ void parse_cmdline(int argc, char *argv[])
 
     y = argc - 1;
     dbm = false;
-    DEM_path[0] = 0;
+    DEM_path.clear();
     clutter = 0.0;
     path.length = 0;
     fzone_clearance = 0.6;
@@ -211,14 +211,7 @@ void parse_cmdline(int argc, char *argv[])
                     exit(1);
                 }
 
-                size_t base_len = strlen(argv[z]);
-                if(base_len >= sizeof(mapfile)){
-                    spdlog::error("Output name too long (max {} chars)", sizeof(mapfile)-2);
-                    exit(1);
-                }
-                // Copy base name into mapfile and tx_site structures
-                strncpy(mapfile, argv[z], sizeof(mapfile)-1);
-                mapfile[sizeof(mapfile)-1] = '\0';
+                mapfile = argv[z];
                 output_filename = argv[z];
             } else if (z <= y && argv[z][0] && argv[z][0] == '-' && argv[z][1] == '\0' ) {
                 /* default file name */
@@ -254,10 +247,8 @@ void parse_cmdline(int argc, char *argv[])
         if (strcmp(argv[x], "-dem") == 0) {
             z = x + 1;
 
-            if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                strncpy(DEM_path, argv[z], 253);
-                DEM_path[253] = '\0';
-            }
+            if (z <= y && argv[z][0] && argv[z][0] != '-')
+                DEM_path = argv[z];
         }
 
         if (strcmp(argv[x], "-lat") == 0) {
@@ -568,14 +559,9 @@ void parse_cmdline(int argc, char *argv[])
 
     /* Ensure a trailing '/' is present in DEM_path */
 
-    if (DEM_path[0]) {
-        x = strlen(DEM_path);
-
-        if (DEM_path[x - 1] != '/' && x != 0) {
-            spdlog::debug("Appending / to Copernicus directory");
-            DEM_path[x] = '/';
-            DEM_path[x + 1] = 0;
-        }
+    if (!DEM_path.empty() && DEM_path.back() != '/') {
+        spdlog::debug("Appending / to Copernicus directory");
+        DEM_path += '/';
     }
 
     if (number_threads < 1) {

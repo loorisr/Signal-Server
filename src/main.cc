@@ -50,7 +50,7 @@
 
 int ppd = 1200;
 
-char DEM_path[255];
+std::string DEM_path;
 std::string color_palette = "heat";
 std::string output_filename;
 
@@ -81,12 +81,12 @@ double altitudeLR = 1;
 PropModel prop_model = ITM_LR;
 bool ppa = false;
 int normalise = 0;
-char mapfile[255] = "";
+std::string mapfile;
 
-__thread double *elev;
-__thread int elev_allocated = 0;
-__thread struct path path;
-__thread int path_allocated = 0;
+thread_local double *elev;
+thread_local int elev_allocated = 0;
+thread_local struct path path;
+thread_local int path_allocated = 0;
 site tx_site;
 site rx_site;
 double         **dem_data   = nullptr;
@@ -126,8 +126,9 @@ int main(int argc, char *argv[])
     
 
     /* Load the required DEM tiles */
-    if( (LoadTopoData(geo_bounds)) != 0 ){
+    if (LoadTopoData(geo_bounds) != 0) {
         spdlog::error("Error loading topo data");
+        return 1;
     }
 
     //for plots
@@ -142,12 +143,12 @@ int main(int argc, char *argv[])
 
         // Write image
         if (prop_model == LOS)
-            DoLOS(mapfile);
+            DoLOS(mapfile.c_str());
         else if (LR.erp == 0.0)
-            DoPathLoss(mapfile);
+            DoPathLoss(mapfile.c_str());
         else if (dbm)
-            DoRxdPwr(mapfile);
-        else DoSigStr(mapfile);
+            DoRxdPwr(mapfile.c_str());
+        else DoSigStr(mapfile.c_str());
 
         spdlog::debug("Area boundaries:{:.6f} | {:.6f} | {:.6f} | {:.6f} ",geo_bounds.upper_right.lat, geo_bounds.lower_left.lat, geo_bounds.upper_right.lon, geo_bounds.lower_left.lon);
 
@@ -160,7 +161,7 @@ int main(int argc, char *argv[])
 
     auto end_time = std::chrono::steady_clock::now();
     double elapsed_s = std::chrono::duration<double>(end_time - start_time).count();
-    fprintf(stderr, "Execution time: %.3f seconds\n", elapsed_s);
+    spdlog::info("Execution time: {:.3f} seconds", elapsed_s);
 
     if (debug) {
         fprintf(stderr, "--- Function call counters ---\n");

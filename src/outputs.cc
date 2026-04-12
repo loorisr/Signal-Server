@@ -168,7 +168,7 @@ static void render_geotiff(const char *filename,
 }
 
 // Render path-loss contours as a GeoTIFF.
-void DoPathLoss(char *filename)
+void DoPathLoss(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 80.0, 230.0, true,
 		[](int sig) -> std::optional<double> {
@@ -179,7 +179,7 @@ void DoPathLoss(char *filename)
 }
 
 // Render received signal strength as a GeoTIFF.
-int DoSigStr(char *filename)
+int DoSigStr(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 128.0, false,
 		[](int sig) -> std::optional<double> {
@@ -191,7 +191,7 @@ int DoSigStr(char *filename)
 }
 
 // Render received power as a GeoTIFF.
-void DoRxdPwr(char *filename)
+void DoRxdPwr(const char *filename)
 {
 	render_geotiff(filename, get_colormap(),
 		(double)contour_threshold, 0.0, false,
@@ -203,7 +203,7 @@ void DoRxdPwr(char *filename)
 }
 
 // Render line-of-sight coverage as a GeoTIFF.
-void DoLOS(char *filename)
+void DoLOS(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 1.0, false,
 		[](int sig) -> std::optional<double> {

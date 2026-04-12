@@ -341,7 +341,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         "Copernicus_DSM_COG_{}_{}{:02d}_00_{}{:03d}_00_DEM.tif",
         res_str, ns, lat_abs, ew, lon_abs);
 
-    std::string path_plus_name = std::string(DEM_path) + filename;
+    std::string path_plus_name = DEM_path + filename;
     GDALDatasetH ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
     if (ds == NULL) {
         spdlog::debug("LoadCopernicus: file not found: {}", filename);

@@ -325,7 +325,7 @@ void PlotPropPath(
 
 	ReadPath(source, destination);
 
-	azimuth = rint(Azimuth(source, destination)); // for antenna pattern
+	azimuth = rint(Azimuth(destination, source)); // for antenna pattern
 
 	elev[1] = path.distance[2] - path.distance[1]; // distance between samples
     // add clutter

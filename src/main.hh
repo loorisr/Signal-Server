@@ -6,8 +6,7 @@
 #include "common.hh"
 #include "geo.hh"
 
-#define VER_MAJ 4
-#define VER_MIN 0
+#define VERSION "2026.04.12"
 
 #ifndef GIT_COMMIT_HASH
 #define GIT_COMMIT_HASH "?"

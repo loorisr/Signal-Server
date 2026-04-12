@@ -4,7 +4,10 @@ This is a fork of [W3AXL Signal-Server](https://github.com/W3AXL/Signal-Server).
 
 Thanks to all contributors of SPLAT! and Signal Server!
 
+Developped to be used with [this API](https://github.com/loorisr/splat-API)
+
 Improvements:
+- speed: 1.38s for a 100 km radius area calculation vs 6.98s for the original code (80% faster).
 - use the total number of cores of a computer. Can be overrided by `-number_threads X`
 - better compilation flags
 - `-geotiff` for geotiff image output
@@ -13,31 +16,30 @@ Improvements:
 - simplification: remove of useless vars, functions
 - No LIDAR mode
 - No more sdf for DEM, no more strm2sdf
-- better code lisibility
+- better code lisibility, comments
 - several color palettes with -color
+- add NTIA official ITM code
+- generate geotiff only (no more heavy ppm files)
+
 
 # Signal Server
-Multi-threaded radio propagation simulator based upon SPLAT! by Alex Farrant QCVS, 2E0TDW. 
+Multi-threaded radio propagation simulator based upon SPLAT! by Alex Farrant QCVS, 2E0TDW and P. McDonnell, W3AXL. 
 
 SPLAT! Project started in 1997 by John A. Magliacane, KD2BD
 
 Some additional features and fixes by Aaron A. Collins, N9OZB
                                       Tom Hayward, KD7LXL
                                       Darcy Buskermolen, VA7DBI
+                                      McDonnell, W3AXL
 
-This server application will generate RF coverage predictions, producing either 2D profile plots (Point-to-Point) or 360 degree polar plots in WGS-84 projection as PPM Bitmaps. 
+This server application will generate RF coverage predictions, producing either 2D profile plots (Point-to-Point) or 360 degree polar plots in WGS-84 projection. 
 
-For detailed information and historical reference data related to this project see the SPLAT! documentation. This SPLAT! fork used to power CloudRF.com from 2012 to 2016 before it was replaced with a purpose built engine. Propagation models added to this project have been sourced from reputable academic sources and all efforts have been taken to ensure their accurate implementation. Not all models are ITU ratified and you use them entirely at your own risk.
-
-WARNING: The accuracy of the output is directly proportional to the accuracy of the inputs and the time taken defining and validating them. 
 
 
 ## Requirements
 * C++14-conformant C++ compiler (GCC,G++ / clang)
 * Build environment for C++ (linker, C++ Standard Library and so forth) 
 * CMake v3.5 or newer
-* Convert (part of ImageMagick)
-* For some additional scripts: Bash and Python interpreter
 * library pthread: POSIX threads library
 * library dl: Open and close a shared object - POSIX conform
 * library z: zlib is a general-purpose lossless data-compression library
@@ -56,7 +58,7 @@ Signal Server is a very resource intensive multicore application. Only publish i
 ## Install dependencies
 Assuming Debian / Ubuntu, this will fetch the core libraries needed to build it as well as an image library for manipulating outputs.
 ```
-sudo apt-get install g++ cmake libbz2-dev imagemagick spdlog
+sudo apt-get install g++ cmake spdlog
 ```
 
 ## Installation
@@ -77,17 +79,13 @@ Test output will be in output/tests
 
 ## Parameters
 ```
-----------------------------------------------------------------------------------
-Signal Server 4.0 (master c1e8c72)
-    Compile date: Jul  1 2024 01:05:46
-    Built for 32 DEM tiles at 3600 pixels
-----------------------------------------------------------------------------------
 License: GNU General Public License (GPL) version 2
 
 Radio propagation simulator by Alex Farrant QCVS, 2E0TDW
 Based upon SPLAT! by John Magliacane, KD2BD
 Some feature enhancements/additions by Aaron A. Collins, N9OZB
 Additional improvements and multithreading fixes by P. McDonnell, W3AXL
+Additional improvements and cleanup by Loris, F4ITL
 
 Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile
 
@@ -95,15 +93,14 @@ Data:
      -dem Directory containing Copernicus DEM GeoTIFF COG tiles
                   (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,
                    Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)
-     -color Color palette: heat (default), jet, turbo, viridis, magma, plasma,
-                  inferno, hot, parula, gray, hsv, cubehelix, cividis, github
+     -color Color palette: heat (default), jet, turbo, viridis, magma, plasma, inferno, hot, parula, gray, hsv, cubehelix, cividis, github
 Input:
      -lat Tx Latitude (decimal degrees) -70/+70
      -lon Tx Longitude (decimal degrees) -180/+180
      -rla (Optional) Rx Latitude for PPA (decimal degrees) -70/+70
      -rlo (Optional) Rx Longitude for PPA (decimal degrees) -180/+180
      -f Tx Frequency (MHz) 20MHz to 100GHz (LOS after 20GHz)
-     -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14dBi = 0dBd
+     -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14 dBi = 0 dBd
      -gc Random ground clutter (meters)
      -te Terrain code 1-6 (optional - 1. Water, 2. Marsh, 3. Farmland,
           4. Mountain, 5. Desert, 6. Urban
@@ -118,12 +115,12 @@ Input:
      -hd Use HD mode (30m), default 90m
 Output:
      -o basename (Output file basename - required, min 5 chars)
-     -dbm Plot Rxd signal power in dBm, instead of field strength in dBuV/m
+     -dbm Plot Rxd signal power instead of field strength in dBuV/m
      -rt Rx Threshold (dB / dBm / dBuV/m)
      -R Radius (kilometers)
      -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,
           5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,
-          10: Plane earth, 11: Egli VHF/UHF, 12: Soil
+          10: Plane earth, 11: Egli VHF/UHF, 12: Soil, 13: NTIA ITM
      -pe Propagation model mode: 1=Urban,2=Suburban,3=Rural
      -ked Knife edge diffraction (Already on for ITM)
      -geotiff Output a geotiff file

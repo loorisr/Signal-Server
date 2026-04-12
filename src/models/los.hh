@@ -44,14 +44,19 @@ struct progress_t {
     std::atomic<unsigned int> total {} ;
 };
 
+// Plot line-of-sight signal along the path between two sites.
 void PlotLOSPath(struct site source, struct site destination);
 
+// Plot propagation loss or signal along the path between two sites.
 void PlotPropPath(struct site source, struct site destination);
 
+// Plot a radial propagation surface centered on the source site.
 void PlotPropagationRadius(struct site source);
 
+// Check whether the direct path between two sites is blocked.
 void PlotPath(struct site source, struct site destination);
 
+// Compute propagation loss for the selected model and path geometry.
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt, double dm, PropagationMode &mode, int &errnum);
 
 #endif /* _LOS_HH_ */

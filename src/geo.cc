@@ -7,6 +7,7 @@
 #include "main.hh"
 #include "common.hh"
 
+// Return an angle in the correct quadrant from a cosine ratio and sign.
 double arccos(double x, double y)
 {
     if (y == 0.0) return 0.0;
@@ -14,6 +15,7 @@ double arccos(double x, double y)
     return y < 0.0 ? PI + result : result;
 }
 
+// Compute the wrapped longitude difference between two coordinates.
 double LonDiff(double lon1, double lon2)
 {
     double diff = lon1 - lon2;
@@ -22,6 +24,7 @@ double LonDiff(double lon1, double lon2)
     return diff;
 }
 
+// Compute great-circle distance between two sites.
 double Distance(struct site site1, struct site site2)
 {
     double lat1 = site1.lat * DEG2RAD;
@@ -35,6 +38,7 @@ double Distance(struct site site1, struct site site2)
     return EARTHRADIUS * acos(dot);
 }
 
+// Compute the forward azimuth from the source site to the destination site.
 double Azimuth(struct site source, struct site destination)
 {
     double dest_lat, dest_lon, src_lat, src_lon,
@@ -69,6 +73,7 @@ double Azimuth(struct site source, struct site destination)
     return (azimuth * RAD2DEG);
 }
 
+// Return the WGS84 Earth radius at the given latitude.
 double earthRadius(double lat)
 {
     // Convert latitude to rad
@@ -82,6 +87,7 @@ double earthRadius(double lat)
     return sqrt((An*An + Bn*Bn) / (Ad*Ad + Bd*Bd));
 }
 
+// Project a point from a center coordinate by distance and bearing.
 coord getPointAtDistance(const coord center, double distance, double bearing_rad)
 {
     coord endCoords;
@@ -116,6 +122,7 @@ coord getPointAtDistance(const coord center, double distance, double bearing_rad
     return endCoords;
 }
 
+// Build a latitude/longitude bounding box that encloses a circular area.
 bbox getCircularBoundingBox(coord center, double radius)
 {
     // Result bbox
@@ -145,6 +152,7 @@ bbox getCircularBoundingBox(coord center, double radius)
 
 /* DEM access */
 
+// Translate geographic coordinates into DEM pixel coordinates.
 bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 {
     if (!dem_data) return false;
@@ -156,6 +164,7 @@ bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
     return true;
 }
 
+// Store the computed signal value at the DEM cell for a location.
 void PutSignal(double lat, double lon, int signal)
 {
     int x, y;
@@ -163,6 +172,7 @@ void PutSignal(double lat, double lon, int signal)
         dem_signal[x][y] = signal;
 }
 
+// Read the stored signal value at the DEM cell for a location.
 int GetSignal(double lat, double lon)
 {
     int x, y;
@@ -170,6 +180,7 @@ int GetSignal(double lat, double lon)
     return dem_signal[x][y];
 }
 
+// Read the terrain elevation for a site from the loaded DEM.
 double GetElevation(struct site location)
 {
     int x, y;
@@ -201,6 +212,7 @@ double ElevationAngle(struct site source, struct site destination)
     return (acos(cos_angle) * RAD2DEG) - 90.0;
 }
 
+// Allocate the per-thread path buffers for a new sample count.
 static void alloc_path(int size)
 {
     path.lat = new double[size];
@@ -216,6 +228,7 @@ static void alloc_path(int size)
        elevation and distance information for points
        along that path in the "path" structure.
 */
+// Generate the sampled great-circle path and cache terrain samples along it.
 void ReadPath(struct site source, struct site destination)
 {
     if (debug) cnt_ReadPath++;
@@ -300,6 +313,7 @@ void ReadPath(struct site source, struct site destination)
     path.length = c;
 }
 
+// Return the destination elevation angle or the first obstruction angle.
 double ElevationAngle2(struct site source, struct site destination, double er)
 {
     /* This function returns the angle of elevation (in degrees)
@@ -371,6 +385,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
     return elevation;
 }
 
+// Report terrain obstructions and Fresnel-zone clearance along a path.
 void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
              FILE *outfile)
 {
@@ -563,6 +578,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
 
 /* Memory management */
 
+// Release the loaded DEM and signal grids.
 void free_dem(void)
 {
     for (int i = 0; i < dem_height_px; i++) {
@@ -574,11 +590,13 @@ void free_dem(void)
     dem_width_px = dem_height_px = 0;
 }
 
+// Release the per-thread elevation buffer.
 void free_elev(void) {
   delete [] elev;
   elev_allocated = 0;
 }
 
+// Release the per-thread path buffers.
 void free_path(void)
 {
     delete [] path.lat;
@@ -591,6 +609,7 @@ void free_path(void)
 
 /* Allocate the flat DEM arrays for a known bounding box.
  * Called from LoadTopoData() after tiles_lat/tiles_lon are computed. */
+// Allocate the flat DEM arrays for a known bounding box.
 void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
 {
     if (dem_data) free_dem();

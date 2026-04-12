@@ -23,6 +23,7 @@
 #include "models/los.hh"
 #include "outputs.hh"
 
+// Write an RGBA raster to a GeoTIFF using the current geographic bounds.
 void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename)
 {
     char tif_file[300];
@@ -96,6 +97,7 @@ void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, cons
     GDALClose(ds);
 }
 
+// Map the configured palette name to a tinycolormap preset.
 static tinycolormap::ColormapType get_colormap()
 {
 	if (color_palette == "parula")    return tinycolormap::ColormapType::Parula;
@@ -115,6 +117,7 @@ static tinycolormap::ColormapType get_colormap()
 	return tinycolormap::ColormapType::Heat;
 }
 
+// Render the current signal grid into a GeoTIFF using a classification callback.
 template<typename ClassifyFn>
 static void render_geotiff(const char *filename,
                             tinycolormap::ColormapType colormap,
@@ -164,6 +167,7 @@ static void render_geotiff(const char *filename,
 	write_geotiff_rgba(rgba.data(), width, height, filename);
 }
 
+// Render path-loss contours as a GeoTIFF.
 void DoPathLoss(char *filename)
 {
 	render_geotiff(filename, get_colormap(), 80.0, 230.0, true,
@@ -174,6 +178,7 @@ void DoPathLoss(char *filename)
 		});
 }
 
+// Render received signal strength as a GeoTIFF.
 int DoSigStr(char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 128.0, false,
@@ -185,6 +190,7 @@ int DoSigStr(char *filename)
 	return 0;
 }
 
+// Render received power as a GeoTIFF.
 void DoRxdPwr(char *filename)
 {
 	render_geotiff(filename, get_colormap(),
@@ -196,6 +202,7 @@ void DoRxdPwr(char *filename)
 		});
 }
 
+// Render line-of-sight coverage as a GeoTIFF.
 void DoLOS(char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 1.0, false,
@@ -206,6 +213,7 @@ void DoLOS(char *filename)
 		});
 }
 
+// Write a detailed point-to-point path analysis report and optional plot script.
 void PathReport(struct site source, struct site destination, const char *name,
 		char graph_it, PropModel propmodel, double rxGain)
 {
@@ -796,6 +804,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 }
 
+// Write profile, clutter, curvature, and Fresnel series data for graphing.
 void SeriesData(struct site source, struct site destination, const char *name,
 		unsigned char fresnel_plot, unsigned char normalised)
 {

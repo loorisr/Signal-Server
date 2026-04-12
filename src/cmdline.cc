@@ -14,6 +14,7 @@
 #include "inputs.hh"
 #include "models/los.hh"
 
+// Parse command-line options, apply defaults, and load optional antenna files.
 void parse_cmdline(int argc, char *argv[])
 {
     int x, y, z = 0;
@@ -28,7 +29,7 @@ void parse_cmdline(int argc, char *argv[])
     char antenna_file[255];
     char *az_filename, *el_filename = NULL;
 
-    spdlog::info("Version {}.{} ({} {})", VER_MAJ, VER_MIN, GIT_BRANCH, GIT_COMMIT_HASH);
+    spdlog::info("Version {} ({} {})", VERSION, GIT_BRANCH, GIT_COMMIT_HASH);
     spdlog::info("    Compile date: {} {}", __DATE__, __TIME__);
     spdlog::info("");
 
@@ -39,6 +40,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("Based upon SPLAT! by John Magliacane, KD2BD");
         spdlog::info("Some feature enhancements/additions by Aaron A. Collins, N9OZB");
         spdlog::info("Additional improvements and multithreading fixes by P. McDonnell, W3AXL");
+        spdlog::info("Additional improvements and cleanup by Loris, F4ITL");
         spdlog::info("");
         spdlog::info("Usage: signalserver [data options] [input options] [antenna options] [output options] -o outputfile");
         spdlog::info("");
@@ -53,7 +55,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -rla (Optional) Rx Latitude for PPA (decimal degrees) -70/+70");
         spdlog::info("     -rlo (Optional) Rx Longitude for PPA (decimal degrees) -180/+180");
         spdlog::info("     -f Tx Frequency (MHz) 20MHz to 100GHz (LOS after 20GHz)");
-        spdlog::info("     -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14dBi = 0dBd");
+        spdlog::info("     -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14 dBi = 0 dBd");
         spdlog::info("     -gc Random ground clutter (meters)");
         spdlog::info("     -te Terrain code 1-6 (optional - 1. Water, 2. Marsh, 3. Farmland,");
         spdlog::info("          4. Mountain, 5. Desert, 6. Urban");

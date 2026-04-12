@@ -21,6 +21,7 @@ extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
 
 static std::mutex dem_stats_mutex;
 
+// Load antenna azimuth and elevation pattern files into normalized lookup tables.
 int LoadPAT(char *az_filename, char *el_filename)
 {
 	/* This function reads and processes antenna pattern (.az
@@ -323,6 +324,7 @@ int LoadPAT(char *az_filename, char *el_filename)
  * Returns 1 on success, 0 if already loaded, negative errno on error.
  */
 
+// Load a single Copernicus DEM tile into the in-memory terrain buffers.
 int LoadCopernicus(int tile_lat, int tile_lon)
 {
     /* Build the Copernicus filename. */
@@ -391,7 +393,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         if (tile_lon       < min_lon)   min_lon   = tile_lon;
     }
 
-    spdlog::info("LoadCopernicus: loaded {} (el {}/{}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
+    spdlog::info("LoadCopernicus: loaded {} (el {:.0f}/{:.0f}m, bounds {:.0f}N {:.0f}E → {:.0f}N {:.0f}E)",
                  filename, tile_min_el, tile_max_el,
                  (float)tile_lat, (float)tile_lon,
                  (float)(tile_lat + 1), (float)(tile_lon + 1));
@@ -402,6 +404,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 /**
  * Load the required Topo data for the given lat/lon box
 */
+// Load and stitch all DEM tiles needed to cover the requested region.
 int LoadTopoData(bbox region)
 {
     spdlog::info("Loading topo data for boundaries: ({:.6f}N, {:.6f}E) to ({:.6f}N, {:.6f}E)",

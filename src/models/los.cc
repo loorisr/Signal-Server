@@ -26,6 +26,7 @@
 
 namespace {
 	//bool ***processed; //unused
+	// Tracks whether the shared processed-pixel bitmap has been allocated.
 	bool has_init_processed = false;
 
     // Storage for processing threads
@@ -43,6 +44,7 @@ namespace {
     // std::atomic is non-copyable so we use a flat vector allocated via new[].
     std::unique_ptr<std::atomic<uint8_t>[]> processedPoints;
 
+	// Allocate and clear the shared processed-pixel bitmap.
 	void init_processed()
 	{
         int total = dem_height_px * dem_width_px;
@@ -53,6 +55,7 @@ namespace {
 		has_init_processed = true;
 	}
 
+	// Claim a pixel once so concurrent workers do not process it twice.
 	bool can_process(double lat, double lon)
 	{
 		int x = (int)rint(ppd  * (lat - dem_min_lat));
@@ -65,6 +68,7 @@ namespace {
         return processedPoints[x * dem_width_px + y].exchange(1, std::memory_order_acq_rel) == 0;
 	}
 
+    // Compute one angular slice of the propagation radius.
     void* radiusPropagation(progress_t &progress, void *parameters)
     {
         // Create a prop radius from our parameters
@@ -129,6 +133,7 @@ namespace {
  * Acute Angle from Rx point to an obstacle of height (opp) and
  * distance (adj)
  */
+// Return the acute angle from a receiver point to an obstacle.
 static double incidenceAngle(double opp, double adj)
 {
 	return atan2(opp, adj) * RAD2DEG;
@@ -140,6 +145,7 @@ static double incidenceAngle(double opp, double adj)
  * thoroughness for increased speed which adds a proportional diffraction
  * effect to obstacles.
  */
+// Estimate knife-edge diffraction loss from the terrain profile.
 static double ked(double freq, double rxh, double dm)
 {
 	double obh, obd, rxobaoi = 0, d;
@@ -178,6 +184,7 @@ static double ked(double freq, double rxh, double dm)
 }
 
 // to complete
+// Mark line-of-sight points along the source-to-destination path.
 void PlotLOSPath(struct site source, struct site destination)
 {
     /* This function analyzes the path between the source and
@@ -223,6 +230,7 @@ void PlotLOSPath(struct site source, struct site destination)
     }
 }
 
+// Select and run the configured propagation model for the current path.
 double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
                    double dm, PropagationMode &mode, int &errnum)
 {
@@ -299,6 +307,7 @@ double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terr
  * @param source - the source site object
  * @param destination - the destination site object
 */
+// Plot the full propagation result for every point along a path.
 void PlotPropPath(
     struct site source,
     struct site destination
@@ -446,6 +455,7 @@ void PlotPropPath(
 	}
 }
 
+// Divide a circular plot area into worker slices and render each one.
 void PlotPropagationRadius(struct site source)
 {
     // Get plot type string
@@ -542,6 +552,7 @@ void PlotPropagationRadius(struct site source)
 
 }
 
+// Check whether any terrain point blocks the direct path.
 void PlotPath(struct site source, struct site destination)
 {
 	/* This function analyzes the path between the source and

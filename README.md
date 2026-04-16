@@ -7,7 +7,7 @@ Thanks to all contributors of SPLAT! and Signal Server!
 Developped to be used with [this API](https://github.com/loorisr/splat-API)
 
 Improvements:
-- speed: 1.38s for a 100 km radius area calculation vs 6.98s for the original code (80% faster).
+- speed: **5 times faster** than the original code (1.38s vs 6.98s for a 100 km radius area calculation).
 - use the total number of cores of a computer. Can be overrided by `-number_threads X`
 - better compilation flags
 - `-geotiff` for geotiff image output
@@ -70,13 +70,6 @@ cmake ../src
 make
 ```
 
-## Test (needs updating)
-Run the test script from the top level directory. Binaries are in the src directory.
-Test output will be in output/tests
-```
-./test.sh
-```
-
 ## Parameters
 ```
 License: GNU General Public License (GPL) version 2
@@ -101,22 +94,23 @@ Input:
      -rlo (Optional) Rx Longitude for PPA (decimal degrees) -180/+180
      -f Tx Frequency (MHz) 20MHz to 100GHz (LOS after 20GHz)
      -erp Tx Total Effective Radiated Power in Watts (dBd) inc Tx+Rx gain. 2.14 dBi = 0 dBd
-     -gc Random ground clutter (meters)
+     -gc Random ground clutter in meters (optional, default 0)
      -te Terrain code 1-6 (optional - 1. Water, 2. Marsh, 3. Farmland,
           4. Mountain, 5. Desert, 6. Urban
-     -terdic Terrain dielectric value 2-80 (optional)
-     -tercon Terrain conductivity 0.01-0.0001 (optional)
+     -terdic Terrain dielectric value 2-80 (optional, default 15)
+     -tercon Terrain conductivity 0.01-0.0001 (optional, default 0.005)
      -cl Climate code 1-7 (optional - 1. Equatorial 2. Continental subtropical
           3. Maritime subtropical 4. Desert 5. Continental temperate
           6. Maritime temperate (Land) 7. Maritime temperate (Sea)
+          (optional, default 5. Continental temperate)
      -rel Reliability for ITM model (% of 'time') 1 to 99 (optional, default 50%)
      -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)
-     -number_threads Number of worker threads to divide the plot rectangle into (must be even and >= 4)
-     -hd Use HD mode (30m), default 90m
+     -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)
+     -hd Use HD mode (1'=30m), (optional, default 3'=90m)
 Output:
      -o basename (Output file basename - required, min 5 chars)
-     -dbm Plot Rxd signal power instead of field strength in dBuV/m
-     -rt Rx Threshold (dB / dBm / dBuV/m)
+     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)
+     -rt Rx Threshold (dBm / dBuV/m)
      -R Radius (kilometers)
      -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,
           5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,
@@ -142,7 +136,7 @@ Debugging:
 ### REFERENCE DATA
 Signal server is designed for most of the environments and climates on Planet Earth but Polar region support is limited above extreme latitudes. (Svalbard is ok).
 
- It can run with or without terrain data and can even be used to simulate radiation of other EM emissions like light.
+It can run with or without terrain data and can even be used to simulate radiation of other EM emissions like light.
 
 #### -dem
 ##### Directory containing Digital Elevation Models (DEM)

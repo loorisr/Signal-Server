@@ -1931,42 +1931,48 @@ void hzns2(double pfl[], prop_type & prop, propa_type & /*propa*/)
 }
 
 void z1sq1(double z[], const double &x1, const double &x2, double &z0,
-	   double &zn)
+           double &zn)
 {
-	/* Used only with ITM 1.2.2 */
-	double xn, xa, xb, x, a, b;
-	int n, ja, jb;
+    /* Used only with ITM 1.2.2 */
+    double xn, xa, xb, x, a, b;
+    int n, ja, jb;
+    xn = z[0];
+    xa = int(MAX(x1 / z[1], 0.0));
+    xb = xn - int(FORTRAN_DIM(xn, x2 / z[1]));
+    if (xb <= xa) {
+        xa = FORTRAN_DIM(xa, 1.0);
+        xb = xn - FORTRAN_DIM(xn, xb + 1.0);
+    }
+    ja = (int)xa;
+    jb = (int)xb;
+    n  = jb - ja;
+    xa = xb - xa;
+    x  = -0.5 * xa;
+    xb += x;
 
-	xn = z[0];
-	xa = int (MAX(x1 / z[1], 0.0));
-	xb = xn - int (FORTRAN_DIM(xn, x2 / z[1]));
+    // Pointer to first sample in the window: z[ja+2] .. z[jb+2]
+    const double *p = z + ja + 2;
 
-	if (xb <= xa) {
-		xa = FORTRAN_DIM(xa, 1.0);
-		xb = xn - FORTRAN_DIM(xn, xb + 1.0);
-	}
+    // Endpoint contributions (original code's initial a, b).
+    // a accumulates sum of samples with endpoints half-weighted,
+    // b accumulates sum of samples * (their x offset).
+    double a_sum = 0.5 * (p[0] + p[n]);
+    double b_sum = 0.5 * (p[0] - p[n]) * x;   // p[0] at offset x, p[n] at offset x+n, rewritten
 
-	ja = (int)xa;
-	jb = (int)xb;
-	n = jb - ja;
-	xa = xb - xa;
-	x = -0.5 * xa;
-	xb += x;
-	
-	a = 0.5 * (z[ja + 2] + z[jb + 2]);
-	b = 0.5 * (z[ja + 2] - z[jb + 2]) * x;
+    // Interior samples: i = 2..n  ->  indices 1..n-1, with x advancing by 1 each step.
+    // Starting offset for i=2 is x+1.
+    double xi = x + 1.0;
+    for (int i = 1; i < n; ++i) {
+        double v = p[i];          // single load, reused
+        a_sum += v;
+        b_sum += v * xi;
+        xi    += 1.0;
+    }
 
-	for (int i = 2; i <= n; ++i) {
-		++ja;
-		x += 1.0;
-		a += z[ja + 2];
-		b += z[ja + 2] * x;
-	}
-
-	a /= xa;
-	b = b * 12.0 / ((xa * xa + 2.0) * xa);
-	z0 = a - b * xb;
-	zn = a + b * (xn - xb);
+    a = a_sum / xa;
+    b = b_sum * 12.0 / ((xa * xa + 2.0) * xa);
+    z0 = a - b * xb;
+    zn = a + b * (xn - xb);
 }
 
 void z1sq2(double z[], const double &x1, const double &x2, double &z0,
@@ -2072,46 +2078,51 @@ double qerf(const double &z)
 
 double d1thx(double pfl[], const double &x1, const double &x2)
 {
-	int np, ka, kb, n, k, j;
-	double d1thxv, sn, xa, xb;
-	double *s;
+	int np, ka, kb, n, j;
+    double d1thxv, sn, xa, xb;
+    double *s;
 
-	np = (int)pfl[0];
-	xa = x1 / pfl[1];
-	xb = x2 / pfl[1];
-	d1thxv = 0.0;
+    np = (int)pfl[0];
+    xa = x1 / pfl[1];
+    xb = x2 / pfl[1];
+    d1thxv = 0.0;
+    if (xb - xa < 2.0)
+        return d1thxv;
 
-	if (xb - xa < 2.0)	// exit out
-		return d1thxv;
+    ka = (int)(0.1 * (xb - xa + 8.0));
+    ka = MIN(MAX(4, ka), 25);
+    n  = 10 * ka - 5;
+    kb = n - ka + 1;
+    sn = n - 1;
 
-	ka = (int)(0.1 * (xb - xa + 8.0));
-	ka = MIN(MAX(4, ka), 25);
-	n = 10 * ka - 5;
-	kb = n - ka + 1;
-	sn = n - 1;
-	assert((s = new double[n + 2])!=0);
-	s[0] = sn;
-	s[1] = 1.0;
-	xb = (xb - xa) / sn;
-	k = (int)(xa + 1.0);
-	xa -= (double)k;
+    assert((s = new double[n + 2]) != 0);
+    s[0] = sn;
+    s[1] = 1.0;
 
-	for (j = 0; j < n; j++) {
-		while (xa > 0.0 && k < np) {
-			xa -= 1.0;
-			++k;
-		}
+    xb = (xb - xa) / sn;
 
-		s[j + 2] = pfl[k + 2] + (pfl[k + 2] - pfl[k + 1]) * xa;
-		xa += xb;
-	}
+    double *sp = s + 2;
+    double pos = xa;              /* running position in pfl-index space */
+
+    for (j = 0; j < n; j++) {
+        int    ki = (int)pos;     /* integer part: segment index        */
+        double fr = pos - ki;     /* fractional part in [0, 1)          */
+        if (ki + 1 > np) {        /* clamp to last segment              */
+            ki = np - 1;
+            fr = 1.0 + (pos - np);
+        }
+        double a = pfl[ki + 2];
+        double b = pfl[ki + 3];
+        *sp++ = b + (b - a) * (fr - 1.0);
+        /* equivalent to: a + (b - a) * fr, which is the standard lerp */
+        pos += xb;
+    }
 
 	z1sq1(s, 0.0, sn, xa, xb);
 	xb = (xb - xa) / sn;
 
 	for (j = 0; j < n; j++) {
-		s[j + 2] -= xa;
-		xa = xa + xb;
+		s[j + 2] -= j*xb;
 	}
 
 	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);

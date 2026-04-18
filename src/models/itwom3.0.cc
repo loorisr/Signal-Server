@@ -1798,51 +1798,49 @@ void hzns(double pfl[], prop_type & prop)
 
     const double xi = pfl[1];
     const double dist = prop.dist;
-    const double za = pfl[2] + prop.hg[0];
-    const double zb = pfl[np + 2] + prop.hg[1];
+    const double z_tx__meter = pfl[2] + prop.hg[0];
+    const double z_rx__meter = pfl[np + 2] + prop.hg[1];
     const double qc = 0.5 * prop.gme;
     const double q_dist = qc * dist;
 
-    double the0 = (zb - za) / dist - q_dist;
-    double the1 = -((zb - za) / dist) - q_dist;
-    double dl0 = dist;
-    double dl1 = dist;
+    double the0 = (z_rx__meter - z_tx__meter) / dist - q_dist;
+    double the1 = -((z_rx__meter - z_tx__meter) / dist) - q_dist;
+    prop.dl[0] = dist;
+    prop.dl[1] = dist;
 
-    double sa = 0.0;
-    double sb = dist;
+    double d_tx__meter = 0.0;
+    double d_rx__meter = dist;
     bool wq = true;
 
     // Pointer-based access to avoid repeated indexing calculations
     const double* p_val = &pfl[3]; 
 
     for (int i = 1; i < np; ++i) {
-        sa += xi;
-        sb -= xi;
+        d_tx__meter += xi;
+        d_rx__meter -= xi;
         
         const double val = *p_val++; // Current elevation point
         
         // Check horizon for side A
-        double q = val - (qc * sa + the0) * sa - za;
+        double q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
         if (q > 0.0) {
-            the0 += q / sa;
-            dl0 = sa;
+            the0 += q / d_tx__meter;
+            prop.dl[0] = d_tx__meter;
             wq = false;
         }
 
         // Only check side B if we've found at least one potential horizon
         if (!wq) {
-            q = val - (qc * sb + the1) * sb - zb;
+            q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
             if (q > 0.0) {
-                the1 += q / sb;
-                dl1 = sb;
+                the1 += q / d_rx__meter;
+                prop.dl[1] = d_rx__meter;
             }
         }
     }
 
     prop.the[0] = the0;
     prop.the[1] = the1;
-    prop.dl[0] = dl0;
-    prop.dl[1] = dl1;
 }
 
 void hzns2(double pfl[], prop_type & prop, propa_type & /*propa*/)
@@ -2118,7 +2116,7 @@ double d1thx(double pfl[], const double &x1, const double &x2)
         pos += xb;
     }
 
-	z1sq1(s, 0.0, sn, xa, xb);
+	z1sq1(s, 0.0, sn, xa, xb); //40ms
 	xb = (xb - xa) / sn;
 
 	for (j = 0; j < n; j++) {
@@ -2126,7 +2124,7 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 	}
 
 	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
-	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1);
+	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1); // 500ms
 	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
 	delete[]s;
 
@@ -2175,11 +2173,11 @@ double d1thx2(double pfl[], const double &x1, const double &x2,
 	xb = (xb - xa) / sn;
 
 	for (j = 0; j < n; j++) {
-		s[j + 2] -= xa;
-		xa = xa + xb;
+		s[j + 2] -= j*xb;
 	}
 
-	d1thx2v = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
+	//d1thx2v = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
+	d1thx2v = get_two_qtiles(s + 2, n-1, ka-1, kb-1);
 	d1thx2v /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
 	delete[]s;
 	return d1thx2v;

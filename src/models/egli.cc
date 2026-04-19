@@ -33,9 +33,9 @@ http://people.seas.harvard.edu/~jones/es151/prop_models/propagation.html#pel
 
 static __inline float _10log10f(float x) { return (4.342944f * logf(x)); }
 
-double EgliPathLoss(float f, float h1, float h2, float d)
+float EgliPathLoss(float f, float h1, float h2, float d)
 {
-  double Lp50 = NAN;
+  float Lp50 = NAN;
   float C1, C2;
 
   /*  if ((f >= fcmin) && (f <= fcmax) &&

@@ -14,16 +14,16 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-void FindHorizons(const double pfl[], const double a_e__meter, const double h__meter[2], double theta_hzn[2], double d_hzn__meter[2])
+void FindHorizons(const float pfl[], const float a_e__meter, const float h__meter[2], float theta_hzn[2], float d_hzn__meter[2])
 {
     const int np = int(pfl[0]);
-    const double xi = pfl[1];
+    const float xi = pfl[1];
 
-    const double d__meter = pfl[0] * pfl[1];
+    const float d__meter = pfl[0] * pfl[1];
 
     // compute radials (ignore radius of earth since it cancels out in the later math)
-    const double z_tx__meter = pfl[2] + h__meter[0];
-    const double z_rx__meter = pfl[np + 2] + h__meter[1];
+    const float z_tx__meter = pfl[2] + h__meter[0];
+    const float z_rx__meter = pfl[np + 2] + h__meter[1];
 
     // set the terminal horizon angles as if the terminals are line-of-sight
     // [TN101, Eq 6.15]
@@ -33,10 +33,10 @@ void FindHorizons(const double pfl[], const double a_e__meter, const double h__m
     d_hzn__meter[0] = d__meter;
     d_hzn__meter[1] = d__meter;
 
-    double d_tx__meter = 0.0;
-    double d_rx__meter = d__meter;
+    float d_tx__meter = 0.0;
+    float d_rx__meter = d__meter;
 
-    double theta_tx, theta_rx;
+    float theta_tx, theta_rx;
 
     for (int i = 1; i < np; i++)
     {

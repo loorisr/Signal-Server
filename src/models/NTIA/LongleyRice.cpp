@@ -27,26 +27,26 @@
  |      Returns:  error             - Error code
  |
  *===========================================================================*/
-int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<double> Z_g, const double d_hzn__meter[2], 
-    const double h_e__meter[2], const double gamma_e, const double N_s, const double delta_h__meter, const double h__meter[2], 
-    const double d__meter, const int mode, double *A_ref__db, long *warnings, int *propmode)
+int LongleyRice(const float theta_hzn[2], const float f__mhz, const complex<float> Z_g, const float d_hzn__meter[2], 
+    const float h_e__meter[2], const float gamma_e, const float N_s, const float delta_h__meter, const float h__meter[2], 
+    const float d__meter, const int mode, float *A_ref__db, long *warnings, int *propmode)
 {
     // effective earth radius
-    const double a_e__meter = 1 / gamma_e;
+    const float a_e__meter = 1 / gamma_e;
 
-    double d_hzn_s__meter[2];
+    float d_hzn_s__meter[2];
     // Terrestrial smooth earth horizon distance approximation
     for (int i = 0; i < 2; i++)
         d_hzn_s__meter[i] = sqrt(2.0 * h_e__meter[i] * a_e__meter);
 
     // Maximum line-of-sight distance for smooth earth
-    const double d_sML__meter = d_hzn_s__meter[0] + d_hzn_s__meter[1];
+    const float d_sML__meter = d_hzn_s__meter[0] + d_hzn_s__meter[1];
 
     // Maximum line-of-sight distance for actual path
-    const double d_ML__meter = d_hzn__meter[0] + d_hzn__meter[1];
+    const float d_ML__meter = d_hzn__meter[0] + d_hzn__meter[1];
 
     // Angular distance of line-of-sight region
-    const double theta_los = -MAX(theta_hzn[0] + theta_hzn[1], -d_ML__meter / a_e__meter);
+    const float theta_los = -MAX(theta_hzn[0] + theta_hzn[1], -d_ML__meter / a_e__meter);
 
     // Check validity of small angle approximation
     if (abs(theta_hzn[0]) > 200e-3)
@@ -83,18 +83,18 @@ int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<do
         return ERROR__GROUND_IMPEDANCE;
 
     // Select two distances far in the diffraction region
-    const double d_3__meter = MAX(d_sML__meter, d_ML__meter + 5.0 * pow(pow(a_e__meter, 2) / f__mhz, 1.0 / 3.0));
-    const double d_4__meter = d_3__meter + 10.0 * pow(pow(a_e__meter, 2) / f__mhz, 1.0 / 3.0);
+    const float d_3__meter = MAX(d_sML__meter, d_ML__meter + 5.0 * pow(pow(a_e__meter, 2) / f__mhz, 1.0 / 3.0));
+    const float d_4__meter = d_3__meter + 10.0 * pow(pow(a_e__meter, 2) / f__mhz, 1.0 / 3.0);
 
     // Compute the diffraction loss at the two distances
-    const double A_3__db = DiffractionLoss(d_3__meter, d_hzn__meter, h_e__meter, Z_g, a_e__meter, delta_h__meter, h__meter, mode, theta_los, d_sML__meter, f__mhz);
-    const double A_4__db = DiffractionLoss(d_4__meter, d_hzn__meter, h_e__meter, Z_g, a_e__meter, delta_h__meter, h__meter, mode, theta_los, d_sML__meter, f__mhz);
+    const float A_3__db = DiffractionLoss(d_3__meter, d_hzn__meter, h_e__meter, Z_g, a_e__meter, delta_h__meter, h__meter, mode, theta_los, d_sML__meter, f__mhz);
+    const float A_4__db = DiffractionLoss(d_4__meter, d_hzn__meter, h_e__meter, Z_g, a_e__meter, delta_h__meter, h__meter, mode, theta_los, d_sML__meter, f__mhz);
 
     // Compute the slope and intercept of the diffraction line
-    const double M_d = (A_4__db - A_3__db) / (d_4__meter - d_3__meter);
-    const double A_d0__db = A_3__db - M_d * d_3__meter;
+    const float M_d = (A_4__db - A_3__db) / (d_4__meter - d_3__meter);
+    const float A_d0__db = A_3__db - M_d * d_3__meter;
 
-    const double d_min__meter = abs(h_e__meter[0] - h_e__meter[1]) / 200e-3;
+    const float d_min__meter = abs(h_e__meter[0] - h_e__meter[1]) / 200e-3;
 
     if (d__meter < d_min__meter)
         *warnings |= WARN__PATH_DISTANCE_TOO_SMALL_1;
@@ -109,12 +109,12 @@ int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<do
     if (d__meter < d_sML__meter)
     {
         // Compute the diffraction loss at the maximum smooth earth line of sight distance
-        const double A_sML__db = d_sML__meter * M_d + A_d0__db;
+        const float A_sML__db = d_sML__meter * M_d + A_d0__db;
 
         // [ERL 79-ITS 67, Eqn 3.16a], in meters instead of km and with MIN() part below
-        double d_0__meter = 0.04 * f__mhz * h_e__meter[0] * h_e__meter[1];
+        float d_0__meter = 0.04 * f__mhz * h_e__meter[0] * h_e__meter[1];
 
-        double d_1__meter;
+        float d_1__meter;
         if (A_d0__db >= 0.0)
         {
             d_0__meter = MIN(d_0__meter, 0.5 * d_ML__meter);                // other part of [ERL 79-ITS 67, Eqn 3.16a]
@@ -123,18 +123,18 @@ int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<do
         else
             d_1__meter = MAX(-A_d0__db / M_d, 0.25 * d_ML__meter);
 
-        const double A_1__db = LineOfSightLoss(d_1__meter, h_e__meter, Z_g, delta_h__meter, M_d, A_d0__db, d_sML__meter, f__mhz);
+        const float A_1__db = LineOfSightLoss(d_1__meter, h_e__meter, Z_g, delta_h__meter, M_d, A_d0__db, d_sML__meter, f__mhz);
 
         bool flag = false;
 
-        double kHat_1__db_per_meter = 0;
-        double kHat_2__db_per_meter = 0;
+        float kHat_1__db_per_meter = 0;
+        float kHat_2__db_per_meter = 0;
 
         if (d_0__meter < d_1__meter)
         {
-            const double A_0__db = LineOfSightLoss(d_0__meter, h_e__meter, Z_g, delta_h__meter, M_d, A_d0__db, d_sML__meter, f__mhz);
+            const float A_0__db = LineOfSightLoss(d_0__meter, h_e__meter, Z_g, delta_h__meter, M_d, A_d0__db, d_sML__meter, f__mhz);
 
-            const double q = log(d_sML__meter / d_0__meter);
+            const float q = log(d_sML__meter / d_0__meter);
 
             // [ERL 79-ITS 67, Eqn 3.20]
             kHat_2__db_per_meter = MAX(0.0, ((d_sML__meter - d_0__meter) * (A_1__db - A_0__db) - (d_1__meter - d_0__meter) * (A_sML__db - A_0__db)) / ((d_sML__meter - d_0__meter) * log(d_1__meter / d_0__meter) - (d_1__meter - d_0__meter) * q));
@@ -166,7 +166,7 @@ int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<do
                 kHat_1__db_per_meter = M_d;
         }
 
-        const double A_o__db = A_sML__db - kHat_1__db_per_meter * d_sML__meter - kHat_2__db_per_meter * log(d_sML__meter);
+        const float A_o__db = A_sML__db - kHat_1__db_per_meter * d_sML__meter - kHat_2__db_per_meter * log(d_sML__meter);
 
         // [ERL 79-ITS 67, Eqn 3.19]
         *A_ref__db = A_o__db + kHat_1__db_per_meter * d__meter + kHat_2__db_per_meter * log(d__meter);
@@ -175,15 +175,15 @@ int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<do
     else // this is a trans-horizon path
     {
         // select to points far into the troposcatter region
-        const double d_5__meter = d_ML__meter + 200e3;
-        const double d_6__meter = d_ML__meter + 400e3;
+        const float d_5__meter = d_ML__meter + 200e3;
+        const float d_6__meter = d_ML__meter + 400e3;
 
         // Compute the troposcatter loss at the two distances
-        double h0 = -1;
-        const double A_6__db = TroposcatterLoss(d_6__meter, theta_hzn, d_hzn__meter, h_e__meter, a_e__meter, N_s, f__mhz, theta_los, &h0);
-        const double A_5__db = TroposcatterLoss(d_5__meter, theta_hzn, d_hzn__meter, h_e__meter, a_e__meter, N_s, f__mhz, theta_los, &h0);
+        float h0 = -1;
+        const float A_6__db = TroposcatterLoss(d_6__meter, theta_hzn, d_hzn__meter, h_e__meter, a_e__meter, N_s, f__mhz, theta_los, &h0);
+        const float A_5__db = TroposcatterLoss(d_5__meter, theta_hzn, d_hzn__meter, h_e__meter, a_e__meter, N_s, f__mhz, theta_los, &h0);
 
-        double M_s, A_s0__db, d_x__meter;
+        float M_s, A_s0__db, d_x__meter;
 
         // if we got a reasonable prediction value back...
         if (A_5__db < 1000.0)

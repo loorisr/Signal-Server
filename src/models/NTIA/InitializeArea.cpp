@@ -20,8 +20,8 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-void InitializeArea(const int site_criteria[2], const double gamma_e, const double delta_h__meter,
-    const double h__meter[2], double h_e__meter[2], double d_hzn__meter[2],  double theta_hzn[2])
+void InitializeArea(const int site_criteria[2], const float gamma_e, const float delta_h__meter,
+    const float h__meter[2], float h_e__meter[2], float d_hzn__meter[2],  float theta_hzn[2])
 {
     for (int i = 0; i < 2; i++)
     {
@@ -29,7 +29,7 @@ void InitializeArea(const int site_criteria[2], const double gamma_e, const doub
             h_e__meter[i] = h__meter[i];
         else
         {
-            double B;
+            float B;
 
             if (site_criteria[i] == SITING_CRITERIA__CAREFUL)
                 B = 4.0;
@@ -43,10 +43,10 @@ void InitializeArea(const int site_criteria[2], const double gamma_e, const doub
             h_e__meter[i] = h__meter[i] + (1.0 + B) * exp(-MIN(20.0, 2.0 * h__meter[i] / MAX(1e-3, delta_h__meter)));
         }
 
-        const double d_Ls__meter = sqrt(2.0 * h_e__meter[i] / gamma_e);
+        const float d_Ls__meter = sqrt(2.0 * h_e__meter[i] / gamma_e);
 
         // [Algorithm, Eqn 3.3]
-        constexpr double H_3__meter = 5;
+        constexpr float H_3__meter = 5;
         d_hzn__meter[i] = d_Ls__meter * exp(-0.07 * sqrt(delta_h__meter / MAX(h_e__meter[i], H_3__meter)));
 
         // [Algorithm, Eqn 3.4]

@@ -15,7 +15,7 @@ void DoRxdPwr(const char *filename);
 
 void DoLOS(const char *filename);
 
-void PathReport(struct site source, struct site destination, const char *name, char graph_it, PropModel propmodel, double rxGain);
+void PathReport(struct site source, struct site destination, const char *name, char graph_it, PropModel propmodel, float rxGain);
 
 void SeriesData(struct site source, struct site destination, const char *name, unsigned char fresnel_plot, unsigned char normalised);
 

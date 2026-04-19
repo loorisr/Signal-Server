@@ -29,79 +29,79 @@ using namespace std;
 
 struct IntermediateValues
 {
-    double theta_hzn[2];        // Terminal horizon angles
-    double d_hzn__meter[2];     // Terminal horizon distances, in meters
-    double h_e__meter[2];       // Terminal effective heights, in meters
-    double N_s;                 // Surface refractivity, in N-Units
-    double delta_h__meter;      // Terrain irregularity parameter, in meters
-    double A_ref__db;           // Reference attenuation, in dB
-    double A_fs__db;            // Free space basic transmission loss, in dB
-    double d__km;               // Path distance, in km
+    float theta_hzn[2];        // Terminal horizon angles
+    float d_hzn__meter[2];     // Terminal horizon distances, in meters
+    float h_e__meter[2];       // Terminal effective heights, in meters
+    float N_s;                 // Surface refractivity, in N-Units
+    float delta_h__meter;      // Terrain irregularity parameter, in meters
+    float A_ref__db;           // Reference attenuation, in dB
+    float A_fs__db;            // Free space basic transmission loss, in dB
+    float d__km;               // Path distance, in km
     int mode;                   // Mode of propagation value
 };
 
 /////////////////////////////
 // Main ITM Functions
 
-DLLEXPORT int ITM_P2P_TLS(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double time, const double location, const double situation,
-    double *A__db, long *warnings);
-DLLEXPORT int ITM_P2P_TLS_Ex(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double time, const double location, const double situation,
-    double *A__db, long *warnings, IntermediateValues *interValues);
-DLLEXPORT int ITM_P2P_CR(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double confidence, const double reliability,
-    double *A__db, long *warnings);
-DLLEXPORT int ITM_P2P_CR_Ex(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double confidence, const double reliability,
-    double *A__db, long *warnings, IntermediateValues *interValues);
-DLLEXPORT int ITM_AREA_TLS(const double h_tx__meter, const double h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const double d__km,
-    const double delta_h__meter, const int climate, const double N_0, double f__mhz, const int pol, const double epsilon, const double sigma,
-    const int mdvar, const double time, const double location, const double situation, double *A__db, long *warnings);
-DLLEXPORT int ITM_AREA_TLS_Ex(const double h_tx__meter, const double h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const double d__km,
-    const double delta_h__meter, const int climate, const double N_0, const double f__mhz, const int pol, const double epsilon, const double sigma,
-    const int mdvar, const double time, const double location, const double situation, double *A__db, long *warnings, IntermediateValues *interValues);
-DLLEXPORT int ITM_AREA_CR(const double h_tx__meter, const double h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const double d__km,
-    const double delta_h__meter, const int climate, const double N_0, const double f__mhz, const int pol, const double epsilon, const double sigma,
-    const int mdvar, const double confidence, const double reliability, double *A__db, long *warnings);
-DLLEXPORT int ITM_AREA_CR_Ex(const double h_tx__meter, const double h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const double d__km,
-    const double delta_h__meter, const int climate, const double N_0, const double f__mhz, const int pol, const double epsilon, const double sigma,
-    const int mdvar, const double confidence, const double reliability, double *A__db, long *warnings, IntermediateValues *interValues);
+DLLEXPORT int ITM_P2P_TLS(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float time, const float location, const float situation,
+    float *A__db, long *warnings);
+DLLEXPORT int ITM_P2P_TLS_Ex(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float time, const float location, const float situation,
+    float *A__db, long *warnings, IntermediateValues *interValues);
+DLLEXPORT int ITM_P2P_CR(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float confidence, const float reliability,
+    float *A__db, long *warnings);
+DLLEXPORT int ITM_P2P_CR_Ex(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float confidence, const float reliability,
+    float *A__db, long *warnings, IntermediateValues *interValues);
+DLLEXPORT int ITM_AREA_TLS(const float h_tx__meter, const float h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const float d__km,
+    const float delta_h__meter, const int climate, const float N_0, float f__mhz, const int pol, const float epsilon, const float sigma,
+    const int mdvar, const float time, const float location, const float situation, float *A__db, long *warnings);
+DLLEXPORT int ITM_AREA_TLS_Ex(const float h_tx__meter, const float h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const float d__km,
+    const float delta_h__meter, const int climate, const float N_0, const float f__mhz, const int pol, const float epsilon, const float sigma,
+    const int mdvar, const float time, const float location, const float situation, float *A__db, long *warnings, IntermediateValues *interValues);
+DLLEXPORT int ITM_AREA_CR(const float h_tx__meter, const float h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const float d__km,
+    const float delta_h__meter, const int climate, const float N_0, const float f__mhz, const int pol, const float epsilon, const float sigma,
+    const int mdvar, const float confidence, const float reliability, float *A__db, long *warnings);
+DLLEXPORT int ITM_AREA_CR_Ex(const float h_tx__meter, const float h_rx__meter, const int tx_site_criteria, const int rx_site_criteria, const float d__km,
+    const float delta_h__meter, const int climate, const float N_0, const float f__mhz, const int pol, const float epsilon, const float sigma,
+    const int mdvar, const float confidence, const float reliability, float *A__db, long *warnings, IntermediateValues *interValues);
 
 /////////////////////////////
 // ITM Helper Functions
 
-DLLEXPORT double ComputeDeltaH(const double pfl[], const double d_start__meter, const double d_end__meter);
-DLLEXPORT double DiffractionLoss(const double d__meter, const double d_hzn__meter[2], const double h_e__meter[2], const complex<double> Z_g,
-    const double a_e__meter, const double delta_h__meter, const double h__meter[2], const int mode, const double theta_los, const double d_sML__meter, const double f__mhz);
-DLLEXPORT double FFunction(const double td);
-DLLEXPORT void FindHorizons(const double pfl[], const double a_e__meter, const double h__meter[2], double theta_hzn[2], double d_hzn__meter[2]);
-DLLEXPORT double FreeSpaceLoss(const double d__meter, const double f__mhz);
-DLLEXPORT double FresnelIntegral(const double v2);
-DLLEXPORT double H0Function(const double r, double eta_s);
-DLLEXPORT double HeightFunction(const double x__km, const double K);
-DLLEXPORT void InitializeArea(const int site_criteria[2], const double gamma_e, const double delta_h__meter,
-    const double h__meter[2], double h_e__meter[2], double d_hzn__meter[2], double theta_hzn[2]);
-DLLEXPORT void InitializePointToPoint(const double f__mhz, const double h_sys__meter, const double N_0, const int pol, const double epsilon, 
-    const double sigma, complex<double> *Z_g, double *gamma_e, double *N_s);
-DLLEXPORT double InverseComplementaryCumulativeDistributionFunction(const double q);
-DLLEXPORT double KnifeEdgeDiffraction(const double d__meter, const double f__mhz, const double a_e__meter, const double theta_los, const double d_hzn__meter[2]);
-DLLEXPORT void LinearLeastSquaresFit(const double pfl[], const double d_start, const double d_end, double *fit_y1, double *fit_y2);
-DLLEXPORT double LineOfSightLoss(const double d__meter, const double h_e__meter[2], const complex<double> Z_g, const double delta_h__meter,
-    const double M_d, const double A_d0, const double d_sML__meter, const double f__mhz);
-DLLEXPORT int LongleyRice(const double theta_hzn[2], const double f__mhz, const complex<double> Z_g, const double d_hzn__meter[2], const double h_e__meter[2], 
-    const double gamma_e, const double N_s, const double delta_h__meter, const double h__meter[2], const double d__meter, const int mode, double *A_ref__db, 
+DLLEXPORT float ComputeDeltaH(const float pfl[], const float d_start__meter, const float d_end__meter);
+DLLEXPORT float DiffractionLoss(const float d__meter, const float d_hzn__meter[2], const float h_e__meter[2], const complex<float> Z_g,
+    const float a_e__meter, const float delta_h__meter, const float h__meter[2], const int mode, const float theta_los, const float d_sML__meter, const float f__mhz);
+DLLEXPORT float FFunction(const float td);
+DLLEXPORT void FindHorizons(const float pfl[], const float a_e__meter, const float h__meter[2], float theta_hzn[2], float d_hzn__meter[2]);
+DLLEXPORT float FreeSpaceLoss(const float d__meter, const float f__mhz);
+DLLEXPORT float FresnelIntegral(const float v2);
+DLLEXPORT float H0Function(const float r, float eta_s);
+DLLEXPORT float HeightFunction(const float x__km, const float K);
+DLLEXPORT void InitializeArea(const int site_criteria[2], const float gamma_e, const float delta_h__meter,
+    const float h__meter[2], float h_e__meter[2], float d_hzn__meter[2], float theta_hzn[2]);
+DLLEXPORT void InitializePointToPoint(const float f__mhz, const float h_sys__meter, const float N_0, const int pol, const float epsilon, 
+    const float sigma, complex<float> *Z_g, float *gamma_e, float *N_s);
+DLLEXPORT float InverseComplementaryCumulativeDistributionFunction(const float q);
+DLLEXPORT float KnifeEdgeDiffraction(const float d__meter, const float f__mhz, const float a_e__meter, const float theta_los, const float d_hzn__meter[2]);
+DLLEXPORT void LinearLeastSquaresFit(const float pfl[], const float d_start, const float d_end, float *fit_y1, float *fit_y2);
+DLLEXPORT float LineOfSightLoss(const float d__meter, const float h_e__meter[2], const complex<float> Z_g, const float delta_h__meter,
+    const float M_d, const float A_d0, const float d_sML__meter, const float f__mhz);
+DLLEXPORT int LongleyRice(const float theta_hzn[2], const float f__mhz, const complex<float> Z_g, const float d_hzn__meter[2], const float h_e__meter[2], 
+    const float gamma_e, const float N_s, const float delta_h__meter, const float h__meter[2], const float d__meter, const int mode, float *A_ref__db, 
     long *warnings, int *propmode);
-DLLEXPORT void QuickPfl(const double pfl[], const double gamma_e, const double h__meter[2], double theta_hzn[2], double d_hzn__meter[2], 
-    double h_e__meter[2], double *delta_h__meter, double *d__meter);
-DLLEXPORT double SigmaHFunction(const double delta_h__meter);
-DLLEXPORT double SmoothEarthDiffraction(const double d__meter, const double f__mhz, const double a_e__meter, const double theta_los, 
-    const double d_hzn__meter[2], const double h_e__meter[2], const complex<double> Z_g);
-DLLEXPORT double TerrainRoughness(const double d__meter, const double delta_h__meter);
-DLLEXPORT double TroposcatterLoss(const double d__meter, const double theta_hzn[2], const double d_hzn__meter[2], const double h_e__meter[2], 
-    const double a_e__meter, const double N_s, const double f__mhz, const double theta_los, double *h0);
-DLLEXPORT int ValidateInputs(const double h_tx__meter, const double h_rx__meter, const int climate, const double time,
-    const double location, const double situation, const double N_0, const double f__mhz, const int pol,
-    const double epsilon, const double sigma, const int mdvar, long *warnings);
-DLLEXPORT double Variability(const double time, const double location, const double situation, const double h_e__meter[2], const double delta_h__meter,
-    const double f__mhz, const double d__meter, const double A_ref__db, const int climate, const int mdvar, long *warnings);
+DLLEXPORT void QuickPfl(const float pfl[], const float gamma_e, const float h__meter[2], float theta_hzn[2], float d_hzn__meter[2], 
+    float h_e__meter[2], float *delta_h__meter, float *d__meter);
+DLLEXPORT float SigmaHFunction(const float delta_h__meter);
+DLLEXPORT float SmoothEarthDiffraction(const float d__meter, const float f__mhz, const float a_e__meter, const float theta_los, 
+    const float d_hzn__meter[2], const float h_e__meter[2], const complex<float> Z_g);
+DLLEXPORT float TerrainRoughness(const float d__meter, const float delta_h__meter);
+DLLEXPORT float TroposcatterLoss(const float d__meter, const float theta_hzn[2], const float d_hzn__meter[2], const float h_e__meter[2], 
+    const float a_e__meter, const float N_s, const float f__mhz, const float theta_los, float *h0);
+DLLEXPORT int ValidateInputs(const float h_tx__meter, const float h_rx__meter, const int climate, const float time,
+    const float location, const float situation, const float N_0, const float f__mhz, const int pol,
+    const float epsilon, const float sigma, const int mdvar, long *warnings);
+DLLEXPORT float Variability(const float time, const float location, const float situation, const float h_e__meter[2], const float delta_h__meter,
+    const float f__mhz, const float d__meter, const float A_ref__db, const int climate, const int mdvar, long *warnings);

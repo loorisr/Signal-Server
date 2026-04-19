@@ -17,7 +17,7 @@
 #include "common.hh"
 #include "main.hh"
 
-extern double antenna_rotation, antenna_downtilt, antenna_dt_direction;
+extern float antenna_rotation, antenna_downtilt, antenna_dt_direction;
 
 static std::mutex dem_stats_mutex;
 
@@ -371,13 +371,13 @@ int LoadCopernicus(int tile_lat, int tile_lon)
     int gx_base = (tile_lat - dem_min_lat) * ppd;
     int gy_base = (tile_lon - dem_min_lon) * ppd;
 
-    double tile_min_el = 32768, tile_max_el = -32768;
+    float tile_min_el = 32768, tile_max_el = -32768;
 
     for (int r = 0; r < ppd; r++) {
         int gx = gx_base + (ppd - 1 - r);
         std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ppd, -200);
         for (int c = 0; c < ppd; c++) {
-            double val = buf[r * ppd + c];
+            float val = buf[r * ppd + c];
             dem_data[gx][gy_base + c] = val;
             if (val > tile_max_el) tile_max_el = val;
             if (val < tile_min_el) tile_min_el = val;

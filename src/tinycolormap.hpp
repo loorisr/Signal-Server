@@ -82,33 +82,33 @@ namespace tinycolormap
 
     struct Color
     {
-        explicit constexpr Color(double gray) noexcept : data{ gray, gray, gray } {}
-        constexpr Color(double r, double g, double b) noexcept : data{ r, g, b } {}
+        explicit constexpr Color(float gray) noexcept : data{ gray, gray, gray } {}
+        constexpr Color(float r, float g, float b) noexcept : data{ r, g, b } {}
 
-        double data[3];
+        float data[3];
 
-        double& r() noexcept { return data[0]; }
-        double& g() noexcept { return data[1]; }
-        double& b() noexcept { return data[2]; }
-        constexpr double r() const noexcept { return data[0]; }
-        constexpr double g() const noexcept { return data[1]; }
-        constexpr double b() const noexcept { return data[2]; }
+        float& r() noexcept { return data[0]; }
+        float& g() noexcept { return data[1]; }
+        float& b() noexcept { return data[2]; }
+        constexpr float r() const noexcept { return data[0]; }
+        constexpr float g() const noexcept { return data[1]; }
+        constexpr float b() const noexcept { return data[2]; }
 
         constexpr uint8_t ri() const noexcept { return static_cast<uint8_t>(data[0] * 255.0); }
         constexpr uint8_t gi() const noexcept { return static_cast<uint8_t>(data[1] * 255.0); }
         constexpr uint8_t bi() const noexcept { return static_cast<uint8_t>(data[2] * 255.0); }
 
-        double& operator[](std::size_t n) noexcept { return data[n]; }
-        constexpr double operator[](std::size_t n) const noexcept { return data[n]; }
-        double& operator()(std::size_t n) noexcept { return data[n]; }
-        constexpr double operator()(std::size_t n) const noexcept { return data[n]; }
+        float& operator[](std::size_t n) noexcept { return data[n]; }
+        constexpr float operator[](std::size_t n) const noexcept { return data[n]; }
+        float& operator()(std::size_t n) noexcept { return data[n]; }
+        constexpr float operator()(std::size_t n) const noexcept { return data[n]; }
 
         friend constexpr Color operator+(const Color& c0, const Color& c1) noexcept
         {
             return { c0.r() + c1.r(), c0.g() + c1.g(), c0.b() + c1.b() };
         }
 
-        friend constexpr Color operator*(double s, const Color& c) noexcept
+        friend constexpr Color operator*(float s, const Color& c) noexcept
         {
             return { s * c.r(), s * c.g(), s * c.b() };
         }
@@ -124,22 +124,22 @@ namespace tinycolormap
 #endif
     };
 
-    inline Color GetColor(double x, ColormapType type = ColormapType::Viridis);
-    inline Color GetQuantizedColor(double x, unsigned int num_levels, ColormapType type = ColormapType::Viridis);
-    inline Color GetParulaColor(double x);
-    inline Color GetHeatColor(double x);
-    inline Color GetJetColor(double x);
-    inline Color GetTurboColor(double x);
-    inline Color GetHotColor(double x);
-    inline constexpr Color GetGrayColor(double x) noexcept;
-    inline Color GetMagmaColor(double x);
-    inline Color GetInfernoColor(double x);
-    inline Color GetPlasmaColor(double x);
-    inline Color GetViridisColor(double x);
-    inline Color GetCividisColor(double x);
-    inline Color GetGithubColor(double x);
-    inline Color GetCubehelixColor(double x);
-    inline Color GetHSVColor(double x);
+    inline Color GetColor(float x, ColormapType type = ColormapType::Viridis);
+    inline Color GetQuantizedColor(float x, unsigned int num_levels, ColormapType type = ColormapType::Viridis);
+    inline Color GetParulaColor(float x);
+    inline Color GetHeatColor(float x);
+    inline Color GetJetColor(float x);
+    inline Color GetTurboColor(float x);
+    inline Color GetHotColor(float x);
+    inline constexpr Color GetGrayColor(float x) noexcept;
+    inline Color GetMagmaColor(float x);
+    inline Color GetInfernoColor(float x);
+    inline Color GetPlasmaColor(float x);
+    inline Color GetViridisColor(float x);
+    inline Color GetCividisColor(float x);
+    inline Color GetGithubColor(float x);
+    inline Color GetCubehelixColor(float x);
+    inline Color GetHSVColor(float x);
 
 #if defined(TINYCOLORMAP_WITH_QT5) && defined(TINYCOLORMAP_WITH_EIGEN)
     inline QImage CreateMatrixVisualization(const Eigen::MatrixXd& matrix);
@@ -152,34 +152,34 @@ namespace tinycolormap
 
     namespace internal
     {
-        inline constexpr double Clamp01(double x) noexcept
+        inline constexpr float Clamp01(float x) noexcept
         {
             return (x < 0.0) ? 0.0 : (x > 1.0) ? 1.0 : x;
         }
         
         // A helper function to calculate linear interpolation
         template <std::size_t N>
-        Color CalcLerp(double x, const Color (&data)[N])
+        Color CalcLerp(float x, const Color (&data)[N])
         {
-            const double a  = Clamp01(x) * (N - 1);
-            const double i  = std::floor(a);
-            const double t  = a - i;
+            const float a  = Clamp01(x) * (N - 1);
+            const float i  = std::floor(a);
+            const float t  = a - i;
             const Color& c0 = data[static_cast<std::size_t>(i)];
             const Color& c1 = data[static_cast<std::size_t>(std::ceil(a))];
 
             return (1.0 - t) * c0 + t * c1;
         }
 
-        inline double QuantizeArgument(double x, unsigned int num_levels)
+        inline float QuantizeArgument(float x, unsigned int num_levels)
         {
             // Clamp num_classes to range [1, 255].
             num_levels = (std::max)(1u, (std::min)(num_levels, 255u));
 
-            const double interval_length = 255.0 / num_levels;
+            const float interval_length = 255.0 / num_levels;
 
             // Calculate index of the interval to which the given x belongs to.
             // Substracting eps prevents getting out of bounds index.
-            constexpr double eps = 0.0005;
+            constexpr float eps = 0.0005;
             const unsigned int index = static_cast<unsigned int>((x * 255.0 - eps) / interval_length);
 
             // Calculate upper and lower bounds of the given interval.
@@ -187,7 +187,7 @@ namespace tinycolormap
             const unsigned int lower_boundary = static_cast<unsigned int>(upper_boundary - interval_length);
 
             // Get middle "coordinate" of the given interval and move it back to [0.0, 1.0] interval.
-            const double xx = static_cast<double>(upper_boundary + lower_boundary) * 0.5 / 255.0;
+            const float xx = static_cast<float>(upper_boundary + lower_boundary) * 0.5 / 255.0;
 
             return xx;
         }
@@ -197,7 +197,7 @@ namespace tinycolormap
     // Public Implementation
     //////////////////////////////////////////////////////////////////////////////////
 
-    inline Color GetColor(double x, ColormapType type)
+    inline Color GetColor(float x, ColormapType type)
     {
         switch (type)
         {
@@ -236,12 +236,12 @@ namespace tinycolormap
         return GetViridisColor(x);
     }
 
-    inline Color GetQuantizedColor(double x, unsigned int num_levels, ColormapType type)
+    inline Color GetQuantizedColor(float x, unsigned int num_levels, ColormapType type)
     {
         return GetColor(internal::QuantizeArgument(x, num_levels), type);
     }
 
-    inline Color GetParulaColor(double x)
+    inline Color GetParulaColor(float x)
     {
         constexpr Color data[] =
         {
@@ -506,7 +506,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetHeatColor(double x)
+    inline Color GetHeatColor(float x)
     {
         constexpr Color data[] =
         {
@@ -520,7 +520,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetJetColor(double x)
+    inline Color GetJetColor(float x)
     {
         constexpr Color data[] =
         {
@@ -538,7 +538,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetTurboColor(double x)
+    inline Color GetTurboColor(float x)
     {
         constexpr Color data[] =
         {
@@ -803,7 +803,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetHotColor(double x)
+    inline Color GetHotColor(float x)
     {
         x = internal::Clamp01(x);
 
@@ -813,27 +813,27 @@ namespace tinycolormap
 
         if (x < 0.4)
         {
-            const double t = x / 0.4;
+            const float t = x / 0.4;
             return t * r;
         }
         else if (x < 0.8)
         {
-            const double t = (x - 0.4) / (0.8 - 0.4);
+            const float t = (x - 0.4) / (0.8 - 0.4);
             return r + t * g;
         }
         else
         {
-            const double t = (x - 0.8) / (1.0 - 0.8);
+            const float t = (x - 0.8) / (1.0 - 0.8);
             return r + g + t * b;
         }
     }
 
-    inline constexpr Color GetGrayColor(double x) noexcept
+    inline constexpr Color GetGrayColor(float x) noexcept
     {
-        return Color{ 1.0 - internal::Clamp01(x) };
+        return Color{ 1.0f - internal::Clamp01(x) };
     }
 
-    inline Color GetMagmaColor(double x)
+    inline Color GetMagmaColor(float x)
     {
         constexpr Color data[] =
         {
@@ -1098,7 +1098,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetInfernoColor(double x)
+    inline Color GetInfernoColor(float x)
     {
         constexpr Color data[] =
         {
@@ -1363,7 +1363,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetPlasmaColor(double x)
+    inline Color GetPlasmaColor(float x)
     {
         constexpr Color data[] =
         {
@@ -1628,7 +1628,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetViridisColor(double x)
+    inline Color GetViridisColor(float x)
     {
         constexpr Color data[] =
         {
@@ -1893,7 +1893,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetCividisColor(double x)
+    inline Color GetCividisColor(float x)
     {
         constexpr Color data[] =
         {
@@ -2158,7 +2158,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetGithubColor(double x)
+    inline Color GetGithubColor(float x)
     {
         constexpr Color data[] =
         {
@@ -2172,7 +2172,7 @@ namespace tinycolormap
         return internal::CalcLerp(x, data);
     }
 
-    inline Color GetCubehelixColor(double x)
+    inline Color GetCubehelixColor(float x)
     {
         constexpr Color data[] =
         {
@@ -2436,7 +2436,7 @@ namespace tinycolormap
 
         return internal::CalcLerp(x, data);
     }
-    inline Color GetHSVColor(double x)
+    inline Color GetHSVColor(float x)
     {
         constexpr Color data[] =
         {
@@ -2705,8 +2705,8 @@ namespace tinycolormap
     {
         const int w = matrix.cols();
         const int h = matrix.rows();
-        const double max_coeff = matrix.maxCoeff();
-        const double min_coeff = matrix.minCoeff();
+        const float max_coeff = matrix.maxCoeff();
+        const float min_coeff = matrix.minCoeff();
         const Eigen::MatrixXd normalized = (1.0 / (max_coeff - min_coeff)) * (matrix - Eigen::MatrixXd::Constant(h, w, min_coeff));
 
         QImage image(w, h, QImage::Format_ARGB32);

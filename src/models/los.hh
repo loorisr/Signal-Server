@@ -30,7 +30,7 @@ enum PropModel {
 
 // Angular propagation area
 struct PropagationRadius {
-    double start_angle_rad, stop_angle_rad;
+    float start_angle_rad, stop_angle_rad;
     site source;
     int points;
 };
@@ -57,6 +57,6 @@ void PlotPropagationRadius(struct site source);
 void PlotPath(struct site source, struct site destination);
 
 // Compute propagation loss for the selected model and path geometry.
-double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt, double dm, PropagationMode &mode, int &errnum);
+float computeLoss(PropModel model, float tx_alt, float rx_alt, float rx_terrain_alt, float dm, PropagationMode &mode, int &errnum);
 
 #endif /* _LOS_HH_ */

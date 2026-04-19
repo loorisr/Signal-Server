@@ -17,18 +17,18 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-void QuickPfl(const double pfl[], const double gamma_e, const double h__meter[2], double theta_hzn[2], 
-    double d_hzn__meter[2], double h_e__meter[2], double *delta_h__meter, double *d__meter)
+void QuickPfl(const float pfl[], const float gamma_e, const float h__meter[2], float theta_hzn[2], 
+    float d_hzn__meter[2], float h_e__meter[2], float *delta_h__meter, float *d__meter)
 {
-    double fit_tx, fit_rx, q;
-    double d_start__meter;
-    double d_end__meter;
+    float fit_tx, fit_rx, q;
+    float d_start__meter;
+    float d_end__meter;
 
     *d__meter = pfl[0] * pfl[1];
 
     const int np = int(pfl[0]);
 
-    const double a_e__meter = 1 / gamma_e;        // effective earth radius
+    const float a_e__meter = 1 / gamma_e;        // effective earth radius
 
     FindHorizons(pfl, a_e__meter, h__meter, theta_hzn, d_hzn__meter);
 
@@ -52,7 +52,7 @@ void QuickPfl(const double pfl[], const double gamma_e, const double h__meter[2]
         for (int i = 0; i < 2; i++)
             d_hzn__meter[i] = sqrt(2.0 * h_e__meter[i] * a_e__meter) * exp(-0.07 * sqrt(*delta_h__meter / MAX(h_e__meter[i], 5.0)));
 
-        const double combined_horizons__meter = d_hzn__meter[0] + d_hzn__meter[1];
+        const float combined_horizons__meter = d_hzn__meter[0] + d_hzn__meter[1];
         if (combined_horizons__meter <= *d__meter)
         {
             q = pow(*d__meter / combined_horizons__meter, 2);
@@ -72,7 +72,7 @@ void QuickPfl(const double pfl[], const double gamma_e, const double h__meter[2]
     }
     else
     {
-        double dummy = 0;
+        float dummy = 0;
 
         LinearLeastSquaresFit(pfl, d_start__meter, 0.9 * d_hzn__meter[0], &fit_tx, &dummy);
         h_e__meter[0] = h__meter[0] + fdim(pfl[2], fit_tx);

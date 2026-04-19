@@ -138,7 +138,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &max_range);
+                sscanf(argv[z], "%f", &max_range);
                 max_range *= 1000.0;
             }
         }
@@ -147,7 +147,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &clutter);
+                sscanf(argv[z], "%f", &clutter);
 
                 if (clutter < 0.0)
                     clutter = 0.0;
@@ -168,7 +168,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &antenna_rotation);
+                sscanf(argv[z], "%f", &antenna_rotation);
 
                 if (antenna_rotation < 0.0)
                     antenna_rotation = 0.0;
@@ -181,7 +181,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {	/* A minus argument is legal here */
-                sscanf(argv[z], "%lf", &antenna_downtilt);
+                sscanf(argv[z], "%f", &antenna_downtilt);
                 if (antenna_downtilt < -10.0)
                     antenna_downtilt = -10.0;
                 if (antenna_downtilt > 90.0)
@@ -193,7 +193,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &antenna_dt_direction);
+                sscanf(argv[z], "%f", &antenna_dt_direction);
 
                 if (antenna_dt_direction < 0.0)
                     antenna_dt_direction = 0.0;
@@ -286,7 +286,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &tx_site.alt);
+                sscanf(argv[z], "%f", &tx_site.alt);
 
             }
         }
@@ -295,8 +295,8 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &altitudeLR);
-                sscanf(argv[z], "%lf", &rx_site.alt);
+                sscanf(argv[z], "%f", &altitudeLR);
+                sscanf(argv[z], "%f", &rx_site.alt);
             }
         }
 
@@ -304,7 +304,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &rxGain);
+                sscanf(argv[z], "%f", &rxGain);
             }
         }
 
@@ -312,7 +312,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &LR.frq_mhz);
+                sscanf(argv[z], "%f", &LR.frq_mhz);
             }
         }
 
@@ -320,7 +320,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                sscanf(argv[z], "%lf", &LR.erp);
+                sscanf(argv[z], "%f", &LR.erp);
             }
         }
 
@@ -380,7 +380,7 @@ void parse_cmdline(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
 
-                sscanf(argv[z], "%lf", &terdic);
+                sscanf(argv[z], "%f", &terdic);
 
                 LR.eps_dielect = terdic;
 
@@ -392,7 +392,7 @@ void parse_cmdline(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
 
-                sscanf(argv[z], "%lf", &tercon);
+                sscanf(argv[z], "%f", &tercon);
 
                 LR.sgm_conductivity = tercon;
 
@@ -442,7 +442,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                sscanf(argv[z], "%lf", &LR.rel);
+                sscanf(argv[z], "%f", &LR.rel);
                 LR.rel=LR.rel/100;
             }
         }
@@ -451,7 +451,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0]) {
-                sscanf(argv[z], "%lf", &LR.conf);
+                sscanf(argv[z], "%f", &LR.conf);
                 LR.conf=LR.conf/100;
             }
         }

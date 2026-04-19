@@ -56,7 +56,7 @@ namespace {
 	}
 
 	// Claim a pixel once so concurrent workers do not process it twice.
-	bool can_process(double lat, double lon)
+	bool can_process(float lat, float lon)
 	{
 		int x = (int)rint(ppd  * (lat - dem_min_lat));
 		int y = (int)rint(ppd * (lon - dem_min_lon));
@@ -87,13 +87,13 @@ namespace {
             r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, ppd);
 
         // Get the amount in radians to increment per iteration
-        double rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;
+        float rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;
 
         progress.total.store(r->points);
 
         progress.count.store(0);
         // Iterate
-        double rad = r->start_angle_rad;
+        float rad = r->start_angle_rad;
         site edge;
         edge.alt = altitudeLR;
         for (int i = 0; i < r->points; i++)
@@ -115,7 +115,7 @@ namespace {
             progress.count++;
         }
 
-        // Double check we covered the whole range
+        // float check we covered the whole range
         if (rad < (r->stop_angle_rad - 0.01f))
         {
             spdlog::warn("Only got to {:.2f} degrees when we expected to get to {:.2f} degrees", rad * RAD2DEG, r->stop_angle_rad * RAD2DEG);
@@ -134,7 +134,7 @@ namespace {
  * distance (adj)
  */
 // Return the acute angle from a receiver point to an obstacle.
-static double incidenceAngle(double opp, double adj)
+static float incidenceAngle(float opp, float adj)
 {
 	return atan2(opp, adj) * RAD2DEG;
 }
@@ -146,9 +146,9 @@ static double incidenceAngle(double opp, double adj)
  * effect to obstacles.
  */
 // Estimate knife-edge diffraction loss from the terrain profile.
-static double ked(double freq, double rxh, double dm)
+static float ked(float freq, float rxh, float dm)
 {
-	double obh, obd, rxobaoi = 0, d;
+	float obh, obd, rxobaoi = 0, d;
 
 	obh = 0;		// Obstacle height
 	obd = 0;		// Obstacle distance
@@ -194,8 +194,8 @@ void PlotLOSPath(struct site source, struct site destination)
 
     int x, y;
     char block = 0;
-    double cos_test_angle, cos_rcvr_angle;
-    double distance, tx_alt, distance_test, tx_alt2, test_alt, test_alt2, dest_alt, dest_alt2;
+    float cos_test_angle, cos_rcvr_angle;
+    float distance, tx_alt, distance_test, tx_alt2, test_alt, test_alt2, dest_alt, dest_alt2;
 
     ReadPath(source, destination);
 
@@ -219,7 +219,7 @@ void PlotLOSPath(struct site source, struct site destination)
 
             /* Calculate the cosine of the elevation between transmitter and this test point. */
             cos_test_angle = ((tx_alt2) + (distance_test * distance_test) - (test_alt2)) / (2.0 * tx_alt * distance_test);
-            cos_test_angle = std::clamp(cos_test_angle, -1.0, 1.0);
+            cos_test_angle = std::clamp(cos_test_angle, -1.0f, 1.0f);
 
             if (cos_rcvr_angle >= cos_test_angle) { //block
                 block = 1;
@@ -231,12 +231,12 @@ void PlotLOSPath(struct site source, struct site destination)
 }
 
 // Select and run the configured propagation model for the current path.
-double computeLoss(PropModel model, double tx_alt, double rx_alt, double rx_terrain_alt,
-                   double dm, PropagationMode &mode, int &errnum)
+float computeLoss(PropModel model, float tx_alt, float rx_alt, float rx_terrain_alt,
+                   float dm, PropagationMode &mode, int &errnum)
 {
     if (debug) cnt_computeLoss++;
-    double loss = 0.0;
-    double dkm = dm / 1000.0;
+    float loss = 0.0;
+    float dkm = dm / 1000.0;
 
     switch (model) {
     case ITM_LR:
@@ -317,7 +317,7 @@ void PlotPropPath(
 	int x, y, errnum, azimuth;
 	char block = 0;
 	PropagationMode mode = PROP_MODE_NONE;
-	double loss, pattern = 0.0,
+	float loss, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
 	    cos_rcvr_angle, cos_test_angle = 0.0, test_alt,
 	    elevation = 0.0, distance = 0.0, distance_test,
@@ -403,9 +403,9 @@ void PlotPropPath(
 				}
 
 				if (block)
-					elevation = (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+					elevation = (acos(std::clamp(cos_test_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
 				else
-					elevation = (acos(std::clamp(cos_rcvr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+					elevation = (acos(std::clamp(cos_rcvr_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
 			}
 
 			/* Determine attenuation for each point along the
@@ -496,14 +496,14 @@ void PlotPropagationRadius(struct site source)
     bbox bounds = getCircularBoundingBox( {source.lat, source.lon}, max_range);
 
     // Calculate plot width & height in degrees
-    double plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
-    double plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
+    float plot_width = bounds.upper_right.lon - bounds.lower_left.lon;
+    float plot_height = bounds.upper_right.lat - bounds.lower_left.lat; 
 
     // Ramanujan
     int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
 
     // Calculate the size of each angular degree section, in rads
-    double section_size_rad = 360.0 / number_threads * DEG2RAD;
+    float section_size_rad = 360.0 / number_threads * DEG2RAD;
 
     // Calculate the number of points/pixels in each segment
     int section_pixels = (int)(circle_pixels / number_threads);
@@ -570,8 +570,8 @@ void PlotPath(struct site source, struct site destination)
 
 	char block;
 	int x, y;
-	double cos_xmtr_angle, cos_test_angle, test_alt;
-	double distance, rx_alt, tx_alt;
+	float cos_xmtr_angle, cos_test_angle, test_alt;
+	float distance, rx_alt, tx_alt;
 
 	ReadPath(source, destination);
 

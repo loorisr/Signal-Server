@@ -15,13 +15,13 @@
  |      Returns:  delta_h__meter - Terrain irregularity parameter, in meters
  |
  *===========================================================================*/
-double ComputeDeltaH(const double pfl[], const double d_start__meter, const double d_end__meter)
+float ComputeDeltaH(const float pfl[], const float d_start__meter, const float d_end__meter)
 {
-    double s[247] = { 0 };                      // Temp pfl data array
+    float s[247] = { 0 };                      // Temp pfl data array
 
     const int np = (int)pfl[0];
-    double x_start = d_start__meter / pfl[1];   // index to start considering terrain points
-    double x_end = d_end__meter / pfl[1];       // index to stop considering terrain points
+    float x_start = d_start__meter / pfl[1];   // index to start considering terrain points
+    float x_end = d_end__meter / pfl[1];       // index to stop considering terrain points
 
     // if there are less than 2 terrain points, return delta_h = 0
     if (x_end - x_start < 2.0)
@@ -33,7 +33,7 @@ double ComputeDeltaH(const double pfl[], const double d_start__meter, const doub
     const int n = 10 * p10 - 5;
     int p90 = n - p10;                         // 90% index
 
-    double np_s = n - 1;
+    float np_s = n - 1;
     s[0] = np_s;
     s[1] = 1.0;
 
@@ -54,12 +54,12 @@ double ComputeDeltaH(const double pfl[], const double d_start__meter, const doub
         x_start += x_end;
     }
 
-    double fit_y1, fit_y2;
+    float fit_y1, fit_y2;
     LinearLeastSquaresFit(s, 0.0, np_s, &fit_y1, &fit_y2);
 
     fit_y2 = (fit_y2 - fit_y1) / np_s;
 
-    std::vector<double> diffs;
+    std::vector<float> diffs;
     
     // compute the difference between fitted line and actual data
     for (int j = 0; j < n; j++)
@@ -69,17 +69,17 @@ double ComputeDeltaH(const double pfl[], const double d_start__meter, const doub
         fit_y1 += fit_y2;
     }
 
-    std::nth_element(diffs.begin(), diffs.begin() + p90, diffs.end(), std::greater<double>());
-    const double q90 = diffs[p90];
+    std::nth_element(diffs.begin(), diffs.begin() + p90, diffs.end(), std::greater<float>());
+    const float q90 = diffs[p90];
 
-    //std::nth_element(diffs.begin(), diffs.begin() + p10 - 1, diffs.end(), std::greater<double>());
-    std::nth_element(diffs.begin(), diffs.begin() + p10 - 1, diffs.begin() + p90, std::greater<double>());
-    const double q10 = diffs[p10 - 1];
+    //std::nth_element(diffs.begin(), diffs.begin() + p10 - 1, diffs.end(), std::greater<float>());
+    std::nth_element(diffs.begin(), diffs.begin() + p10 - 1, diffs.begin() + p90, std::greater<float>());
+    const float q10 = diffs[p10 - 1];
 
-    const double delta_h_d__meter = q10 - q90;
+    const float delta_h_d__meter = q10 - q90;
 
     // [ERL 79-ITS 67, Eqn 3], inverted
-    const double delta_h__meter = delta_h_d__meter / (1.0 - 0.8 * exp(-(d_end__meter - d_start__meter) / 50e3));
+    const float delta_h__meter = delta_h_d__meter / (1.0 - 0.8 * exp(-(d_end__meter - d_start__meter) / 50e3));
 
     return delta_h__meter;
 }

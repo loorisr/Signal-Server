@@ -27,7 +27,7 @@
 void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename)
 {
     char tif_file[300];
-    double ulx, uly, lrx, lry;
+    float ulx, uly, lrx, lry;
 
     /* Build .tif output path */
     snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
@@ -121,13 +121,13 @@ static tinycolormap::ColormapType get_colormap()
 template<typename ClassifyFn>
 static void render_geotiff(const char *filename,
                             tinycolormap::ColormapType colormap,
-                            double scale_min, double scale_max, bool reverse,
+                            float scale_min, float scale_max, bool reverse,
                             ClassifyFn classify)
 {
-	const int width  = (int)((double)ppd * (max_lon - min_lon));
-	const int height = (int)((double)ppd * (max_lat - min_lat));
-	const double conversion = 255.0 / pow((double)(max_elevation - min_elevation), ONE_OVER_GAMMA);
-	const double scale_range = scale_max - scale_min;
+	const int width  = (int)((float)ppd * (max_lon - min_lon));
+	const int height = (int)((float)ppd * (max_lat - min_lat));
+	const float conversion = 255.0 / pow((float)(max_elevation - min_elevation), ONE_OVER_GAMMA);
+	const float scale_range = scale_max - scale_min;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
@@ -150,12 +150,12 @@ static void render_geotiff(const char *filename,
 				if (!sig) {
 					if (!ngs) {
 						/* Grayscale terrain */
-						unsigned terrain = (unsigned)(0.5 + pow((double)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
+						unsigned terrain = (unsigned)(0.5 + pow((float)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
 						r = g = b = (uint8_t)terrain;
 						a = 255;
 					}
 				} else {
-					double t = std::clamp((*sig - scale_min) / scale_range, 0.0, 1.0);
+					float t = std::clamp((*sig - scale_min) / scale_range, 0.0f, 1.0f);
 					if (reverse) t = 1.0 - t;
 					auto c = tinycolormap::GetColor(t, colormap);
 					r = c.ri(); g = c.gi(); b = c.bi(); a = 255;
@@ -171,7 +171,7 @@ static void render_geotiff(const char *filename,
 void DoPathLoss(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 80.0, 230.0, true,
-		[](int sig) -> std::optional<double> {
+		[](int sig) -> std::optional<float> {
 			if (sig <= 0 || (contour_threshold != 0 && sig > abs(contour_threshold)))
 				return std::nullopt;
 			return sig;
@@ -182,7 +182,7 @@ void DoPathLoss(const char *filename)
 int DoSigStr(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 128.0, false,
-		[](int sig) -> std::optional<double> {
+		[](int sig) -> std::optional<float> {
 			if (sig < 0)
 				return std::nullopt;
 			return sig;
@@ -194,8 +194,8 @@ int DoSigStr(const char *filename)
 void DoRxdPwr(const char *filename)
 {
 	render_geotiff(filename, get_colormap(),
-		(double)contour_threshold, 0.0, false,
-		[](int sig) -> std::optional<double> {
+		(float)contour_threshold, 0.0, false,
+		[](int sig) -> std::optional<float> {
 			if (contour_threshold != 0 && sig < contour_threshold)
 				return std::nullopt;
 			return sig;
@@ -206,7 +206,7 @@ void DoRxdPwr(const char *filename)
 void DoLOS(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 1.0, false,
-		[](int sig) -> std::optional<double> {
+		[](int sig) -> std::optional<float> {
 			if (sig <= 0)
 				return std::nullopt;
 			return sig;
@@ -215,7 +215,7 @@ void DoLOS(const char *filename)
 
 // Write a detailed point-to-point path analysis report and optional plot script.
 void PathReport(struct site source, struct site destination, const char *name,
-		char graph_it, PropModel propmodel, double rxGain)
+		char graph_it, PropModel propmodel, float rxGain)
 {
 	/* This function writes a PPA Path Report (name.txt) to
 	   the filesystem.  If (graph_it == 1), then gnuplot is invoked
@@ -229,7 +229,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 	int x, y, z, errnum;
 	char basename[255], term[30], ext[15], report_name[80], block = 0;
 	PropagationMode mode = PROP_MODE_NONE;
-	double maxloss = -100000.0, minloss = 100000.0, angle1, angle2,
+	float maxloss = -100000.0, minloss = 100000.0, angle1, angle2,
 	    azimuth, pattern = 0.0, patterndB = 0.0,
 	    total_loss = 0.0, cos_xmtr_angle, cos_test_angle = 0.0,
 	    source_alt, test_alt, dest_alt, source_alt2, dest_alt2,
@@ -256,7 +256,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 		"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",
 		source.alt, source.alt + GetElevation(source));
 
-	const double link_distance = Distance(source, destination);
+	const float link_distance = Distance(source, destination);
 
 	azimuth = Azimuth(source, destination);
 	angle1 = ElevationAngle(source, destination);
@@ -568,10 +568,10 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			if (block)
 				elevation =
-				    (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+				    (acos(std::clamp(cos_test_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
 			else
 				elevation =
-				    (acos(std::clamp(cos_xmtr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+				    (acos(std::clamp(cos_xmtr_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
@@ -801,7 +801,7 @@ void SeriesData(struct site source, struct site destination, const char *name,
 	int x;
 	char profilename[255], referencename[255], cluttername[255],
 	    curvaturename[255], fresnelname[255], fresnel60name[255];
-	double a, b, c, height = 0.0, refangle, cangle, maxheight =
+	float a, b, c, height = 0.0, refangle, cangle, maxheight =
 	    -100000.0, minheight = 100000.0, lambda = 0.0, f_zone =
 	    0.0, fpt6_zone = 0.0, nm = 0.0, nb = 0.0, ed = 0.0, es = 0.0, r =
 	    0.0, d = 0.0, d1 = 0.0, terrain, azimuth, distance;

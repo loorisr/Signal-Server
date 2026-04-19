@@ -22,48 +22,48 @@
  |      Returns:  A_d__db        - Diffraction loss, in dB
  |
  *===========================================================================*/
-double DiffractionLoss(const double d__meter, const double d_hzn__meter[2], const double h_e__meter[2], const complex<double> Z_g, const double a_e__meter, 
-    const double delta_h__meter, const double h__meter[2], const int mode, const double theta_los, const double d_sML__meter, const double f__mhz)
+float DiffractionLoss(const float d__meter, const float d_hzn__meter[2], const float h_e__meter[2], const complex<float> Z_g, const float a_e__meter, 
+    const float delta_h__meter, const float h__meter[2], const int mode, const float theta_los, const float d_sML__meter, const float f__mhz)
 {
-    const double A_k__db = KnifeEdgeDiffraction(d__meter, f__mhz, a_e__meter, theta_los, d_hzn__meter);
+    const float A_k__db = KnifeEdgeDiffraction(d__meter, f__mhz, a_e__meter, theta_los, d_hzn__meter);
 
-    const double A_se__db = SmoothEarthDiffraction(d__meter, f__mhz, a_e__meter, theta_los, d_hzn__meter, h_e__meter, Z_g);
+    const float A_se__db = SmoothEarthDiffraction(d__meter, f__mhz, a_e__meter, theta_los, d_hzn__meter, h_e__meter, Z_g);
 
     //////////////////
     // Terrain clutter
 
     // Terrain roughness term, using d_sML__meter, per [ERL 79-ITS 67, page 3-13]
-    const double delta_h_dsML__meter = TerrainRoughness(d_sML__meter, delta_h__meter);
+    const float delta_h_dsML__meter = TerrainRoughness(d_sML__meter, delta_h__meter);
 
-    const double sigma_h_d__meter = SigmaHFunction(delta_h_dsML__meter);
+    const float sigma_h_d__meter = SigmaHFunction(delta_h_dsML__meter);
 
     // Clutter factor
     // [ERL 79-ITS 67, Eqn 3.38c]
-    const double A_fo__db = MIN(15.0, 5 * log10(1.0 + 1e-5 * h__meter[0] * h__meter[1] * f__mhz * sigma_h_d__meter));
+    const float A_fo__db = MIN(15.0, 5 * log10(1.0 + 1e-5 * h__meter[0] * h__meter[1] * f__mhz * sigma_h_d__meter));
 
     //////////////////////////////
     // Combined diffraction losses
 
     // compute the weighting factor in the following calculations
 
-    const double delta_h_d__meter = TerrainRoughness(d__meter, delta_h__meter);
+    const float delta_h_d__meter = TerrainRoughness(d__meter, delta_h__meter);
 
-    double q = h__meter[0] * h__meter[1];
-    const double qk = h_e__meter[0] * h_e__meter[1] - q;
+    float q = h__meter[0] * h__meter[1];
+    const float qk = h_e__meter[0] * h_e__meter[1] - q;
 
     // For low antennas with known path parameters, C ~= 10 [ERL 79-ITS 67, page 3-8]
     if (mode == MODE__P2P)
         q += 10.0;
 
-    const double term1 = sqrt(1.0 + qk / q);                              // square root term in [ERL 79-ITS 67, Eqn 3.23]
+    const float term1 = sqrt(1.0 + qk / q);                              // square root term in [ERL 79-ITS 67, Eqn 3.23]
 
-    const double d_ML__meter = d_hzn__meter[0] + d_hzn__meter[1];         // Maximum line-of-sight distance for actual path
+    const float d_ML__meter = d_hzn__meter[0] + d_hzn__meter[1];         // Maximum line-of-sight distance for actual path
     q = (term1 + (-theta_los * a_e__meter + d_ML__meter) / d__meter) * MIN(delta_h_d__meter * f__mhz / 47.7, 6283.2);
 
     // weighting factor [ERL 17-ITS 67, Eqn 3.23]
-    const double w = 25.1 / (25.1 + sqrt(q));
+    const float w = 25.1 / (25.1 + sqrt(q));
 
-    const double A_d__db = w * A_se__db + (1.0 - w) * A_k__db + A_fo__db;
+    const float A_d__db = w * A_se__db + (1.0 - w) * A_k__db + A_fo__db;
 
     return A_d__db;
 }

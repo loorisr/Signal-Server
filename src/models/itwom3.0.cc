@@ -59,38 +59,38 @@
 using namespace std;
 
 struct tcomplex {
-	double tcreal;
-	double tcimag;
+	float tcreal;
+	float tcimag;
 };
 
 struct prop_type {
-	double aref;
-	double dist;
-	double hg[2];
-	double rch[2];
-	double wn;
-	double dh;
-	double dhd;
-	double ens;
-	double encc;
-	double cch;
-	double cd;
-	double gme;
-	double zgndreal;
-	double zgndimag;
-	double he[2];
-	double dl[2];
-	double the[2];
-	double tiw;
-	double ght;
-	double ghr;
-	double rph;
-	double hht;
-	double hhr;
-	double tgh;
-	double tsgh;
-	double thera;
-	double thenr;
+	float aref;
+	float dist;
+	float hg[2];
+	float rch[2];
+	float wn;
+	float dh;
+	float dhd;
+	float ens;
+	float encc;
+	float cch;
+	float cd;
+	float gme;
+	float zgndreal;
+	float zgndimag;
+	float he[2];
+	float dl[2];
+	float the[2];
+	float tiw;
+	float ght;
+	float ghr;
+	float rph;
+	float hht;
+	float hhr;
+	float tgh;
+	float tsgh;
+	float thera;
+	float thenr;
 	int rpl;
 	int kwx;
 	int mdp;
@@ -99,31 +99,31 @@ struct prop_type {
 };
 
 struct propv_type {
-	double sgc;
+	float sgc;
 	int lvar;
 	int mdvar;
 	int klim;
 };
 
 struct propa_type {
-	double dlsa;
-	double dx;
-	double ael;
-	double ak1;
-	double ak2;
-	double aed;
-	double emd;
-	double aes;
-	double ems;
-	double dls[2];
-	double dla;
-	double tha;
+	float dlsa;
+	float dx;
+	float ael;
+	float ak1;
+	float ak2;
+	float aed;
+	float emd;
+	float aes;
+	float ems;
+	float dls[2];
+	float dla;
+	float tha;
 };
 
 
-double aknfe(const double &v2)
+float aknfe(const float &v2)
 {
-	double a;
+	float a;
 
 	if (v2 < 5.76)
 		a = 6.02 + 9.11 * sqrt(v2) - 1.27 * v2;
@@ -132,9 +132,9 @@ double aknfe(const double &v2)
 	return a;
 }
 
-double fht(const double &x, const double &pk)
+float fht(const float &x, const float &pk)
 {
-	double w, fhtv;
+	float w, fhtv;
 
 	if (x < 200.0) {
 		w = -log(pk);
@@ -159,12 +159,12 @@ double fht(const double &x, const double &pk)
 	return fhtv;
 }
 
-double h0f(double r, double et)
+float h0f(float r, float et)
 {
-	double a[5] = { 25.0, 80.0, 177.0, 395.0, 705.0 };
-	double b[5] = { 24.0, 45.0, 68.0, 80.0, 105.0 };
-	double q, x;
-	double h0fv, temp;
+	float a[5] = { 25.0, 80.0, 177.0, 395.0, 705.0 };
+	float b[5] = { 24.0, 45.0, 68.0, 80.0, 105.0 };
+	float q, x;
+	float h0fv, temp;
 	int it;
 
 	it = (int)et;
@@ -197,12 +197,12 @@ double h0f(double r, double et)
 	return h0fv;
 }
 
-double ahd(double td)
+float ahd(float td)
 {
 	int i;
-	double a[3] = { 133.4, 104.6, 71.8 };
-	double b[3] = { 0.332e-3, 0.212e-3, 0.157e-3 };
-	double c[3] = { -4.343, -1.086, 2.171 };
+	float a[3] = { 133.4, 104.6, 71.8 };
+	float b[3] = { 0.332e-3, 0.212e-3, 0.157e-3 };
+	float c[3] = { -4.343, -1.086, 2.171 };
 
 	if (td <= 10e3)
 		i = 0;
@@ -216,18 +216,18 @@ double ahd(double td)
 	return a[i] + b[i] * td + c[i] * log(td);
 }
 
-double abq_alos(complex < double >r)
+float abq_alos(complex < float >r)
 {
 	return r.real() * r.real() + r.imag() * r.imag();
 }
 
-double saalos(double d, prop_type & prop, propa_type & /*propa*/)
+float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 {
-	double ensa, encca, q, dp, dx, tde, hc, ucrpc, ctip, tip, tic, stic,
+	float ensa, encca, q, dp, dx, tde, hc, ucrpc, ctip, tip, tic, stic,
 	    ctic, sta;
-	double ttc, cttc, crpc, ssnps, d1a, rsp, tsp, arte, zi, pd, pdk, hone,
+	float ttc, cttc, crpc, ssnps, d1a, rsp, tsp, arte, zi, pd, pdk, hone,
 	    tvsr;
-	double saalosv = 0.0;
+	float saalosv = 0.0;
 
 	q = 0.0;
 
@@ -413,11 +413,11 @@ double saalos(double d, prop_type & prop, propa_type & /*propa*/)
 	return saalosv;
 }
 
-double adiff(double d, prop_type & prop, propa_type & propa)
+float adiff(float d, prop_type & prop, propa_type & propa)
 {
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	static __thread double wd1, xd1, afo, qk, aht, xht;
-	double a, q, pk, ds, th, wa, ar, wd, adiffv;
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	static __thread float wd1, xd1, afo, qk, aht, xht;
+	float a, q, pk, ds, th, wa, ar, wd, adiffv;
 
 	if (d == 0) {
 		q = prop.hg[0] * prop.hg[1];
@@ -475,13 +475,13 @@ double adiff(double d, prop_type & prop, propa_type & propa)
 	return adiffv;
 }
 
-double adiff2(double d, prop_type & prop, propa_type & propa)
+float adiff2(float d, prop_type & prop, propa_type & propa)
 {
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	static __thread double wd1, xd1, qk, aht, xht, toh, toho, roh, roho, dto, dto1,
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	static __thread float wd1, xd1, qk, aht, xht, toh, toho, roh, roho, dto, dto1,
 	    dtro, dro, dro2, drto, dtr, dhh1, dhh2, /* dhec, */ dtof, dto1f,
 	    drof, dro2f;
-	double a, q, pk, rd, ds, dsl, /* dfdh, */ th, wa, /* ar, wd, sf1, */
+	float a, q, pk, rd, ds, dsl, /* dfdh, */ th, wa, /* ar, wd, sf1, */
 	    sf2, /* ec, */ vv, kedr = 0.0, arp = 0.0, sdr = 0.0, pd = 0.0, srp =
 	    0.0, kem = 0.0, csd = 0.0, sdl = 0.0, adiffv2 = 0.0, closs = 0.0;
 
@@ -729,11 +729,11 @@ double adiff2(double d, prop_type & prop, propa_type & propa)
 							pd = 6.283185307 - pd;
 							csd =
 							    abq_alos(complex <
-								     double
+								     float
 								     >(sdl,
 								       0) +
 								     complex <
-								     double
+								     float
 								     >(kem *
 								       -cos(pd),
 								       kem *
@@ -742,11 +742,11 @@ double adiff2(double d, prop_type & prop, propa_type & propa)
 						} else {
 							csd =
 							    abq_alos(complex <
-								     double
+								     float
 								     >(sdl,
 								       0) +
 								     complex <
-								     double
+								     float
 								     >(kem *
 								       cos(pd),
 								       kem *
@@ -792,11 +792,11 @@ double adiff2(double d, prop_type & prop, propa_type & propa)
 	return adiffv2;
 }
 
-double ascat(double d, prop_type & prop, propa_type & propa)
+float ascat(float d, prop_type & prop, propa_type & propa)
 {
-	static __thread double ad, rr, etq, h0s;
-	double h0, r1, r2, z0, ss, et, ett, th, q;
-	double ascatv, temp;
+	static __thread float ad, rr, etq, h0s;
+	float h0, r1, r2, z0, ss, et, ett, th, q;
+	float ascatv, temp;
 
 	if (d == 0.0) {
 		ad = prop.dl[0] - prop.dl[1];
@@ -871,26 +871,26 @@ double ascat(double d, prop_type & prop, propa_type & propa)
 	return ascatv;
 }
 
-double qerfi(double q)
+float qerfi(float q)
 {
-    static const double c0 = 2.515516698;
-    static const double c1 = 0.802853;
-    static const double c2 = 0.010328;
-    static const double d1 = 1.432788;
-    static const double d2 = 0.189269;
-    static const double d3 = 0.001308;
+    static const float c0 = 2.515516698;
+    static const float c1 = 0.802853;
+    static const float c2 = 0.010328;
+    static const float d1 = 1.432788;
+    static const float d2 = 0.189269;
+    static const float d3 = 0.001308;
 
-    double x = 0.5 - q;
-    double t = sqrt(-2.0 * log(MAX(0.5 - fabs(x), 1e-6)));
-    double v = t - ((c2 * t + c1) * t + c0) / (((d3 * t + d2) * t + d1) * t + 1.0);
+    float x = 0.5 - q;
+    float t = sqrt(-2.0 * log(MAX(0.5 - fabs(x), 1e-6)));
+    float v = t - ((c2 * t + c1) * t + c0) / (((d3 * t + d2) * t + d1) * t + 1.0);
 
     return x < 0.0 ? -v : v;
 }
 
-void qlrps(double fmhz, double zsys, double en0, int ipol, double eps,
-	   double sgm, prop_type & prop)
+void qlrps(float fmhz, float zsys, float en0, int ipol, float eps,
+	   float sgm, prop_type & prop)
 {
-	double gma = 157e-9;
+	float gma = 157e-9;
 
 	prop.wn = fmhz / 47.7;
 	prop.ens = en0;
@@ -899,9 +899,9 @@ void qlrps(double fmhz, double zsys, double en0, int ipol, double eps,
 		prop.ens *= exp(-zsys / 9460.0);
 
 	prop.gme = gma * (1.0 - 0.04665 * exp(prop.ens / 179.3));
-	complex < double >zq, prop_zgnd(prop.zgndreal, prop.zgndimag);
-	zq = complex < double >(eps, 376.62 * sgm / prop.wn);
-	prop_zgnd = sqrt(zq - 1.0);
+	complex < float >zq, prop_zgnd(prop.zgndreal, prop.zgndimag);
+	zq = complex < float >(eps, 376.62 * sgm / prop.wn);
+	prop_zgnd = sqrt(zq - 1.0f);
 
 	if (ipol != 0.0)
 		prop_zgnd = prop_zgnd / zq;
@@ -911,13 +911,13 @@ void qlrps(double fmhz, double zsys, double en0, int ipol, double eps,
 
 }
 
-double alos(double d, prop_type & prop, propa_type & propa)
+float alos(float d, prop_type & prop, propa_type & propa)
 {
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	static __thread double wls;
-	complex < double >r;
-	double s, sps, q;
-	double alosv;
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	static __thread float wls;
+	complex < float >r;
+	float s, sps, q;
+	float alosv;
 
 	if (d == 0.0) {
 		wls =
@@ -932,7 +932,7 @@ double alos(double d, prop_type & prop, propa_type & propa)
 		q = prop.he[0] + prop.he[1];
 		sps = q / sqrt(d * d + q * q);
 		r = (sps - prop_zgnd) / (sps +
-					 prop_zgnd) * exp(-MIN(10.0,
+					 prop_zgnd) * exp(-MIN(10.0f,
 								 prop.wn * s *
 								 sps));
 		q = abq_alos(r);
@@ -948,20 +948,20 @@ double alos(double d, prop_type & prop, propa_type & propa)
 
 		alosv =
 		    (-4.343 *
-		     log(abq_alos(complex < double >(cos(q), -sin(q)) + r)) -
+		     log(abq_alos(complex < float >(cos(q), -sin(q)) + r)) -
 		     alosv) * wls + alosv;
 
 	}
 	return alosv;
 }
 
-double alos2(double d, prop_type & prop, propa_type & propa)
+float alos2(float d, prop_type & prop, propa_type & propa)
 {
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	complex < double >r;
-	double cd, cr, dr, hr, hrg, ht, htg, hrp, re, s, sps, q, pd, drh;
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	complex < float >r;
+	float cd, cr, dr, hr, hrg, ht, htg, hrp, re, s, sps, q, pd, drh;
 	/* int rp; */
-	double alosv;
+	float alosv;
 
 	cd = 0.0;
 	cr = 0.0;
@@ -1013,7 +1013,7 @@ double alos2(double d, prop_type & prop, propa_type & propa)
 		}
 
 		s = 0.78 * q * exp(-pow(q / 16.0, 0.25));
-		q = exp(-MIN(10.0, prop.wn * s * sps));
+		q = exp(-MIN(10.0f, prop.wn * s * sps));
 		r = q * (sps - prop_zgnd) / (sps + prop_zgnd);
 		q = abq_alos(r);
 		q = MIN(q, 1.0);
@@ -1038,7 +1038,7 @@ double alos2(double d, prop_type & prop, propa_type & propa)
 		}
 		/* no longer valid complex conjugate removed 
 		   by removing minus sign from in front of sin function */
-		re = abq_alos(complex < double >(cos(q), sin(q)) + r);
+		re = abq_alos(complex < float >(cos(q), sin(q)) + r);
 		alosv = -10 * log10(re);
 		prop.tgh = prop.hg[0];	/*tx above gnd hgt set to antenna height AGL */
 		prop.tsgh = prop.rch[0] - prop.hg[0];	/* tsgh set to tx site gl AMSL */
@@ -1059,7 +1059,7 @@ double alos2(double d, prop_type & prop, propa_type & propa)
 void qlra(int kst[], int klimx, int mdvarx, prop_type & prop,
 	  propv_type & propv)
 {
-	double q;
+	float q;
 
 	for (int j = 0; j < 2; ++j) {
 		if (kst[j] <= 0)
@@ -1103,16 +1103,16 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type & prop,
 	}
 }
 
-void lrprop(double d, prop_type & prop, propa_type & propa)
+void lrprop(float d, prop_type & prop, propa_type & propa)
 {
 	/* PaulM_lrprop used for ITM */
 	static __thread bool wlos, wscat;
-	static __thread double dmin, xae;
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	double a0, a1, a2, a3, a4, a5, a6;
-	double d0, d1, d2, d3, d4, d5, d6;
+	static __thread float dmin, xae;
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	float a0, a1, a2, a3, a4, a5, a6;
+	float d0, d1, d2, d3, d4, d5, d6;
 	bool wq;
-	double q;
+	float q;
 	int j;
 
 	if (prop.mdp != 0) {
@@ -1150,7 +1150,7 @@ void lrprop(double d, prop_type & prop, propa_type & propa)
 
 		dmin = abs(prop.he[0] - prop.he[1]) / 200e-3;
 		q = adiff(0.0, prop, propa);
-		/* xae=pow(prop.wn*pow(prop.gme,2.),-THIRD); -- JDM made argument 2 a double */
+		/* xae=pow(prop.wn*pow(prop.gme,2.),-THIRD); -- JDM made argument 2 a float */
 		xae = pow(prop.wn * (prop.gme * prop.gme), -THIRD);	/* No 2nd pow() */
 		d3 = MAX(propa.dlsa, 1.3787 * xae + propa.dla);
 		d4 = d3 + 2.7574 * xae;
@@ -1293,17 +1293,17 @@ void lrprop(double d, prop_type & prop, propa_type & propa)
 	prop.aref = MAX(prop.aref, 0.0);
 }
 
-void lrprop2(double d, prop_type & prop, propa_type & propa)
+void lrprop2(float d, prop_type & prop, propa_type & propa)
 {
 	/* ITWOM_lrprop2 */
 	static __thread bool wlos, wscat;
-	static __thread double dmin, xae;
-	complex < double >prop_zgnd(prop.zgndreal, prop.zgndimag);
-	double pd1;
-	double a0, a1, a2, a3, a4, a5, a6, iw;
-	double d0, d1, d2, d3, d4, d5, d6;
+	static __thread float dmin, xae;
+	complex < float >prop_zgnd(prop.zgndreal, prop.zgndimag);
+	float pd1;
+	float a0, a1, a2, a3, a4, a5, a6, iw;
+	float d0, d1, d2, d3, d4, d5, d6;
 	bool wq;
-	double q;
+	float q;
 	int j;
 
 	iw = prop.tiw;
@@ -1553,11 +1553,11 @@ void lrprop2(double d, prop_type & prop, propa_type & propa)
 	prop.aref = MAX(prop.aref, 0.0);
 }
 
-double curve(double const &c1, double const &c2, double const &x1,
-	     double const &x2, double const &x3, double const &de)
+float curve(float const &c1, float const &c2, float const &x1,
+	     float const &x2, float const &x3, float const &de)
 {
 	/* return (c1+c2/(1.0+pow((de-x2)/x3,2.0)))*pow(de/x1,2.0)/(1.0+pow(de/x1,2.0)); */
-	double temp1, temp2;
+	float temp1, temp2;
 
 	temp1 = (de - x2) / x3;
 	temp2 = de / x1;
@@ -1568,50 +1568,50 @@ double curve(double const &c1, double const &c2, double const &x1,
 	return (c1 + c2 / (1.0 + temp1)) * temp2 / (1.0 + temp2);
 }
 
-double avar(double zzt, double zzl, double zzc, prop_type & prop,
+float avar(float zzt, float zzl, float zzc, prop_type & prop,
 	    propv_type & propv)
 {
 	static __thread int kdv;
-	static __thread double dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
+	static __thread float dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
 	    gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
 	    ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
 	    cfm3, cfp1, cfp2, cfp3;
 
-	double bv1[7] = { -9.67, -0.62, 1.26, -9.21, -0.62, -0.39, 3.15 };
-	double bv2[7] = { 12.7, 9.19, 15.5, 9.05, 9.19, 2.86, 857.9 };
-	double xv1[7] =
+	float bv1[7] = { -9.67, -0.62, 1.26, -9.21, -0.62, -0.39, 3.15 };
+	float bv2[7] = { 12.7, 9.19, 15.5, 9.05, 9.19, 2.86, 857.9 };
+	float xv1[7] =
 	    { 144.9e3, 228.9e3, 262.6e3, 84.1e3, 228.9e3, 141.7e3, 2222.e3 };
-	double xv2[7] =
+	float xv2[7] =
 	    { 190.3e3, 205.2e3, 185.2e3, 101.1e3, 205.2e3, 315.9e3, 164.8e3 };
-	double xv3[7] =
+	float xv3[7] =
 	    { 133.8e3, 143.6e3, 99.8e3, 98.6e3, 143.6e3, 167.4e3, 116.3e3 };
-	double bsm1[7] = { 2.13, 2.66, 6.11, 1.98, 2.68, 6.86, 8.51 };
-	double bsm2[7] = { 159.5, 7.67, 6.65, 13.11, 7.16, 10.38, 169.8 };
-	double xsm1[7] =
+	float bsm1[7] = { 2.13, 2.66, 6.11, 1.98, 2.68, 6.86, 8.51 };
+	float bsm2[7] = { 159.5, 7.67, 6.65, 13.11, 7.16, 10.38, 169.8 };
+	float xsm1[7] =
 	    { 762.2e3, 100.4e3, 138.2e3, 139.1e3, 93.7e3, 187.8e3, 609.8e3 };
-	double xsm2[7] =
+	float xsm2[7] =
 	    { 123.6e3, 172.5e3, 242.2e3, 132.7e3, 186.8e3, 169.6e3, 119.9e3 };
-	double xsm3[7] =
+	float xsm3[7] =
 	    { 94.5e3, 136.4e3, 178.6e3, 193.5e3, 133.5e3, 108.9e3, 106.6e3 };
-	double bsp1[7] = { 2.11, 6.87, 10.08, 3.68, 4.75, 8.58, 8.43 };
-	double bsp2[7] = { 102.3, 15.53, 9.60, 159.3, 8.12, 13.97, 8.19 };
-	double xsp1[7] =
+	float bsp1[7] = { 2.11, 6.87, 10.08, 3.68, 4.75, 8.58, 8.43 };
+	float bsp2[7] = { 102.3, 15.53, 9.60, 159.3, 8.12, 13.97, 8.19 };
+	float xsp1[7] =
 	    { 636.9e3, 138.7e3, 165.3e3, 464.4e3, 93.2e3, 216.0e3, 136.2e3 };
-	double xsp2[7] =
+	float xsp2[7] =
 	    { 134.8e3, 143.7e3, 225.7e3, 93.1e3, 135.9e3, 152.0e3, 188.5e3 };
-	double xsp3[7] =
+	float xsp3[7] =
 	    { 95.6e3, 98.6e3, 129.7e3, 94.2e3, 113.4e3, 122.7e3, 122.9e3 };
-	double bsd1[7] = { 1.224, 0.801, 1.380, 1.000, 1.224, 1.518, 1.518 };
-	double bzd1[7] = { 1.282, 2.161, 1.282, 20., 1.282, 1.282, 1.282 };
-	double bfm1[7] = { 1.0, 1.0, 1.0, 1.0, 0.92, 1.0, 1.0 };
-	double bfm2[7] = { 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 0.0 };
-	double bfm3[7] = { 0.0, 0.0, 0.0, 0.0, 1.77, 0.0, 0.0 };
-	double bfp1[7] = { 1.0, 0.93, 1.0, 0.93, 0.93, 1.0, 1.0 };
-	double bfp2[7] = { 0.0, 0.31, 0.0, 0.19, 0.31, 0.0, 0.0 };
-	double bfp3[7] = { 0.0, 2.00, 0.0, 1.79, 2.00, 0.0, 0.0 };
+	float bsd1[7] = { 1.224, 0.801, 1.380, 1.000, 1.224, 1.518, 1.518 };
+	float bzd1[7] = { 1.282, 2.161, 1.282, 20., 1.282, 1.282, 1.282 };
+	float bfm1[7] = { 1.0, 1.0, 1.0, 1.0, 0.92, 1.0, 1.0 };
+	float bfm2[7] = { 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 0.0 };
+	float bfm3[7] = { 0.0, 0.0, 0.0, 0.0, 1.77, 0.0, 0.0 };
+	float bfp1[7] = { 1.0, 0.93, 1.0, 0.93, 0.93, 1.0, 1.0 };
+	float bfp2[7] = { 0.0, 0.31, 0.0, 0.19, 0.31, 0.0, 0.0 };
+	float bfp3[7] = { 0.0, 2.00, 0.0, 1.79, 2.00, 0.0, 0.0 };
 	static __thread bool ws, w1;
-	double rt = 7.8, rl = 24.0, avarv, q, vs, zt, zl, zc;
-	double sgt, yr, temp1, temp2;
+	float rt = 7.8, rl = 24.0, avarv, q, vs, zt, zl, zc;
+	float sgt, yr, temp1, temp2;
 	int temp_klim = propv.klim - 1;
 
 	if (propv.lvar > 0) {
@@ -1782,7 +1782,7 @@ double avar(double zzt, double zzl, double zzc, prop_type & prop,
 	return avarv;
 }
 
-void hzns(double pfl[], prop_type & prop)
+void hzns(float pfl[], prop_type & prop)
 {
     const int np = static_cast<int>(pfl[0]);
     if (np < 2) {
@@ -1795,33 +1795,33 @@ void hzns(double pfl[], prop_type & prop)
         return;
     }
 
-    const double xi = pfl[1];
-    const double dist = prop.dist;
-    const double z_tx__meter = pfl[2] + prop.hg[0];
-    const double z_rx__meter = pfl[np + 2] + prop.hg[1];
-    const double qc = 0.5 * prop.gme;
-    const double q_dist = qc * dist;
+    const float xi = pfl[1];
+    const float dist = prop.dist;
+    const float z_tx__meter = pfl[2] + prop.hg[0];
+    const float z_rx__meter = pfl[np + 2] + prop.hg[1];
+    const float qc = 0.5 * prop.gme;
+    const float q_dist = qc * dist;
 
-    double the0 = (z_rx__meter - z_tx__meter) / dist - q_dist;
-    double the1 = -((z_rx__meter - z_tx__meter) / dist) - q_dist;
+    float the0 = (z_rx__meter - z_tx__meter) / dist - q_dist;
+    float the1 = -((z_rx__meter - z_tx__meter) / dist) - q_dist;
     prop.dl[0] = dist;
     prop.dl[1] = dist;
 
-    double d_tx__meter = 0.0;
-    double d_rx__meter = dist;
+    float d_tx__meter = 0.0;
+    float d_rx__meter = dist;
     bool wq = true;
 
     // Pointer-based access to avoid repeated indexing calculations
-    const double* p_val = &pfl[3]; 
+    const float* p_val = &pfl[3]; 
 
     for (int i = 1; i < np; ++i) {
         d_tx__meter += xi;
         d_rx__meter -= xi;
         
-        const double val = *p_val++; // Current elevation point
+        const float val = *p_val++; // Current elevation point
         
         // Check horizon for side TX
-        double q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
+        float q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
         if (q > 0.0) {
             the0 += q / d_tx__meter;
             prop.dl[0] = d_tx__meter;
@@ -1842,11 +1842,11 @@ void hzns(double pfl[], prop_type & prop)
     prop.the[1] = the1;
 }
 
-void hzns2(double pfl[], prop_type & prop, propa_type & /*propa*/)
+void hzns2(float pfl[], prop_type & prop, propa_type & /*propa*/)
 {
 	bool wq;
 	int np, rp, i, j;
-	double xi, za, zb, qc, q, sb, sa, dr, dshh;
+	float xi, za, zb, qc, q, sb, sa, dr, dshh;
 
 	np = (int)pfl[0];
 	xi = pfl[1];
@@ -1927,11 +1927,11 @@ void hzns2(double pfl[], prop_type & prop, propa_type & /*propa*/)
 	prop.rph = pfl[rp];
 }
 
-void z1sq1(double z[], const double &x1, const double &x2, double &z0,
-           double &zn)
+void z1sq1(float z[], const float &x1, const float &x2, float &z0,
+           float &zn)
 {
     /* Used only with ITM 1.2.2 */
-    double xn, xa, xb, x, a, b;
+    float xn, xa, xb, x, a, b;
     xn = z[0];
     xa = int(MAX(x1 / z[1], 0.0));
     xb = xn - int(FORTRAN_DIM(xn, x2 / z[1]));
@@ -1947,19 +1947,19 @@ void z1sq1(double z[], const double &x1, const double &x2, double &z0,
     xb += x;
 
     // Pointer to first sample in the window: z[ja+2] .. z[jb+2]
-    const double *p = z + ja + 2;
+    const float *p = z + ja + 2;
 
     // Endpoint contributions (original code's initial a, b).
     // a accumulates sum of samples with endpoints half-weighted,
     // b accumulates sum of samples * (their x offset).
-    double a_sum = 0.5 * (p[0] + p[n]);
-    double b_sum = 0.5 * (p[0] - p[n]) * x;   // p[0] at offset x, p[n] at offset x+n, rewritten
+    float a_sum = 0.5 * (p[0] + p[n]);
+    float b_sum = 0.5 * (p[0] - p[n]) * x;   // p[0] at offset x, p[n] at offset x+n, rewritten
 
     // Interior samples: i = 2..n  ->  indices 1..n-1, with x advancing by 1 each step.
     // Starting offset for i=2 is x+1.
-    double xi = x + 1.0;
+    float xi = x + 1.0;
     for (int i = 1; i < n; ++i) {
-        double v = p[i];          // single load, reused
+        float v = p[i];          // single load, reused
         a_sum += v;
         b_sum += v * xi;
         xi    += 1.0;
@@ -1971,11 +1971,11 @@ void z1sq1(double z[], const double &x1, const double &x2, double &z0,
     zn = a + b * (xn - xb);
 }
 
-void z1sq2(double z[], const double &x1, const double &x2, double &z0,
-	   double &zn)
+void z1sq2(float z[], const float &x1, const float &x2, float &z0,
+	   float &zn)
 {
 	/* corrected for use with ITWOM */
-	double xn, xa, xb, x, a, b, bn;
+	float xn, xa, xb, x, a, b, bn;
 	int n, ja, jb;
 
 	xn = z[0];
@@ -2026,33 +2026,33 @@ void z1sq2(double z[], const double &x1, const double &x2, double &z0,
  *   ir - desired rank (0-based); returns element at rank ir
  * Returns: the value of the ir-th order statistic (i.e., a[k] after partial sort)
  */
-double qtile(const int &nn, double a[], const int &ir)
+float qtile(const int &nn, float a[], const int &ir)
 {
 	int k = MAX(0, MIN(ir, nn));
-    std::nth_element(a, a + k, a + nn + 1, std::greater<double>());
+    std::nth_element(a, a + k, a + nn + 1, std::greater<float>());
     return a[k];
 }
 
-double get_two_qtiles(double a[], int n, int ka, int kb) {
+float get_two_qtiles(float a[], int n, int ka, int kb) {
     // Premier appel sur tout le tableau pour trouver le plus grand index
-    std::nth_element(a, a + kb, a + n, std::greater<double>());
-    double res2 = a[kb];
+    std::nth_element(a, a + kb, a + n, std::greater<float>());
+    float res2 = a[kb];
 
     // Deuxième appel : on ne cherche QUE dans la partie gauche [a, a + k2]
     // C'est ici que l'on gagne du temps car le range est plus petit.
-    std::nth_element(a, a + ka, a + kb, std::greater<double>());
-    double res1 = a[ka];
+    std::nth_element(a, a + ka, a + kb, std::greater<float>());
+    float res1 = a[ka];
 
     // On réaffecte les valeurs selon l'ordre initial demandé
     return res1 - res2;
 }
 
-double qerf(const double &z)
+float qerf(const float &z)
 {
-	double b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
-	double b4 = -1.821255987, b5 = 1.330274429;
-	double rp = 4.317008, rrt2pi = 0.398942280;
-	double t, x, qerfv;
+	float b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
+	float b4 = -1.821255987, b5 = 1.330274429;
+	float rp = 4.317008, rrt2pi = 0.398942280;
+	float t, x, qerfv;
 
 	x = z;
 	t = fabs(x);
@@ -2072,11 +2072,11 @@ double qerf(const double &z)
 	return qerfv;
 }
 
-double d1thx(double pfl[], const double &x1, const double &x2)
+float d1thx(float pfl[], const float &x1, const float &x2)
 {
 	int np, ka, kb, n, j;
-    double d1thxv, sn, xa, xb;
-    double *s;
+    float d1thxv, sn, xa, xb;
+    float *s;
 
     np = (int)pfl[0];
     xa = x1 / pfl[1];
@@ -2091,24 +2091,24 @@ double d1thx(double pfl[], const double &x1, const double &x2)
     kb = n - ka + 1;
     sn = n - 1;
 
-    assert((s = new double[n + 2]) != 0);
+    assert((s = new float[n + 2]) != 0);
     s[0] = sn;
     s[1] = 1.0;
 
     xb = (xb - xa) / sn;
 
-    double *sp = s + 2;
-    double pos = xa;              /* running position in pfl-index space */
+    float *sp = s + 2;
+    float pos = xa;              /* running position in pfl-index space */
 
     for (j = 0; j < n; j++) {
         int    ki = (int)pos;     /* integer part: segment index        */
-        double fr = pos - ki;     /* fractional part in [0, 1)          */
+        float fr = pos - ki;     /* fractional part in [0, 1)          */
         if (ki + 1 > np) {        /* clamp to last segment              */
             ki = np - 1;
             fr = 1.0 + (pos - np);
         }
-        double a = pfl[ki + 2];
-        double b = pfl[ki + 3];
+        float a = pfl[ki + 2];
+        float b = pfl[ki + 3];
         *sp++ = b + (b - a) * (fr - 1.0);
         /* equivalent to: a + (b - a) * fr, which is the standard lerp */
         pos += xb;
@@ -2130,11 +2130,11 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 }
 
 //for testing
-double d1thx_no_interpolation(double pfl[], const double &x1, const double &x2)
+float d1thx_no_interpolation(float pfl[], const float &x1, const float &x2)
 {
 	int np, ka, kb, n, j;
-    double d1thxv, sn, xa, xb;
-    double *s;
+    float d1thxv, sn, xa, xb;
+    float *s;
 
     np = (int)pfl[0];
     xa = x1 / pfl[1];
@@ -2155,7 +2155,7 @@ double d1thx_no_interpolation(double pfl[], const double &x1, const double &x2)
     if (kb <= ka)
         return d1thxv;
 
-    assert((s = new double[n + 2]) != 0);
+    assert((s = new float[n + 2]) != 0);
     
     std::copy(pfl, pfl + n+2, s);
 s[0] = n;
@@ -2176,12 +2176,12 @@ s[1] = 1.0;
 	return d1thxv;
 }
 
-double d1thx2(double pfl[], const double &x1, const double &x2,
+float d1thx2(float pfl[], const float &x1, const float &x2,
 	      propa_type & /*propa*/)
 {
 	int np, ka, kb, n, k, kmx, j;
-	double d1thx2v, sn, xa, xb, xc;
-	double *s;
+	float d1thx2v, sn, xa, xb, xc;
+	float *s;
 
 	np = (int)pfl[0];
 	xa = x1 / pfl[1];
@@ -2197,12 +2197,12 @@ double d1thx2(double pfl[], const double &x1, const double &x2,
 	n = 10 * ka - 5;
 	kb = n - ka + 1;
 	sn = n - 1;
-	assert((s = new double[n + 2])!=0);
+	assert((s = new float[n + 2])!=0);
 	s[0] = sn;
 	s[1] = 1.0;
 	xb = (xb - xa) / sn;
 	k = (int (xa + 1.0));
-	xc = xa - (double (k));
+	xc = xa - (float (k));
 
 	for (j = 0; j < n; j++) {
 		while (xc > 0.0 && k < np) {
@@ -2228,10 +2228,10 @@ double d1thx2(double pfl[], const double &x1, const double &x2,
 	return d1thx2v;
 }
 
-void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
+void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
 {
 	int np, j;
-	double xl[2], q, za, zb, temp;
+	float xl[2], q, za, zb, temp;
 
 	prop.dist = pfl[0] * pfl[1];
 	np = (int)pfl[0];
@@ -2293,11 +2293,11 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & 
 	lrprop(0.0, prop, propa);
 }
 
-void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type & prop,
+void qlrpfl2(float pfl[], int klimx, int mdvarx, prop_type & prop,
 	     propa_type & propa, propv_type & propv)
 {
 	int np, j;
-	double xl[2], dlb, q = 1.0, za, zb, temp, rad, rae1, rae2;
+	float xl[2], dlb, q = 1.0, za, zb, temp, rad, rae1, rae2;
 
 	prop.dist = pfl[0] * pfl[1];
 	np = (int)pfl[0];
@@ -2403,10 +2403,10 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type & prop,
 //* Point-To-Point Mode Calculations 
 //***************************************************************************************
 
-void point_to_point_ITM(double tht_m, double rht_m, double eps_dielect,
-			double sgm_conductivity, double eno_ns_surfref,
-			double frq_mhz, int radio_climate, int pol,
-			double conf, double rel, double &dbloss, PropagationMode &mode,
+void point_to_point_ITM(float tht_m, float rht_m, float eps_dielect,
+			float sgm_conductivity, float eno_ns_surfref,
+			float frq_mhz, int radio_climate, int pol,
+			float conf, float rel, float &dbloss, PropagationMode &mode,
 			int &errnum)
 
 /******************************************************************************
@@ -2443,12 +2443,12 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	prop_type prop;
 	propv_type propv;
 	propa_type propa;
-	double zsys = 0;
-	double zc, zr;
-	double eno, q;
+	float zsys = 0;
+	float zc, zr;
+	float eno, q;
 	long ja, jb, i, np;
-	/* double dkm, xkm; */
-	double fs;
+	/* float dkm, xkm; */
+	float fs;
 
 	prop.hg[0] = tht_m;
 	prop.hg[1] = rht_m;
@@ -2498,9 +2498,9 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 
 /* Build a precomputed context from the parameters that are constant across an
  * area coverage run (everything except rht_m and elev[]). */
-ITM_ctx ITM_ctx_init(double tht_m, double eps_dielect, double sgm_conductivity,
-		     double eno_ns_surfref, double frq_mhz, int radio_climate,
-		     int pol, double conf, double rel)
+ITM_ctx ITM_ctx_init(float tht_m, float eps_dielect, float sgm_conductivity,
+		     float eno_ns_surfref, float frq_mhz, int radio_climate,
+		     int pol, float conf, float rel)
 {
 	ITM_ctx ctx;
 	ctx.tht_m  = tht_m;
@@ -2515,8 +2515,8 @@ ITM_ctx ITM_ctx_init(double tht_m, double eps_dielect, double sgm_conductivity,
 	/* Precompute the ground-impedance term from qlrps.
 	 * This part depends only on eps, sgm, wn, and pol — none of which
 	 * change between receiver points. */
-	complex<double> zq(eps_dielect, 376.62 * sgm_conductivity / ctx.wn);
-	complex<double> prop_zgnd = sqrt(zq - 1.0);
+	complex<float> zq(eps_dielect, 376.62 * sgm_conductivity / ctx.wn);
+	complex<float> prop_zgnd = sqrt(zq - 1.0f);
 	if (pol != 0)
 		prop_zgnd = prop_zgnd / zq;
 	ctx.zgndreal = prop_zgnd.real();
@@ -2539,15 +2539,15 @@ ITM_ctx ITM_ctx_init(double tht_m, double eps_dielect, double sgm_conductivity,
  *   - complex sqrt (and optional division) in qlrps()
  *   - partial log10(frq_mhz) term
  */
-void point_to_point_ITM_fast(const ITM_ctx &ctx, double rht_m, double elev[],
-			     double &dbloss, PropagationMode &mode, int &errnum)
+void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
+			     float &dbloss, PropagationMode &mode, int &errnum)
 {
 	if (debug) cnt_point_to_point_ITM++;
 	prop_type  prop  = {};
 	propv_type propv = {};
 	propa_type propa = {};
-	double zsys = 0;
-	double q, fs;
+	float zsys = 0;
+	float q, fs;
 	long ja, jb, i, np;
 
 	prop.hg[0]  = ctx.tht_m;
@@ -2599,20 +2599,20 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, double rht_m, double elev[],
 	errnum = prop.kwx;
 }
 
-void point_to_point(double tht_m, double rht_m, double eps_dielect,
-		    double sgm_conductivity, double eno_ns_surfref,
-		    double frq_mhz, int radio_climate, int pol, double conf,
-		    double rel, double &dbloss, PropagationMode &mode, int &errnum)
+void point_to_point(float tht_m, float rht_m, float eps_dielect,
+		    float sgm_conductivity, float eno_ns_surfref,
+		    float frq_mhz, int radio_climate, int pol, float conf,
+		    float rel, float &dbloss, PropagationMode &mode, int &errnum)
 
 /******************************************************************************
 
 	Note that point_to_point_two has become point_to_point 
 	for drop-in interface to splat.cpp.  
 	The new variable inputs,
-	double enc_ncc_clcref, 
-	double clutter_height, 
-	double clutter_density, 
-	double delta_h_diff, and 
+	float enc_ncc_clcref, 
+	float clutter_height, 
+	float clutter_density, 
+	float delta_h_diff, and 
 	int mode_var)
 	have been given fixed values below. 
 
@@ -2663,12 +2663,12 @@ void point_to_point(double tht_m, double rht_m, double eps_dielect,
 	propv_type propv;
 	propa_type propa;
 
-	double zsys = 0;
-	double zc, zr;
-	double eno, q;
+	float zsys = 0;
+	float zc, zr;
+	float eno, q;
 	long ja, jb, i, np;
-	/* double dkm, xkm; */
-	double tpd, fs;
+	/* float dkm, xkm; */
+	float tpd, fs;
 
 	prop.hg[0] = tht_m;
 	prop.hg[1] = rht_m;
@@ -2688,10 +2688,10 @@ void point_to_point(double tht_m, double rht_m, double eps_dielect,
 
 	/* PRESET VALUES for Basic Version w/o additional inputs active */
 
-	prop.encc = 1000.00;	/*  double enc_ncc_clcref preset  */
-	prop.cch = 22.5;	/* double clutter_height preset to ILLR calibration.;  
+	prop.encc = 1000.00;	/*  float enc_ncc_clcref preset  */
+	prop.cch = 22.5;	/* float clutter_height preset to ILLR calibration.;  
 				   use 25.3 for ITU-P1546-2 calibration */
-	prop.cd = 1.00;		/* double clutter_density preset */
+	prop.cd = 1.00;		/* float clutter_density preset */
 	int mode_var = 1;	/* int mode_var set to 1 for FCC compatibility;
 				   normally, SPLAT presets this to 12 */
 	prop.dhd = 0.0;		/* delta_h_diff preset */

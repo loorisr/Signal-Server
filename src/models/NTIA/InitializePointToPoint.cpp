@@ -22,11 +22,11 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-void InitializePointToPoint(const double f__mhz, const double h_sys__meter, const double N_0, const int pol, 
-    const double epsilon, const double sigma, complex<double> *Z_g, double *gamma_e, double *N_s)
+void InitializePointToPoint(const float f__mhz, const float h_sys__meter, const float N_0, const int pol, 
+    const float epsilon, const float sigma, complex<float> *Z_g, float *gamma_e, float *N_s)
 {
     // gamma_a is the curvature of the actual earth, ~1 / 6370 km
-    constexpr double gamma_a = 157e-9;
+    constexpr float gamma_a = 157e-9;
 
     // scale the refractivity based on the elevation above mean sea level
     if (h_sys__meter == 0.0)
@@ -38,9 +38,9 @@ void InitializePointToPoint(const double f__mhz, const double h_sys__meter, cons
     *gamma_e = gamma_a * (1.0 - 0.04665 * exp(*N_s / 179.3));   // [TN101, Eq 4.4], reworked
 
     // complex relative permittivity
-    const complex<double> ep_r = complex<double>(epsilon, 18000 * sigma / f__mhz);
+    const complex<float> ep_r = complex<float>(epsilon, 18000 * sigma / f__mhz);
 
-    *Z_g = sqrt(ep_r - 1.0);                        // ground impedance (horizontal polarization)
+    *Z_g = sqrt(ep_r - 1.0f);                        // ground impedance (horizontal polarization)
 
     if (pol == POLARIZATION__VERTICAL)              // adjust for vertical polarization
         *Z_g = *Z_g / ep_r;

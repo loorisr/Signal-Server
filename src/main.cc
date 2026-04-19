@@ -54,7 +54,7 @@ std::string DEM_path;
 std::string color_palette = "heat";
 std::string output_filename;
 
-double max_range = 0.0,
+float max_range = 0.0,
     fzone_clearance = 0.6, clutter, tercon, terdic,
     dBm, loss, field_strength,
     min_lat = 90, max_lat = -90, min_lon = 180.0, max_lon = -180.0,
@@ -77,19 +77,19 @@ bool ngs = false;
 bool knifeedge = false;
 int pmenv = 1;
 int number_threads = 4;
-double altitudeLR = 1;
+float altitudeLR = 1;
 PropModel prop_model = ITM_LR;
 bool ppa = false;
 int normalise = 0;
 std::string mapfile;
 
-thread_local double *elev;
+thread_local float *elev;
 thread_local int elev_allocated = 0;
 thread_local struct path path;
 thread_local int path_allocated = 0;
 site tx_site;
 site rx_site;
-double         **dem_data   = nullptr;
+float         **dem_data   = nullptr;
 int **dem_signal = nullptr;
 int dem_min_lat   = 0;
 int dem_min_lon   = 0;
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
     }
 
     auto end_time = std::chrono::steady_clock::now();
-    double elapsed_s = std::chrono::duration<double>(end_time - start_time).count();
+    float elapsed_s = std::chrono::duration<float>(end_time - start_time).count();
     spdlog::info("Execution time: {:.3f} seconds", elapsed_s);
 
     if (debug) {

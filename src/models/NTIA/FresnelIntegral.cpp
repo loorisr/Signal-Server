@@ -11,7 +11,7 @@
  |      Returns:  A(v, 0)        - Loss, in dB
  |
  *===========================================================================*/
-double FresnelIntegral(const double v2)
+float FresnelIntegral(const float v2)
 {
     // Note: v2  is v^2, so 5.76 is actually comparing v to 2.4
 

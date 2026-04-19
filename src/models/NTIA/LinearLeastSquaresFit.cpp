@@ -14,7 +14,7 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-void LinearLeastSquaresFit(const double pfl[], const double d_start, const double d_end, double *fit_y1, double *fit_y2)
+void LinearLeastSquaresFit(const float pfl[], const float d_start, const float d_end, float *fit_y1, float *fit_y2)
 {
     const int np = (int)pfl[0];
 
@@ -27,13 +27,13 @@ void LinearLeastSquaresFit(const double pfl[], const double d_start, const doubl
         i_end = np - (int)fdim(np, i_end + 1.0);
     }
 
-    const double x_length = i_end - i_start;
+    const float x_length = i_end - i_start;
 
-    double mid_shifted_index = -0.5 * x_length;
-    const double mid_shifted_end = i_end + mid_shifted_index;
+    float mid_shifted_index = -0.5 * x_length;
+    const float mid_shifted_end = i_end + mid_shifted_index;
 
-    double sum_y = 0.5 * (pfl[i_start + 2] + pfl[i_end + 2]);
-    double scaled_sum_y = 0.5 * (pfl[i_start + 2] - pfl[i_end + 2]) * mid_shifted_index;
+    float sum_y = 0.5 * (pfl[i_start + 2] + pfl[i_end + 2]);
+    float scaled_sum_y = 0.5 * (pfl[i_start + 2] - pfl[i_end + 2]) * mid_shifted_index;
 
     for (int i = 2; i <= x_length; i++)
     {

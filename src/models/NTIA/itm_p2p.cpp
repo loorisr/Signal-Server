@@ -37,9 +37,9 @@
  |      Returns:  error             - Error code
  |
  *===========================================================================*/
-int ITM_P2P_TLS(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double time, const double location, const double situation,
-    double *A__db, long *warnings)
+int ITM_P2P_TLS(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float time, const float location, const float situation,
+    float *A__db, long *warnings)
 {
     IntermediateValues interValues;
 
@@ -81,9 +81,9 @@ int ITM_P2P_TLS(const double h_tx__meter, const double h_rx__meter, const double
  |      Returns:  error             - Error code
  |
  *===========================================================================*/
-int ITM_P2P_CR(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double confidence, const double reliability,
-    double *A__db, long *warnings)
+int ITM_P2P_CR(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float confidence, const float reliability,
+    float *A__db, long *warnings)
 {
     IntermediateValues interValues;
 
@@ -134,9 +134,9 @@ int ITM_P2P_CR(const double h_tx__meter, const double h_rx__meter, const double 
  |      Returns:  error             - Error code
  |
  *===========================================================================*/
-int ITM_P2P_CR_Ex(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double confidence, const double reliability,
-    double *A__db, long *warnings, IntermediateValues *interValues)
+int ITM_P2P_CR_Ex(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float confidence, const float reliability,
+    float *A__db, long *warnings, IntermediateValues *interValues)
 {
     int rtn = ITM_P2P_TLS_Ex(h_tx__meter, h_rx__meter, pfl, climate, N_0, f__mhz, pol, epsilon, sigma, mdvar,
         reliability, 50, confidence, A__db, warnings, interValues);
@@ -177,18 +177,18 @@ int ITM_P2P_CR_Ex(const double h_tx__meter, const double h_rx__meter, const doub
  |      Returns:  error             - Error code
  |
  *===========================================================================*/
-int ITM_P2P_TLS_Ex(const double h_tx__meter, const double h_rx__meter, const double pfl[], const int climate, const double N_0, const double f__mhz,
-    const int pol, const double epsilon, const double sigma, const int mdvar, const double time, const double location, const double situation,
-    double *A__db, long *warnings, IntermediateValues *interValues)
+int ITM_P2P_TLS_Ex(const float h_tx__meter, const float h_rx__meter, const float pfl[], const int climate, const float N_0, const float f__mhz,
+    const int pol, const float epsilon, const float sigma, const int mdvar, const float time, const float location, const float situation,
+    float *A__db, long *warnings, IntermediateValues *interValues)
 {
-    double N_s;                 // Surface refractivity, in N-Units
-    double gamma_e;             // Curvature of the effective earth
-    double delta_h__meter;      // Terrain irregularity parameter
-    double d__meter;            // Path distance, in meters
-    complex<double> Z_g;	    // Ground impedance
-    double theta_hzn[2];        // Terminal horizon angles
-    double d_hzn__meter[2];     // Terminal horizon distances
-    double h_e__meter[2];       // Terminal effective heights
+    float N_s;                 // Surface refractivity, in N-Units
+    float gamma_e;             // Curvature of the effective earth
+    float delta_h__meter;      // Terrain irregularity parameter
+    float d__meter;            // Path distance, in meters
+    complex<float> Z_g;	    // Ground impedance
+    float theta_hzn[2];        // Terminal horizon angles
+    float d_hzn__meter[2];     // Terminal horizon distances
+    float h_e__meter[2];       // Terminal effective heights
 
     *warnings = NO_WARNINGS;    // Initialize to no warnings
 
@@ -203,7 +203,7 @@ int ITM_P2P_TLS_Ex(const double h_tx__meter, const double h_rx__meter, const dou
 
     // compute the average path height, ignoring first and last 10%
     const int p10 = int(0.1 * np);  // 10% of np
-    double h_sys__meter = 0;        // Height of the system above mean sea level
+    float h_sys__meter = 0;        // Height of the system above mean sea level
 
     for (int i = p10; i <= np - p10; i++)
         h_sys__meter += pfl[i + 2];
@@ -212,18 +212,18 @@ int ITM_P2P_TLS_Ex(const double h_tx__meter, const double h_rx__meter, const dou
 
     InitializePointToPoint(f__mhz, h_sys__meter, N_0, pol, epsilon, sigma, &Z_g, &gamma_e, &N_s);
 
-    const double h__meter[2] = { h_tx__meter, h_rx__meter };
+    const float h__meter[2] = { h_tx__meter, h_rx__meter };
     QuickPfl(pfl, gamma_e, h__meter, theta_hzn, d_hzn__meter, h_e__meter, &delta_h__meter, &d__meter);
 
     // Reference attenuation, in dB
-    double A_ref__db = 0;
+    float A_ref__db = 0;
     int propmode = MODE__NOT_SET;
     rtn = LongleyRice(theta_hzn, f__mhz, Z_g, d_hzn__meter, h_e__meter, gamma_e, N_s, delta_h__meter, h__meter, d__meter, MODE__P2P, 
         &A_ref__db, warnings, &propmode);
     if (rtn != SUCCESS)
         return rtn;
 
-    double A_fs__db = FreeSpaceLoss(d__meter, f__mhz);
+    float A_fs__db = FreeSpaceLoss(d__meter, f__mhz);
 
     *A__db = Variability(time, location, situation, h_e__meter, delta_h__meter, f__mhz, d__meter, A_ref__db, climate, mdvar, warnings) + A_fs__db;
 

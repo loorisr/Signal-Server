@@ -9,82 +9,82 @@
 
 
 // Compute the wrapped longitude difference between two coordinates.
-double LonDiff(double lon1, double lon2)
+float LonDiff(float lon1, float lon2)
 {
-    double diff = lon1 - lon2;
+    float diff = lon1 - lon2;
     if (diff <= -180.0) return diff + 360.0;
     if (diff >= 180.0)  return diff - 360.0;
     return diff;
 }
 
 // Compute great-circle distance between two sites.
-double Distance(struct site site1, struct site site2)
+float Distance(struct site site1, struct site site2)
 {
-    double lat1 = site1.lat * DEG2RAD;
-    double lon1 = site1.lon * DEG2RAD;
-    double lat2 = site2.lat * DEG2RAD;
-    double lon2 = site2.lon * DEG2RAD;
+    float lat1 = site1.lat * DEG2RAD;
+    float lon1 = site1.lon * DEG2RAD;
+    float lat2 = site2.lat * DEG2RAD;
+    float lon2 = site2.lon * DEG2RAD;
 
-    double dot = sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2);
-    dot = std::clamp(dot, -1.0, 1.0);  /* guard against floating-point overshoot */
+    float dot = sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2);
+    dot = std::clamp(dot, -1.0f, 1.0f);  /* guard against floating-point overshoot */
 
     return EARTHRADIUS * acos(dot);
 }
 
 // Compute the forward azimuth from the source site to the destination site.
-double Azimuth(struct site source, struct site destination)
+float Azimuth(struct site source, struct site destination)
 {
-    const double src_lat  = source.lat      * DEG2RAD;
-    const double src_lon  = source.lon      * DEG2RAD;
-    const double dest_lat = destination.lat * DEG2RAD;
-    const double dest_lon = destination.lon * DEG2RAD;
-    const double dlon     = dest_lon - src_lon;
+    const float src_lat  = source.lat      * DEG2RAD;
+    const float src_lon  = source.lon      * DEG2RAD;
+    const float dest_lat = destination.lat * DEG2RAD;
+    const float dest_lon = destination.lon * DEG2RAD;
+    const float dlon     = dest_lon - src_lon;
 
-    double az = atan2(sin(dlon) * cos(dest_lat),
+    float az = atan2(sin(dlon) * cos(dest_lat),
                       cos(src_lat) * sin(dest_lat) - sin(src_lat) * cos(dest_lat) * cos(dlon));
     if (az < 0.0) az += TWOPI;
     return az * RAD2DEG;
 }
 
 // Return the WGS84 Earth radius at the given latitude.
-double earthRadius(double lat)
+float earthRadius(float lat)
 {
     // Convert latitude to rad
-    double lat_rad = lat * DEG2RAD;
+    float lat_rad = lat * DEG2RAD;
 
-    double An = WGS84_a * WGS84_a * cos(lat_rad);
-    double Bn = WGS84_b * WGS84_b * sin(lat_rad);
-    double Ad = WGS84_a * cos(lat_rad);
-    double Bd = WGS84_b * sin(lat_rad);
+    float An = WGS84_a * WGS84_a * cos(lat_rad);
+    float Bn = WGS84_b * WGS84_b * sin(lat_rad);
+    float Ad = WGS84_a * cos(lat_rad);
+    float Bd = WGS84_b * sin(lat_rad);
 
     return sqrt((An*An + Bn*Bn) / (Ad*Ad + Bd*Bd));
 }
 
 // Project a point from a center coordinate by distance and bearing.
-coord getPointAtDistance(const coord center, double distance, double bearing_rad)
+coord getPointAtDistance(const coord center, float distance, float bearing_rad)
 {
     coord endCoords;
 
     // 1. Pre-calculate radians and Earth radius ratio
-    const double start_lat_rad = center.lat * DEG2RAD;
-    const double start_lon_rad = center.lon * DEG2RAD;
-    const double dR            = distance / earthRadius(center.lat);
+    const float start_lat_rad = center.lat * DEG2RAD;
+    const float start_lon_rad = center.lon * DEG2RAD;
+    const float dR            = distance / earthRadius(center.lat);
 
     // 2. Pre-calculate common trig values to avoid redundant calls
-    const double sin_lat = sin(start_lat_rad);
-    const double cos_lat = cos(start_lat_rad);
-    const double sin_dR  = sin(dR);
-    const double cos_dR  = cos(dR);
-    const double sin_brg = sin(bearing_rad);
-    const double cos_brg = cos(bearing_rad);
+    const float sin_lat = sin(start_lat_rad);
+    const float cos_lat = cos(start_lat_rad);
+    const float sin_dR  = sin(dR);
+    const float cos_dR  = cos(dR);
+    const float sin_brg = sin(bearing_rad);
+    const float cos_brg = cos(bearing_rad);
 
     // 3. Calculate Latitude
-    const double sin_end_lat = sin_lat * cos_dR + cos_lat * sin_dR * cos_brg;
-    const double end_lat_rad = asin(sin_end_lat);
+    const float sin_end_lat = sin_lat * cos_dR + cos_lat * sin_dR * cos_brg;
+    const float end_lat_rad = asin(sin_end_lat);
     
     // 4. Calculate Longitude
     // Optimization: Reuse sin_end_lat to avoid another sin() call
-    const double end_lon_rad = start_lon_rad + atan2(
+    const float end_lon_rad = start_lon_rad + atan2(
         sin_brg * sin_dR * cos_lat,
         cos_dR - sin_lat * sin_end_lat
     );
@@ -96,29 +96,29 @@ coord getPointAtDistance(const coord center, double distance, double bearing_rad
 }
 
 // Build a latitude/longitude bounding box that encloses a circular area.
-bbox getCircularBoundingBox(coord center, double radius)
+bbox getCircularBoundingBox(coord center, float radius)
 {
     // Result bbox
     bbox result;
 
     // Convert input degrees to rads
-    double lat_rad = center.lat * DEG2RAD;
-    double lon_rad = center.lon * DEG2RAD;
+    float lat_rad = center.lat * DEG2RAD;
+    float lon_rad = center.lon * DEG2RAD;
 
     // Get earth's radius at the specified latitude (km)
-    double e_rad = earthRadius(center.lat);
+    float e_rad = earthRadius(center.lat);
 
     // Get parallel radius at latitude (km)
-    double p_rad = e_rad * cos(lat_rad);
+    float p_rad = e_rad * cos(lat_rad);
 
     // Calculate bounds (radians)
-    double latMin = lat_rad - (radius / e_rad);
-    double latMax = lat_rad + (radius / e_rad);
-    double lonMin = lon_rad - (radius / p_rad);
-    double lonMax = lon_rad + (radius / p_rad);
+    float latMin = lat_rad - (radius / e_rad);
+    float latMax = lat_rad + (radius / e_rad);
+    float lonMin = lon_rad - (radius / p_rad);
+    float lonMax = lon_rad + (radius / p_rad);
 
-    result.lower_left = { latMin * RAD2DEG, lonMin * RAD2DEG };
-    result.upper_right = { latMax * RAD2DEG, lonMax * RAD2DEG };
+    result.lower_left = { (float)(latMin * RAD2DEG), (float)(lonMin * RAD2DEG) };
+    result.upper_right = { (float)(latMax * RAD2DEG), (float)(lonMax * RAD2DEG) };
 
     return result;
 }
@@ -126,7 +126,7 @@ bbox getCircularBoundingBox(coord center, double radius)
 /* DEM access */
 
 // Translate geographic coordinates into DEM pixel coordinates.
-bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
+bool find_dem_xy(float lat, float lon, int &x_out, int &y_out)
 {
     if (!dem_data) return false;
     int x = (int)rint(ppd * (lat - dem_min_lat));
@@ -138,7 +138,7 @@ bool find_dem_xy(double lat, double lon, int &x_out, int &y_out)
 }
 
 // Store the computed signal value at the DEM cell for a location.
-void PutSignal(double lat, double lon, int signal)
+void PutSignal(float lat, float lon, int signal)
 {
     int x, y;
     if (find_dem_xy(lat, lon, x, y))
@@ -146,7 +146,7 @@ void PutSignal(double lat, double lon, int signal)
 }
 
 // Read the stored signal value at the DEM cell for a location.
-int GetSignal(double lat, double lon)
+int GetSignal(float lat, float lon)
 {
     int x, y;
     if (!find_dem_xy(lat, lon, x, y)) return 0;
@@ -154,7 +154,7 @@ int GetSignal(double lat, double lon)
 }
 
 // Read the terrain elevation for a site from the loaded DEM.
-double GetElevation(struct site location)
+float GetElevation(struct site location)
 {
     int x, y;
     if (!find_dem_xy(location.lat, location.lon, x, y)) return -5000.0;
@@ -163,7 +163,7 @@ double GetElevation(struct site location)
 
 /* Path / elevation geometry */
 
-double ElevationAngle(struct site source, struct site destination)
+float ElevationAngle(struct site source, struct site destination)
 {
     /* This function returns the angle of elevation (in degrees)
        of the destination as seen from the source location.
@@ -172,7 +172,7 @@ double ElevationAngle(struct site source, struct site destination)
        (downtilt), as referenced to a normal to the center of
        the earth. */
 
-    double a, b, dx;
+    float a, b, dx;
 
     a = GetElevation(destination) + destination.alt + EARTHRADIUS;
     b = GetElevation(source) + source.alt + EARTHRADIUS;
@@ -181,17 +181,17 @@ double ElevationAngle(struct site source, struct site destination)
 
     /* Apply the Law of Cosines */
 
-    double cos_angle = std::clamp(((b * b) + (dx * dx) - (a * a)) / (2.0 * b * dx), -1.0, 1.0);
+    float cos_angle = std::clamp(((b * b) + (dx * dx) - (a * a)) / (2.0f * b * dx), -1.0f, 1.0f);
     return (acos(cos_angle) * RAD2DEG) - 90.0;
 }
 
 // Allocate the per-thread path buffers for a new sample count.
 static void alloc_path(int size)
 {
-    path.lat = new double[size];
-    path.lon = new double[size];
-    path.elevation = new double[size];
-    path.distance = new double[size];
+    path.lat = new float[size];
+    path.lon = new float[size];
+    path.elevation = new float[size];
+    path.distance = new float[size];
     path_allocated = size;
 }
 
@@ -200,11 +200,11 @@ void ReadPath(struct site source, struct site destination)
 {
     if (debug) cnt_ReadPath++;
 
-    double azimuth, distance, lat2, lon2, beta,
+    float azimuth, distance, lat2, lon2, beta,
         total_distance, dx, dy, path_length, m_per_sample;
 
-    const double lat1 = source.lat * DEG2RAD;
-    const double lon1 = source.lon * DEG2RAD;
+    const float lat1 = source.lat * DEG2RAD;
+    const float lon1 = source.lon * DEG2RAD;
 
     azimuth        = Azimuth(source, destination) * DEG2RAD;
     total_distance = Distance(source, destination);
@@ -223,23 +223,23 @@ void ReadPath(struct site source, struct site destination)
     /* elev needs path.length + 2 slots (indices 0..path.length+1) */
     if (needed + 2 > elev_allocated) {
         delete [] elev;
-        elev = new double[needed + 2];
+        elev = new float[needed + 2];
         elev_allocated = needed + 2;
     }
 
     /* Hoist loop-invariant trig */
-    const double sin_lat1 = sin(lat1);
-    const double cos_lat1 = cos(lat1);
-    const double cos_az   = cos(azimuth);
-    const double sin_az   = sin(azimuth);
+    const float sin_lat1 = sin(lat1);
+    const float cos_lat1 = cos(lat1);
+    const float cos_az   = cos(azimuth);
+    const float sin_az   = sin(azimuth);
 
     int c = 0;
     if (total_distance != 0.0) {
         for (distance = 0.0; distance <= total_distance; c++, distance = m_per_sample * c) {
             beta = distance / EARTHRADIUS;
-            const double cos_beta  = cos(beta);
-            const double sin_beta  = sin(beta);
-            const double sin_lat2  = std::clamp(sin_lat1 * cos_beta + cos_az * sin_beta * cos_lat1, -1.0, 1.0);
+            const float cos_beta  = cos(beta);
+            const float sin_beta  = sin(beta);
+            const float sin_lat2  = std::clamp(sin_lat1 * cos_beta + cos_az * sin_beta * cos_lat1, -1.0f, 1.0f);
             lat2 = asin(sin_lat2) * RAD2DEG;
             lon2 = (lon1 + atan2(sin_az * sin_beta * cos_lat1, cos_beta - sin_lat1 * sin_lat2)) * RAD2DEG;
 
@@ -260,7 +260,7 @@ void ReadPath(struct site source, struct site destination)
 }
 
 // Return the destination elevation angle or the first obstruction angle.
-double ElevationAngle2(struct site source, struct site destination, double er)
+float ElevationAngle2(struct site source, struct site destination, float er)
 {
     /* This function returns the angle of elevation (in degrees)
        of the destination as seen from the source location, UNLESS
@@ -270,7 +270,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 
     int x;
     char block = 0;
-    double source_alt, destination_alt, cos_xmtr_angle,
+    float source_alt, destination_alt, cos_xmtr_angle,
         cos_test_angle, test_alt, elevation, distance,
         source_alt2, first_obstruction_angle = 0.0;
 
@@ -318,7 +318,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         if (cos_xmtr_angle >= cos_test_angle) {
             block = 1;
             first_obstruction_angle =
-                (acos(std::clamp(cos_test_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+                (acos(std::clamp(cos_test_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
         }
     }
 
@@ -326,20 +326,20 @@ double ElevationAngle2(struct site source, struct site destination, double er)
         elevation = first_obstruction_angle;
 
     else
-        elevation = (acos(std::clamp(cos_xmtr_angle, -1.0, 1.0)) * RAD2DEG) - 90.0;
+        elevation = (acos(std::clamp(cos_xmtr_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
 
     return elevation;
 }
 
 // Report terrain obstructions and Fresnel-zone clearance along a path.
-void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f,
+void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
              FILE *outfile)
 {
     /* Perform an obstruction analysis along the
        path between receiver and transmitter. */
 
     int x;
-    double h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
+    float h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
         cos_tx_angle_f1, cos_tx_angle_fpt6, d_tx, d_x,
         h_r_f1, h_r_fpt6, h_f, h_los, lambda = 0.0;
     char string[255], string_fpt6[255], string_f1[255];
@@ -558,10 +558,10 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     dem_height_px = tiles_lat * ppd;
     dem_width_px  = tiles_lon * ppd;
 
-    dem_data   = new double         *[dem_height_px];
+    dem_data   = new float         *[dem_height_px];
     dem_signal = new int *[dem_height_px];
     for (int i = 0; i < dem_height_px; i++) {
-        dem_data[i]   = new double        [dem_width_px]();
+        dem_data[i]   = new float        [dem_width_px]();
         dem_signal[i] = new int[dem_width_px]();
     }
 }
@@ -569,7 +569,7 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
 // TODO: temporary test — delete after validation
 void test_Azimuth(void)
 {
-    struct { const char *name; site a; site b; double expected; } cases[] = {
+    struct { const char *name; site a; site b; float expected; } cases[] = {
         // Due North: az should be 0
         {"N",  {45.0, 0.0, 0.0}, {46.0, 0.0, 0.0}, 0.0},
         {"E",  {0.0, 5.0, 0.0}, {0.0, 7.0, 0.0}, 90.0},
@@ -581,8 +581,8 @@ void test_Azimuth(void)
     spdlog::info("--- Azimuth unit tests ---");
     bool all_ok = true;
     for (auto &c : cases) {
-        double got = Azimuth(c.a, c.b);
-        double err = fabs(got - c.expected);
+        float got = Azimuth(c.a, c.b);
+        float err = fabs(got - c.expected);
         bool ok = err < 1.0; // 1 degree tolerance
         spdlog::info("  {}: expected {:.1f}, got {:.2f} {}",
                      c.name, c.expected, got, ok ? "OK" : "FAIL");

@@ -34,35 +34,35 @@
 
 
 struct site {
-	double lat;
-	double lon;
-	double alt;
+	float lat;
+	float lon;
+	float alt;
 };
 
 struct path {
-	double *lat;
-	double *lon;
-	double *elevation;
-	double *distance;
+	float *lat;
+	float *lon;
+	float *elevation;
+	float *distance;
 	int length;
 };
 
 struct LR {
-	double eps_dielect;
-	double sgm_conductivity;
-	double eno_ns_surfref;
-	double frq_mhz;
-	double conf;
-	double rel;
-	double erp;
+	float eps_dielect;
+	float sgm_conductivity;
+	float eno_ns_surfref;
+	float frq_mhz;
+	float conf;
+	float rel;
+	float erp;
 	int radio_climate;
 	int pol;
-	double antenna_pattern[361][1001];
+	float antenna_pattern[361][1001];
 };
 
 struct coord {
-    double lat;
-    double lon;
+    float lat;
+    float lon;
 };
 
 struct bbox {
@@ -92,10 +92,10 @@ inline PropagationMode &operator|=(PropagationMode &lhs, PropagationMode rhs)
 }
 
 
-extern double min_lat;
-extern double max_lat;
-extern double min_lon;
-extern double max_lon;
+extern float min_lat;
+extern float max_lat;
+extern float min_lon;
+extern float max_lon;
 extern int max_elevation;
 extern int min_elevation;
 extern int contour_threshold;
@@ -107,14 +107,14 @@ extern bool ppa;
 extern int normalise;
 extern std::string mapfile;
 
-extern double max_range;
+extern float max_range;
 extern int ppd;
-extern double fzone_clearance;
-extern double clutter;
-extern double dBm;
-extern double loss;
-extern double field_strength;
-extern double altitudeLR;
+extern float fzone_clearance;
+extern float clutter;
+extern float dBm;
+extern float loss;
+extern float field_strength;
+extern float altitudeLR;
 
 extern std::string DEM_path;
 extern std::string color_palette;
@@ -129,25 +129,25 @@ extern bool ngs;
 extern struct site tx_site;
 extern struct site rx_site;
 
-extern double antenna_rotation;
-extern double antenna_downtilt;
-extern double antenna_dt_direction;
-extern double rxGain;
-extern double tercon;
-extern double terdic;
+extern float antenna_rotation;
+extern float antenna_downtilt;
+extern float antenna_dt_direction;
+extern float rxGain;
+extern float tercon;
+extern float terdic;
 
 /* Flat DEM arrays: dem_data[x][y], dem_signal[x][y]
  * x: 0 = global south edge, increases northward  (rows = ppd * tiles_lat)
  * y: 0 = global west  edge, increases eastward   (cols = ppd * tiles_lon)
  * Allocated by alloc_dem() after LoadTopoData knows the bounding box. */
-extern double         **dem_data;
+extern float         **dem_data;
 extern int **dem_signal;
 /* Geographic origin of the flat arrays (south-west corner, integer degrees) */
 extern int dem_min_lat;   /* southernmost tile_lat */
 extern int dem_min_lon;   /* westernmost  tile_lon */
 extern int dem_width_px;  /* tiles_lon * ppd */
 extern int dem_height_px; /* tiles_lat * ppd */
-extern thread_local double *elev;
+extern thread_local float *elev;
 extern thread_local int elev_allocated;
 extern thread_local struct path path;
 extern thread_local int path_allocated;

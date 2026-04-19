@@ -36,9 +36,9 @@
  |      Returns:  [None]
  |
  *===========================================================================*/
-int ValidateInputs(const double h_tx__meter, const double h_rx__meter, const int climate, const double time,
-    const double location, const double situation, const double N_0, const double f__mhz, const int pol,
-    const double epsilon, const double sigma, const int mdvar, long *warnings)
+int ValidateInputs(const float h_tx__meter, const float h_rx__meter, const int climate, const float time,
+    const float location, const float situation, const float N_0, const float f__mhz, const int pol,
+    const float epsilon, const float sigma, const int mdvar, long *warnings)
 {
     if (h_tx__meter < 1.0 || h_tx__meter > 1000.0)
         *warnings |= WARN__TX_TERMINAL_HEIGHT;

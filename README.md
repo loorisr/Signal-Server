@@ -6,6 +6,8 @@ Thanks to all contributors of SPLAT! and Signal Server!
 
 Developped to be used with [this API](https://github.com/loorisr/splat-API)
 
+It is optimized for speed for area calculations.
+
 Improvements:
 - speed: **6 times faster** than the original code (1.15s vs 6.98s for a 100 km radius area calculation).
 - use the total number of cores of a computer. Can be overrided by `-number_threads X`
@@ -20,7 +22,7 @@ Improvements:
 - several color palettes with -color
 - add NTIA official ITM code
 - generate geotiff only (no more heavy ppm files)
-- `-dh` to select Delta-H computation method for ITM (default: `d1thx`; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50)
+- `-dh` to select Delta-H computation method for ITM (default: `d1thx`; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
 
 
 # Signal Server

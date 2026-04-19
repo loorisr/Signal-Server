@@ -1121,8 +1121,7 @@ void lrprop(double d, prop_type & prop, propa_type & propa)
 
 		propa.dlsa = propa.dls[0] + propa.dls[1];
 		propa.dla = prop.dl[0] + prop.dl[1];
-		propa.tha =
-		    MAX(prop.the[0] + prop.the[1], -propa.dla * prop.gme);
+		propa.tha = MAX(prop.the[0] + prop.the[1], -propa.dla * prop.gme);
 		wlos = false;
 		wscat = false;
 
@@ -1821,7 +1820,7 @@ void hzns(double pfl[], prop_type & prop)
         
         const double val = *p_val++; // Current elevation point
         
-        // Check horizon for side A
+        // Check horizon for side TX
         double q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
         if (q > 0.0) {
             the0 += q / d_tx__meter;
@@ -1829,7 +1828,7 @@ void hzns(double pfl[], prop_type & prop)
             wq = false;
         }
 
-        // Only check side B if we've found at least one potential horizon
+        // Only check side TX if we've found at least one potential horizon
         if (!wq) {
             q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
             if (q > 0.0) {
@@ -1933,7 +1932,6 @@ void z1sq1(double z[], const double &x1, const double &x2, double &z0,
 {
     /* Used only with ITM 1.2.2 */
     double xn, xa, xb, x, a, b;
-    int n, ja, jb;
     xn = z[0];
     xa = int(MAX(x1 / z[1], 0.0));
     xb = xn - int(FORTRAN_DIM(xn, x2 / z[1]));
@@ -1941,9 +1939,9 @@ void z1sq1(double z[], const double &x1, const double &x2, double &z0,
         xa = FORTRAN_DIM(xa, 1.0);
         xb = xn - FORTRAN_DIM(xn, xb + 1.0);
     }
-    ja = (int)xa;
-    jb = (int)xb;
-    n  = jb - ja;
+    const int ja = (int)xa;
+    const int jb = (int)xb;
+    const int n  = jb - ja;
     xa = xb - xa;
     x  = -0.5 * xa;
     xb += x;
@@ -2131,6 +2129,53 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 	return d1thxv;
 }
 
+//for testing
+double d1thx_no_interpolation(double pfl[], const double &x1, const double &x2)
+{
+	int np, ka, kb, n, j;
+    double d1thxv, sn, xa, xb;
+    double *s;
+
+    np = (int)pfl[0];
+    xa = x1 / pfl[1];
+    xb = x2 / pfl[1];
+    d1thxv = 0.0;
+    if (xb - xa < 2.0)
+        return d1thxv;
+
+    int ia = MAX(0, MIN((int)xa, np));
+    int ib = MAX(0, MIN((int)xb, np));
+    n  = ib - ia + 1;
+
+    ka = (int)(0.1 * (xb - xa + 8.0));
+    ka = MIN(MAX(4, ka), 25);
+    kb = n - ka + 1;
+    sn = n - 1;
+
+    if (kb <= ka)
+        return d1thxv;
+
+    assert((s = new double[n + 2]) != 0);
+    
+    std::copy(pfl, pfl + n+2, s);
+s[0] = n;
+s[1] = 1.0;
+
+	z1sq1(s, 0.0, sn, xa, xb);
+	xb = (xb - xa) / sn;
+
+	for (j = 0; j < n; j++) {
+		s[j + 2] -= j*xb;
+	}
+
+	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
+	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1); // 500ms
+	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
+	delete[]s;
+
+	return d1thxv;
+}
+
 double d1thx2(double pfl[], const double &x1, const double &x2,
 	      propa_type & /*propa*/)
 {
@@ -2183,8 +2228,7 @@ double d1thx2(double pfl[], const double &x1, const double &x2,
 	return d1thx2v;
 }
 
-void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop,
-	    propa_type & propa, propv_type & propv)
+void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
 {
 	int np, j;
 	double xl[2], q, za, zb, temp;
@@ -2205,14 +2249,7 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop,
 		prop.he[1] = prop.hg[1] + FORTRAN_DIM(pfl[np + 2], zb);
 
 		for (j = 0; j < 2; j++)
-			prop.dl[j] =
-			    sqrt(2.0 * prop.he[j] / prop.gme) * exp(-0.07 *
-								    sqrt(prop.
-									 dh /
-									 MAX
-									 (prop.
-									  he[j],
-									  5.0)));
+			prop.dl[j] = sqrt(2.0 * prop.he[j] / prop.gme) * exp(-0.07 * sqrt(prop. dh / MAX(prop. he[j], 5.0)));
 
 		q = prop.dl[0] + prop.dl[1];
 
@@ -2223,18 +2260,13 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type & prop,
 
 			for (j = 0; j < 2; j++) {
 				prop.he[j] *= q;	/* tx effective height set to be path dist/distance between obstacles */
-				prop.dl[j] =
-				    sqrt(2.0 * prop.he[j] / prop.gme) *
-				    exp(-0.07 *
-					sqrt(prop.dh / MAX(prop.he[j], 5.0)));
+				prop.dl[j] = sqrt(2.0 * prop.he[j] / prop.gme) * exp(-0.07 * sqrt(prop.dh / MAX(prop.he[j], 5.0)));
 			}
 		}
 
 		for (j = 0; j < 2; j++) {	/* original empirical adjustment?  uses delta-h to adjust grazing angles */
 			q = sqrt(2.0 * prop.he[j] / prop.gme);
-			prop.the[j] =
-			    (0.65 * prop.dh * (q / prop.dl[j] - 1.0) -
-			     2.0 * prop.he[j]) / q;
+			prop.the[j] = (0.65 * prop.dh * (q / prop.dl[j] - 1.0) - 2.0 * prop.he[j]) / q;
 		}
 	}
 

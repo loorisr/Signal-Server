@@ -13,12 +13,11 @@ using namespace std;
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define DIM(x, y) (((x) > (y)) ? (x - y) : (0))
 #ifndef PI
-#define PI                                      3.1415926535897932384
+#define PI                                      3.141592653589793f
 #endif
 #define SQRT2                                   sqrt(2)
 #define a_0__meter                              6370e3
 #define a_9000__meter                           9000e3
-#define THIRD                                   1.0 / 3.0
 
 #define MODE__P2P                               0
 #define MODE__AREA                              1

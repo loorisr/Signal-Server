@@ -69,6 +69,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)");
         spdlog::info("     -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)");
         spdlog::info("     -hd Use HD mode (1'=30m), (optional, default 3'=90m)");
+        spdlog::info("     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=direct pfl). Default: d1thx");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
         spdlog::info("     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)");
@@ -427,6 +428,14 @@ void parse_cmdline(int argc, char *argv[])
                 sscanf(argv[z], "%d", &pmenv);
             }
         }
+        // Delta-H method for ITM
+        if (strcmp(argv[x], "-dh") == 0) {
+            z = x + 1;
+            if (z <= y && argv[z][0]) {
+                sscanf(argv[z], "%d", &dh_n);
+            }
+        }
+
         //Knife edge diffraction
         if (strcmp(argv[x], "-ked") == 0) {
             knifeedge = true;

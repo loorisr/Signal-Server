@@ -77,6 +77,7 @@ bool ngs = false;
 bool knifeedge = false;
 int pmenv = 1;
 int number_threads = 4;
+int dh_n = -1;
 float altitudeLR = 1;
 PropModel prop_model = ITM_LR;
 bool ppa = false;

@@ -200,7 +200,7 @@ int LoadPAT(char *az_filename, char *el_filename)
 				/* Read in normalized radiated field values for every 0.01
 				   degrees of elevation between -10.0 and +90.0 degrees */
 
-				x = (int)rintf(100.0 * (elevation + 10.0));
+				x = (int)rintf(100.0f * (elevation + 10.0f));
 
 				if (x >= 0 && x <= 10000) {
 					el_pattern[x] += amplitude;

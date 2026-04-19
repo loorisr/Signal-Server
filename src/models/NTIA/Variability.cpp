@@ -94,7 +94,7 @@ float Variability(const float time, const float location, const float situation,
     const float wn = f__mhz / 47.7;
 
     // compute the effective distance
-    const float d_ex__meter = sqrt(2 * a_9000__meter * h_e__meter[0]) + sqrt(2 * a_9000__meter * h_e__meter[1]) + pow((575.7e12 / wn), THIRD);  // [Algorithm, Eqn 5.3]
+    const float d_ex__meter = sqrt(2 * a_9000__meter * h_e__meter[0]) + sqrt(2 * a_9000__meter * h_e__meter[1]) + cbrt((575.7e12 / wn));  // [Algorithm, Eqn 5.3]
 
     float d_e__meter;
     if (d__meter < d_ex__meter)

@@ -47,11 +47,12 @@
 #include <algorithm>
 #include <math.h>
 #include <immintrin.h>
+#include <vector>
 
 #include "../common.hh"
+#include "../geo.hh"
 #include "itwom3.0.hh"
 
-#define THIRD (1.0/3.0)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define FORTRAN_DIM(x, y) (((x) - (y) > 0.0) ? (x) - (y) : 0.0)
@@ -125,10 +126,10 @@ float aknfe(const float &v2)
 {
 	float a;
 
-	if (v2 < 5.76)
-		a = 6.02 + 9.11 * sqrt(v2) - 1.27 * v2;
+	if (v2 < 5.76f)
+		a = 6.02f + 9.11f * sqrt(v2) - 1.27f * v2;
 	else
-		a = 12.953 + 10 * log10(v2);
+		a = 12.953f + 10.0f * log10(v2);
 	return a;
 }
 
@@ -136,24 +137,24 @@ float fht(const float &x, const float &pk)
 {
 	float w, fhtv;
 
-	if (x < 200.0) {
+	if (x < 200.0f) {
 		w = -log(pk);
 
-		if (pk < 1.0e-5 || x * w * w * w > 5495.0) {
-			fhtv = -117.0;
+		if (pk < 1.0e-5f || x * w * w * w > 5495.0f) {
+			fhtv = -117.0f;
 
 			if (x > 1.0)
-				fhtv = 40.0 * log10(x) + fhtv;
+				fhtv = 40.0f * log10(x) + fhtv;
 		} else
-			fhtv = 2.5e-5 * x * x / pk - 8.686 * w - 15.0;
+			fhtv = 2.5e-5f * x * x / pk - 8.686f * w - 15.0f;
 	}
 
 	else {
-		fhtv = 0.05751 * x - 10.0 * log10(x);
+		fhtv = 0.05751f * x - 10.0f * log10(x);
 
-		if (x < 2000.0) {
-			w = 0.0134 * x * exp(-0.005 * x);
-			fhtv = (1.0 - w) * fhtv + w * (40.0 * log10(x) - 117.0);
+		if (x < 2000.0f) {
+			w = 0.0134f * x * exp(-0.005f * x);
+			fhtv = (1.0f - w) * fhtv + w * (40.0f * log10(x) - 117.0f);
 		}
 	}
 	return fhtv;
@@ -171,12 +172,12 @@ float h0f(float r, float et)
 
 	if (it <= 0) {
 		it = 1;
-		q = 0.0;
+		q = 0.0f;
 	}
 
 	else if (it >= 5) {
 		it = 5;
-		q = 0.0;
+		q = 0.0f;
 	}
 
 	else
@@ -184,15 +185,13 @@ float h0f(float r, float et)
 
 	/* x=pow(1.0/r,2.0); */
 
-	temp = 1.0 / r;
+	temp = 1.0f / r;
 	x = temp * temp;
 
-	h0fv = 4.343 * log((a[it - 1] * x + b[it - 1]) * x + 1.0);
+	h0fv = 4.343f * log((a[it - 1] * x + b[it - 1]) * x + 1.0f);
 
-	if (q != 0.0)
-		h0fv =
-		    (1.0 - q) * h0fv + q * 4.343 * log((a[it] * x + b[it]) * x +
-						       1.0);
+	if (q != 0.0f)
+		h0fv = (1.0f - q) * h0fv + q * 4.343 * log((a[it] * x + b[it]) * x + 1.0f);
 
 	return h0fv;
 }
@@ -254,9 +253,9 @@ float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 			dp = pd;
 
 			for (int j = 0; j < 5; ++j) {
-				tde = dp / 6378137.0;
-				hc = (prop.cch + 6378137.0) * (1 - cos(tde));
-				dx = (prop.cch + 6378137.0) * sin(tde);
+				tde = dp / WGS84_a;
+				hc = (prop.cch + WGS84_a) * (1 - cos(tde));
+				dx = (prop.cch + WGS84_a) * sin(tde);
 				ucrpc =
 				    sqrt((hone - prop.cch + hc) * (hone -
 								   prop.cch +
@@ -275,8 +274,8 @@ float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 					crpc = dp - 1 / dp;
 				}
 
-				ssnps = (3.1415926535897 / 2) - tic;
-				d1a = (crpc * sin(ttc)) / (1 - 1 / 6378137.0);
+				ssnps = (PI / 2) - tic;
+				d1a = (crpc * sin(ttc)) / (1 - 1 / WGS84_a);
 				dp = pd - d1a;
 
 			}
@@ -357,15 +356,9 @@ float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 				}
 
 				else {
-					q = 0.00055 * (pdk) +
-					    log10(pdk) * (0.041 -
-							  0.0017 * sqrt(hone) +
-							  0.019);
+					q = 0.00055 * (pdk) +  log10(pdk) * (0.041 -  0.0017 * sqrt(hone) +  0.019);
 
-					arte =
-					    d1a * q -
-					    (18 * log10(rsp)) /
-					    (exp(hone / 37.5));
+					arte = d1a * q - (18 * log10(rsp)) / (exp(hone / 37.5));
 
 					zi = 1.5 * sqrt(hone - prop.cch);
 
@@ -378,16 +371,7 @@ float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 							log10(prop.wn * 47.7) -
 							2.0))) / (100 - zi));
 					} else {
-						q = ((zi -
-						      pdk) / zi) * (-20.0 *
-								    MAX(0.01,
-									  log10
-									  (prop.
-									   wn *
-									   47.7)
-									  -
-									  2.0))
-						    / sqrt(hone);
+						q = ((zi -  pdk) / zi) * (-20.0 *  MAX(0.01, log10  (prop. wn * 47.7)  -  2.0))  / sqrt(hone);
 					}
 					arte = arte + q;
 
@@ -395,18 +379,10 @@ float saalos(float d, prop_type & prop, propa_type & /*propa*/)
 			}
 		} else {	/* for TX at or below clutter height */
 
-			q = (prop.cch - prop.tgh) * (2.06943 -
-						     1.56184 * exp(1 /
-								   prop.cch -
-								   prop.tgh));
-			q = q + (17.98 -
-				 0.84224 * (prop.cch -
-					    prop.tgh)) * exp(-0.00000061 * pd);
+			q = (prop.cch - prop.tgh) * (2.06943 - 1.56184 * exp(1 /  prop.cch - prop.tgh));
+			q = q + (17.98 - 0.84224 * (prop.cch - prop.tgh)) * exp(-0.00000061 * pd);
 			arte = q + 1.34795 * 20 * log10(pd + 1.0);
-			arte =
-			    arte -
-			    (MAX(0.01, log10(prop.wn * 47.7) - 2)) *
-			    (prop.hg[1] / prop.tgh);
+			arte =  arte - (MAX(0.01, log10(prop.wn * 47.7) - 2)) * (prop.hg[1] / prop.tgh);
 		}
 		saalosv = arte;
 	}
@@ -442,7 +418,7 @@ float adiff(float d, prop_type & prop, propa_type & propa)
 		for (int j = 0; j < 2; ++j) {
 			/* a=0.5*pow(prop.dl[j],2.0)/prop.he[j]; */
 			a = 0.5 * (prop.dl[j] * prop.dl[j]) / prop.he[j];
-			wa = pow(a * prop.wn, THIRD);
+			wa = cbrtf(a * prop.wn);
 			pk = qk / wa;
 			q = (1.607 - pk) * 151.0 * wa * prop.dl[j] / a;
 			xht += q;
@@ -461,7 +437,7 @@ float adiff(float d, prop_type & prop, propa_type & propa)
 		    aknfe(q * prop.dl[0] / (ds + prop.dl[0])) +
 		    aknfe(q * prop.dl[1] / (ds + prop.dl[1]));
 		a = ds / th;
-		wa = pow(a * prop.wn, THIRD);
+		wa = cbrtf(a * prop.wn);
 		pk = qk / wa;
 		q = (1.607 - pk) * 151.0 * wa * th + xht;
 		ar = 0.05751 * q - 4.343 * log(q) - aht;
@@ -509,7 +485,7 @@ float adiff2(float d, prop_type & prop, propa_type & propa)
 		aht = 20.0;
 		xht = 0.0;
 		a = 0.5 * (prop.dl[0] * prop.dl[0]) / prop.he[0];
-		wa = pow(a * prop.wn, THIRD);
+		wa = cbrtf(a * prop.wn);
 		pk = qk / wa;
 		q = (1.607 - pk) * 151.0 * wa * prop.dl[0] / a;
 		xht = q;
@@ -522,7 +498,7 @@ float adiff2(float d, prop_type & prop, propa_type & propa)
 
 		else {
 			a = 0.5 * (prop.dl[1] * prop.dl[1]) / prop.he[1];
-			wa = pow(a * prop.wn, THIRD);
+			wa = cbrtf(a * prop.wn);
 			pk = qk / wa;
 			q = (1.607 - pk) * 151.0 * wa * prop.dl[1] / a;
 			xht += q;
@@ -537,7 +513,7 @@ float adiff2(float d, prop_type & prop, propa_type & propa)
 		dsl = MAX(d - propa.dla, 0.0);
 		ds = d - propa.dla;
 		a = ds / th;
-		wa = pow(a * prop.wn, THIRD);
+		wa = cbrtf(a * prop.wn);
 		pk = qk / wa;
 		toh =
 		    prop.hht - (prop.rch[0] -
@@ -986,29 +962,15 @@ float alos2(float d, prop_type & prop, propa_type & propa)
 			dr = pd / (1 + hrg / htg);
 
 			if (dr < (0.5 * pd)) {
-				drh =
-				    6378137.0 - sqrt(-(0.5 * pd) * (0.5 * pd) +
-						     6378137.0 * 6378137.0 +
-						     (0.5 * pd -
-						      dr) * (0.5 * pd - dr));
+				drh =  WGS84_a - sqrt(-(0.5 * pd) * (0.5 * pd) +  WGS84_a * WGS84_a +  (0.5 * pd -  dr) * (0.5 * pd - dr));
 			} else {
-				drh =
-				    6378137.0 - sqrt(-(0.5 * pd) * (0.5 * pd) +
-						     6378137.0 * 6378137.0 +
-						     (dr - 0.5 * pd) * (dr -
-									0.5 *
-									pd));
+				drh = WGS84_a - sqrt(-(0.5f * pd) * (0.5f * pd) + WGS84_a * WGS84_a + (dr - 0.5 * pd) * (dr - 0.5f * pd));
 			}
 
 			if ((sps < 0.05) && (prop.cch > hrg) && (prop.dist < prop.dl[0])) {	/* if far from transmitter and receiver below canopy */
-				cd = MAX(0.01,
-					   pd * (prop.cch - hrg) / (htg - hrg));
-				cr = MAX(0.01,
-					   pd - dr + dr * (prop.cch -
-							   drh) / htg);
-				q = ((1.0 -
-				      0.8 * exp(-pd / 50e3)) * prop.dh *
-				     (MIN(-20 * log10(cd / cr), 1.0)));
+				cd = MAX(0.01, pd * (prop.cch - hrg) / (htg - hrg));
+				cr = MAX(0.01, pd - dr + dr * (prop.cch - drh) / htg);
+				q = ((1.0 - 0.8 * exp(-pd / 50e3)) * prop.dh * (MIN(-20 * log10(cd / cr), 1.0)));
 			}
 		}
 
@@ -1021,20 +983,19 @@ float alos2(float d, prop_type & prop, propa_type & propa)
 		if (q < 0.25 || q < sps) {
 			r = r * sqrt(sps / q);
 		}
-		q = prop.wn * prop.he[0] * prop.he[1] / (pd * 3.1415926535897);
+		q = prop.wn * prop.he[0] * prop.he[1] / (pd * PI);
 
 		if (prop.mdp < 0) {
-			q = prop.wn * ((ht - hrp) * (hr - hrp)) / (pd *
-								   3.1415926535897);
+			q = prop.wn * ((ht - hrp) * (hr - hrp)) / (pd * PI);
 		}
 		q -= floor(q);
 
 		if (q < 0.5) {
-			q *= 3.1415926535897;
+			q *= PI;
 		}
 
 		else {
-			q = (1 - q) * 3.1415926535897;
+			q = (1 - q) * PI;
 		}
 		/* no longer valid complex conjugate removed 
 		   by removing minus sign from in front of sin function */
@@ -1150,8 +1111,7 @@ void lrprop(float d, prop_type & prop, propa_type & propa)
 
 		dmin = abs(prop.he[0] - prop.he[1]) / 200e-3;
 		q = adiff(0.0, prop, propa);
-		/* xae=pow(prop.wn*pow(prop.gme,2.),-THIRD); -- JDM made argument 2 a float */
-		xae = pow(prop.wn * (prop.gme * prop.gme), -THIRD);	/* No 2nd pow() */
+		xae = 1.0 / cbrt(prop.wn * prop.gme * prop.gme);
 		d3 = MAX(propa.dlsa, 1.3787 * xae + propa.dla);
 		d4 = d3 + 2.7574 * xae;
 		a3 = adiff(d3, prop, propa);
@@ -1189,8 +1149,7 @@ void lrprop(float d, prop_type & prop, propa_type & propa)
 			}
 
 			else
-				d1 = MAX(-propa.aed / propa.emd,
-					   0.25 * propa.dla);
+				d1 = MAX(-propa.aed / propa.emd, 0.25 * propa.dla);
 
 			a1 = alos(d1, prop, propa);
 			wq = false;
@@ -1198,26 +1157,15 @@ void lrprop(float d, prop_type & prop, propa_type & propa)
 			if (d0 < d1) {
 				a0 = alos(d0, prop, propa);
 				q = log(d2 / d0);
-				propa.ak2 =
-				    MAX(0.0,
-					  ((d2 - d0) * (a1 - a0) -
-					   (d1 - d0) * (a2 - a0)) / ((d2 -
-								      d0) *
-								     log(d1 /
-									 d0) -
-								     (d1 -
-								      d0) * q));
+				propa.ak2 = MAX(0.0,  ((d2 - d0) * (a1 - a0) -  (d1 - d0) * (a2 - a0)) / ((d2 -  d0) * log(d1 /  d0) - (d1 -  d0) * q));
 				wq = propa.aed >= 0.0 || propa.ak2 > 0.0;
 
 				if (wq) {
-					propa.ak1 =
-					    (a2 - a0 - propa.ak2 * q) / (d2 -
-									 d0);
+					propa.ak1 = (a2 - a0 - propa.ak2 * q) / (d2 - d0);
 
 					if (propa.ak1 < 0.0) {
 						propa.ak1 = 0.0;
-						propa.ak2 =
-						    FORTRAN_DIM(a2, a0) / q;
+						propa.ak2 = FORTRAN_DIM(a2, a0) / q;
 
 						if (propa.ak2 == 0.0)
 							propa.ak1 = propa.emd;
@@ -1246,9 +1194,7 @@ void lrprop(float d, prop_type & prop, propa_type & propa)
 		}
 
 		if (prop.dist > 0.0)
-			prop.aref =
-			    propa.ael + propa.ak1 * prop.dist +
-			    propa.ak2 * log(prop.dist);
+			prop.aref = propa.ael + propa.ak1 * prop.dist + propa.ak2 * log(prop.dist);
 
 	}
 
@@ -1262,19 +1208,9 @@ void lrprop(float d, prop_type & prop, propa_type & propa)
 
 			if (a5 < 1000.0) {
 				propa.ems = (a6 - a5) / 200e3;
-				propa.dx =
-				    MAX(propa.dlsa,
-					  MAX(propa.dla +
-						0.3 * xae * log(47.7 * prop.wn),
-						(a5 - propa.aed -
-						 propa.ems * d5) / (propa.emd -
-								    propa.
-								    ems)));
-				propa.aes =
-				    (propa.emd - propa.ems) * propa.dx +
-				    propa.aed;
+				propa.dx = MAX(propa.dlsa, MAX(propa.dla + 0.3 * xae * log(47.7 * prop.wn), (a5 - propa.aed - propa.ems * d5) / (propa.emd - propa.ems)));
+				propa.aes = (propa.emd - propa.ems) * propa.dx + propa.aed;
 			}
-
 			else {
 				propa.ems = propa.emd;
 				propa.aes = propa.aed;
@@ -1317,8 +1253,7 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 		propa.dlsa = propa.dls[0] + propa.dls[1];
 		propa.dlsa = MIN(propa.dlsa, 1000000.0);
 		propa.dla = prop.dl[0] + prop.dl[1];
-		propa.tha =
-		    MAX(prop.the[0] + prop.the[1], -propa.dla * prop.gme);
+		propa.tha = MAX(prop.the[0] + prop.the[1], -propa.dla * prop.gme);
 		wlos = false;
 		wscat = false;
 
@@ -1354,7 +1289,7 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 
 		dmin = abs(prop.he[0] - prop.he[1]) / 200e-3;
 		q = adiff2(0.0, prop, propa);
-		xae = pow(prop.wn * (prop.gme * prop.gme), -THIRD);
+		xae = 1.0 / cbrt(prop.wn * prop.gme * prop.gme);
 		d3 = MAX(propa.dlsa, 1.3787 * xae + propa.dla);
 		d4 = d3 + 2.7574 * xae;
 		a3 = adiff2(d3, prop, propa);
@@ -1380,9 +1315,7 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 	}
 
 	if (prop.dist < propa.dlsa) {
-
 		if (iw <= 0.0) {	/* if interval width is zero or less, used for area mode */
-
 			if (!wlos) {
 				q = alos2(0.0, prop, propa);
 				d2 = propa.dlsa;
@@ -1390,77 +1323,45 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 				d0 = 1.908 * prop.wn * prop.he[0] * prop.he[1];
 
 				if (propa.aed > 0.0) {
-					prop.aref =
-					    propa.aed + propa.emd * prop.dist;
+					prop.aref = propa.aed + propa.emd * prop.dist;
 				} else {
 					if (propa.aed == 0.0) {
 						d0 = MIN(d0, 0.5 * propa.dla);
-						d1 = d0 + 0.25 * (propa.dla -
-								  d0);
+						d1 = d0 + 0.25 * (propa.dla - d0);
 					} else {	/* aed less than zero */
-
-						d1 = MAX(-propa.aed /
-							   propa.emd,
-							   0.25 * propa.dla);
+						d1 = MAX(-propa.aed / propa.emd, 0.25 * propa.dla);
 					}
 					a1 = alos2(d1, prop, propa);
 					wq = false;
 
 					if (d0 < d1) {
 						a0 = alos2(d0, prop, propa);
-						a2 = MIN(a2,
-							   alos2(d2, prop,
-								 propa));
+						a2 = MIN(a2, alos2(d2, prop, propa));
 						q = log(d2 / d0);
-						propa.ak2 =
-						    MAX(0.0,
-							  ((d2 - d0) * (a1 -
-									a0) -
-							   (d1 - d0) * (a2 -
-									a0)) /
-							  ((d2 -
-							    d0) * log(d1 / d0) -
-							   (d1 - d0) * q));
-						wq = propa.aed >= 0.0
-						    || propa.ak2 > 0.0;
+						propa.ak2 = MAX(0.0, ((d2 - d0) * (a1 - a0) - (d1 - d0) * (a2 - a0)) / ((d2 - d0) * log(d1 / d0) - (d1 - d0) * q));
+						wq = propa.aed >= 0.0 || propa.ak2 > 0.0;
 
 						if (wq) {
-							propa.ak1 =
-							    (a2 - a0 -
-							     propa.ak2 * q) /
-							    (d2 - d0);
+							propa.ak1 =  (a2 - a0 - propa.ak2 * q) / (d2 - d0);
 
 							if (propa.ak1 < 0.0) {
 								propa.ak1 = 0.0;
-								propa.ak2 =
-								    FORTRAN_DIM
-								    (a2,
-								     a0) / q;
+								propa.ak2 = FORTRAN_DIM (a2, a0) / q;
 
-								if (propa.ak2 ==
-								    0.0)
-									propa.
-									    ak1
-									    =
-									    propa.
-									    emd;
+								if (propa.ak2 == 0.0)
+									propa.ak1  = propa.emd;
 							}
 						}
 					}
 
 					if (!wq) {
-						propa.ak1 =
-						    FORTRAN_DIM(a2,
-								a1) / (d2 - d1);
+						propa.ak1 = FORTRAN_DIM(a2, a1) / (d2 - d1);
 						propa.ak2 = 0.0;
 
 						if (propa.ak1 == 0.0)
 							propa.ak1 = propa.emd;
-
 					}
-					propa.ael =
-					    a2 - propa.ak1 * d2 -
-					    propa.ak2 * log(d2);
+					propa.ael = a2 - propa.ak1 * d2 - propa.ak2 * log(d2);
 					wlos = true;
 				}
 			}
@@ -1475,8 +1376,7 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 				prop.aref = alos2(pd1, prop, propa);
 			} else {
 				if (int (prop.dist - prop.dl[0]) == 0) {	/* if at 1st horiz */
-					prop.aref =
-					    5.8 + alos2(pd1, prop, propa);
+					prop.aref = 5.8 + alos2(pd1, prop, propa);
 				} else if (int (prop.dist - prop.dl[0]) > 0.0) {	/* if past 1st horiz */
 					q = adiff2(0.0, prop, propa);
 					prop.aref = adiff2(pd1, prop, propa);
@@ -1500,20 +1400,8 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 
 				if (a5 < 1000.0) {
 					propa.ems = (a6 - a5) / 200e3;
-					propa.dx =
-					    MAX(propa.dlsa,
-						  MAX(propa.dla +
-							0.3 * xae * log(47.7 *
-									prop.
-									wn),
-							(a5 - propa.aed -
-							 propa.ems * d5) /
-							(propa.emd -
-							 propa.ems)));
-
-					propa.aes =
-					    (propa.emd - propa.ems) * propa.dx +
-					    propa.aed;
+					propa.dx = MAX(propa.dlsa, MAX(propa.dla + 0.3 * xae * log(47.7 * prop. wn), (a5 - propa.aed - propa.ems * d5) / (propa.emd -  propa.ems)));
+					propa.aes = (propa.emd - propa.ems) * propa.dx +  propa.aed;
 				}
 
 				else {
@@ -1553,8 +1441,7 @@ void lrprop2(float d, prop_type & prop, propa_type & propa)
 	prop.aref = MAX(prop.aref, 0.0);
 }
 
-float curve(float const &c1, float const &c2, float const &x1,
-	     float const &x2, float const &x3, float const &de)
+inline float curve(float const &c1, float const &c2, float const &x1, float const &x2, float const &x3, float const &de)
 {
 	/* return (c1+c2/(1.0+pow((de-x2)/x3,2.0)))*pow(de/x1,2.0)/(1.0+pow(de/x1,2.0)); */
 	float temp1, temp2;
@@ -1565,11 +1452,10 @@ float curve(float const &c1, float const &c2, float const &x1,
 	temp1 *= temp1;
 	temp2 *= temp2;
 
-	return (c1 + c2 / (1.0 + temp1)) * temp2 / (1.0 + temp2);
+	return (c1 + c2 / (1.0f + temp1)) * temp2 / (1.0f + temp2);
 }
 
-float avar(float zzt, float zzl, float zzc, prop_type & prop,
-	    propv_type & propv)
+float avar(float zzt, float zzl, float zzc, prop_type & prop, propv_type & propv)
 {
 	static __thread int kdv;
 	static __thread float dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
@@ -1579,28 +1465,19 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 
 	float bv1[7] = { -9.67, -0.62, 1.26, -9.21, -0.62, -0.39, 3.15 };
 	float bv2[7] = { 12.7, 9.19, 15.5, 9.05, 9.19, 2.86, 857.9 };
-	float xv1[7] =
-	    { 144.9e3, 228.9e3, 262.6e3, 84.1e3, 228.9e3, 141.7e3, 2222.e3 };
-	float xv2[7] =
-	    { 190.3e3, 205.2e3, 185.2e3, 101.1e3, 205.2e3, 315.9e3, 164.8e3 };
-	float xv3[7] =
-	    { 133.8e3, 143.6e3, 99.8e3, 98.6e3, 143.6e3, 167.4e3, 116.3e3 };
+	float xv1[7] = { 144.9e3, 228.9e3, 262.6e3, 84.1e3, 228.9e3, 141.7e3, 2222.e3 };
+	float xv2[7] =  { 190.3e3, 205.2e3, 185.2e3, 101.1e3, 205.2e3, 315.9e3, 164.8e3 };
+	float xv3[7] =  { 133.8e3, 143.6e3, 99.8e3, 98.6e3, 143.6e3, 167.4e3, 116.3e3 };
 	float bsm1[7] = { 2.13, 2.66, 6.11, 1.98, 2.68, 6.86, 8.51 };
 	float bsm2[7] = { 159.5, 7.67, 6.65, 13.11, 7.16, 10.38, 169.8 };
-	float xsm1[7] =
-	    { 762.2e3, 100.4e3, 138.2e3, 139.1e3, 93.7e3, 187.8e3, 609.8e3 };
-	float xsm2[7] =
-	    { 123.6e3, 172.5e3, 242.2e3, 132.7e3, 186.8e3, 169.6e3, 119.9e3 };
-	float xsm3[7] =
-	    { 94.5e3, 136.4e3, 178.6e3, 193.5e3, 133.5e3, 108.9e3, 106.6e3 };
+	float xsm1[7] = { 762.2e3, 100.4e3, 138.2e3, 139.1e3, 93.7e3, 187.8e3, 609.8e3 };
+	float xsm2[7] = { 123.6e3, 172.5e3, 242.2e3, 132.7e3, 186.8e3, 169.6e3, 119.9e3 };
+	float xsm3[7] = { 94.5e3, 136.4e3, 178.6e3, 193.5e3, 133.5e3, 108.9e3, 106.6e3 };
 	float bsp1[7] = { 2.11, 6.87, 10.08, 3.68, 4.75, 8.58, 8.43 };
 	float bsp2[7] = { 102.3, 15.53, 9.60, 159.3, 8.12, 13.97, 8.19 };
-	float xsp1[7] =
-	    { 636.9e3, 138.7e3, 165.3e3, 464.4e3, 93.2e3, 216.0e3, 136.2e3 };
-	float xsp2[7] =
-	    { 134.8e3, 143.7e3, 225.7e3, 93.1e3, 135.9e3, 152.0e3, 188.5e3 };
-	float xsp3[7] =
-	    { 95.6e3, 98.6e3, 129.7e3, 94.2e3, 113.4e3, 122.7e3, 122.9e3 };
+	float xsp1[7] = { 636.9e3, 138.7e3, 165.3e3, 464.4e3, 93.2e3, 216.0e3, 136.2e3 };
+	float xsp2[7] = { 134.8e3, 143.7e3, 225.7e3, 93.1e3, 135.9e3, 152.0e3, 188.5e3 };
+	float xsp3[7] = { 95.6e3, 98.6e3, 129.7e3, 94.2e3, 113.4e3, 122.7e3, 122.9e3 };
 	float bsd1[7] = { 1.224, 0.801, 1.380, 1.000, 1.224, 1.518, 1.518 };
 	float bzd1[7] = { 1.282, 2.161, 1.282, 20., 1.282, 1.282, 1.282 };
 	float bfm1[7] = { 1.0, 1.0, 1.0, 1.0, 0.92, 1.0, 1.0 };
@@ -1616,77 +1493,72 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 
 	if (propv.lvar > 0) {
 		switch (propv.lvar) {
-		default:
-			if (propv.klim <= 0 || propv.klim > 7) {
-				propv.klim = 5;
-				temp_klim = 4;
-				prop.kwx = MAX(prop.kwx, 2);
-			}
+			default:
+				if (propv.klim <= 0 || propv.klim > 7) {
+					propv.klim = 5;
+					temp_klim = 4;
+					prop.kwx = MAX(prop.kwx, 2);
+				}
 
-			cv1 = bv1[temp_klim];
-			cv2 = bv2[temp_klim];
-			yv1 = xv1[temp_klim];
-			yv2 = xv2[temp_klim];
-			yv3 = xv3[temp_klim];
-			csm1 = bsm1[temp_klim];
-			csm2 = bsm2[temp_klim];
-			ysm1 = xsm1[temp_klim];
-			ysm2 = xsm2[temp_klim];
-			ysm3 = xsm3[temp_klim];
-			csp1 = bsp1[temp_klim];
-			csp2 = bsp2[temp_klim];
-			ysp1 = xsp1[temp_klim];
-			ysp2 = xsp2[temp_klim];
-			ysp3 = xsp3[temp_klim];
-			csd1 = bsd1[temp_klim];
-			zd = bzd1[temp_klim];
-			cfm1 = bfm1[temp_klim];
-			cfm2 = bfm2[temp_klim];
-			cfm3 = bfm3[temp_klim];
-			cfp1 = bfp1[temp_klim];
-			cfp2 = bfp2[temp_klim];
-			cfp3 = bfp3[temp_klim];
-			[[fallthrough]];
+				cv1 = bv1[temp_klim];
+				cv2 = bv2[temp_klim];
+				yv1 = xv1[temp_klim];
+				yv2 = xv2[temp_klim];
+				yv3 = xv3[temp_klim];
+				csm1 = bsm1[temp_klim];
+				csm2 = bsm2[temp_klim];
+				ysm1 = xsm1[temp_klim];
+				ysm2 = xsm2[temp_klim];
+				ysm3 = xsm3[temp_klim];
+				csp1 = bsp1[temp_klim];
+				csp2 = bsp2[temp_klim];
+				ysp1 = xsp1[temp_klim];
+				ysp2 = xsp2[temp_klim];
+				ysp3 = xsp3[temp_klim];
+				csd1 = bsd1[temp_klim];
+				zd = bzd1[temp_klim];
+				cfm1 = bfm1[temp_klim];
+				cfm2 = bfm2[temp_klim];
+				cfm3 = bfm3[temp_klim];
+				cfp1 = bfp1[temp_klim];
+				cfp2 = bfp2[temp_klim];
+				cfp3 = bfp3[temp_klim];
+				[[fallthrough]];
 
-		case 4:
-			kdv = propv.mdvar;
-			ws = kdv >= 20;
+			case 4:
+				kdv = propv.mdvar;
+				ws = kdv >= 20;
 
-			if (ws)
-				kdv -= 20;
+				if (ws)
+					kdv -= 20;
 
-			w1 = kdv >= 10;
+				w1 = kdv >= 10;
 
-			if (w1)
-				kdv -= 10;
+				if (w1)
+					kdv -= 10;
 
-			if (kdv < 0 || kdv > 3) {
-				kdv = 0;
-				prop.kwx = MAX(prop.kwx, 2);
-			}
-			[[fallthrough]];
+				if (kdv < 0 || kdv > 3) {
+					kdv = 0;
+					prop.kwx = MAX(prop.kwx, 2);
+				}
+				[[fallthrough]];
 
-		case 3:
-			q = log(0.133 * prop.wn);
+			case 3:
+				q = log(0.133 * prop.wn);
 
-			/* gm=cfm1+cfm2/(pow(cfm3*q,2.0)+1.0); */
-			/* gp=cfp1+cfp2/(pow(cfp3*q,2.0)+1.0); */
+				gm = cfm1 + cfm2 / ((cfm3 * q * cfm3 * q) + 1.0);
+				gp = cfp1 + cfp2 / ((cfp3 * q * cfp3 * q) + 1.0);
+				[[fallthrough]];
 
-			gm = cfm1 + cfm2 / ((cfm3 * q * cfm3 * q) + 1.0);
-			gp = cfp1 + cfp2 / ((cfp3 * q * cfp3 * q) + 1.0);
-			[[fallthrough]];
+			case 2:
+				dexa =  sqrt(18e6 * prop.he[0]) + sqrt(18e6 * prop.he[1]) + cbrtf((575.7e12 / prop.wn));
+				[[fallthrough]];
 
-		case 2:
-			dexa =
-			    sqrt(18e6 * prop.he[0]) + sqrt(18e6 * prop.he[1]) +
-			    pow((575.7e12 / prop.wn), THIRD);
-			[[fallthrough]];
-
-		case 1:
-			if (prop.dist < dexa)
-				de = 130e3 * prop.dist / dexa;
-			else
-				de = 130e3 + prop.dist - dexa;
+			case 1:
+				if (prop.dist < dexa)
+					de = 130e3 * prop.dist / dexa;
+				else
+					de = 130e3 + prop.dist - dexa;
 		}
 
 		vmd = curve(cv1, cv2, yv1, yv2, yv3, de);
@@ -1698,8 +1570,7 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 		if (w1)
 			sgl = 0.0;
 		else {
-			q = (1.0 -
-			     0.8 * exp(-prop.dist / 50e3)) * prop.dh * prop.wn;
+			q = (1.0 - 0.8 * exp(-prop.dist / 50e3)) * prop.dh * prop.wn;
 			sgl = 10.0 * q / (q + 13.0);
 		}
 
@@ -1709,9 +1580,7 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 			/* vs0=pow(5.0+3.0*exp(-de/100e3),2.0); */
 			temp1 = (5.0 + 3.0 * exp(-de / 100e3));
 			vs0 = temp1 * temp1;
-
 		}
-
 		propv.lvar = 0;
 	}
 
@@ -1720,17 +1589,17 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 	zc = zzc;
 
 	switch (kdv) {
-	case 0:
-		zt = zc;
-		zl = zc;
-		break;
+		case 0:
+			zt = zc;
+			zl = zc;
+			break;
 
-	case 1:
-		zl = zc;
-		break;
+		case 1:
+			zl = zc;
+			break;
 
-	case 2:
-		zl = zt;
+		case 2:
+			zl = zt;
 	}
 
 	if (fabs(zt) > 3.1 || fabs(zl) > 3.1 || fabs(zc) > 3.1)
@@ -1745,14 +1614,10 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop,
 	else
 		sgt = sgtd + tgtd / zt;
 
-	/* vs=vs0+pow(sgt*zt,2.0)/(rt+zc*zc)+pow(sgl*zl,2.0)/(rl+zc*zc); */
-
 	temp1 = sgt * zt;
 	temp2 = sgl * zl;
 
-	vs = vs0 + (temp1 * temp1) / (rt + zc * zc) + (temp2 * temp2) / (rl +
-									 zc *
-									 zc);
+	vs = vs0 + (temp1 * temp1) / (rt + zc * zc) + (temp2 * temp2) / (rl + zc * zc);
 
 	if (kdv == 0) {
 		yr = 0.0;
@@ -1809,7 +1674,6 @@ void hzns(float pfl[], prop_type & prop)
 
     float d_tx__meter = 0.0;
     float d_rx__meter = dist;
-    bool wq = true;
 
     // Pointer-based access to avoid repeated indexing calculations
     const float* p_val = &pfl[3]; 
@@ -1825,22 +1689,65 @@ void hzns(float pfl[], prop_type & prop)
         if (q > 0.0) {
             the0 += q / d_tx__meter;
             prop.dl[0] = d_tx__meter;
-            wq = false;
         }
 
-        // Only check side TX if we've found at least one potential horizon
-        if (!wq) {
-            q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
-            if (q > 0.0) {
-                the1 += q / d_rx__meter;
-                prop.dl[1] = d_rx__meter;
-            }
+        // Check horizon for side RX
+        q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
+        if (q > 0.0) {
+            the1 += q / d_rx__meter;
+            prop.dl[1] = d_rx__meter;
         }
     }
 
     prop.the[0] = the0;
     prop.the[1] = the1;
 }
+
+/*
+void hzns_inprogress(float pfl[], prop_type & prop)
+{
+    const int np = int(pfl[0]);
+    const double xi = pfl[1];
+
+    const double d__meter = prop.dist;
+
+    // compute radials (ignore radius of earth since it cancels out in the later math)
+    const double z_tx__meter = pfl[2] + prop.hg[0];
+    const double z_rx__meter = pfl[np + 2] + prop.hg[1];
+
+    // set the terminal horizon angles as if the terminals are line-of-sight
+    // [TN101, Eq 6.15]
+    prop.the[0] = (z_rx__meter - z_tx__meter) / d__meter - d__meter * prop.gme;
+    prop.the[1] = -(z_rx__meter - z_tx__meter) / d__meter - d__meter * prop.gme;
+
+    prop.dl[0] = d__meter;
+    prop.dl[1] = d__meter;
+
+    double d_tx__meter = 0.0;
+    double d_rx__meter = d__meter;
+    double theta_tx, theta_rx;
+
+    for (int i = 1; i < np; i++)
+    {
+        d_tx__meter += xi;
+        d_rx__meter -= xi;
+
+        theta_tx = (pfl[i + 2] - z_tx__meter) / d_tx__meter - d_tx__meter * prop.gme;
+        theta_rx = -(z_rx__meter - pfl[i + 2]) / d_rx__meter - d_rx__meter * prop.gme;
+
+        if (theta_tx > prop.the[0])
+        {
+            prop.the[0] = theta_tx;
+            prop.dl[0] = d_tx__meter;
+        }
+
+        if (theta_rx > prop.the[1])
+        {
+            prop.the[1] = theta_rx;
+            prop.dl[1] = d_rx__meter;
+        }
+    }
+}*/
 
 void hzns2(float pfl[], prop_type & prop, propa_type & /*propa*/)
 {
@@ -1933,17 +1840,17 @@ void z1sq1(float z[], const float &x1, const float &x2, float &z0,
     /* Used only with ITM 1.2.2 */
     float xn, xa, xb, x, a, b;
     xn = z[0];
-    xa = int(MAX(x1 / z[1], 0.0));
+    xa = int(MAX(x1 / z[1], 0.0f));
     xb = xn - int(FORTRAN_DIM(xn, x2 / z[1]));
     if (xb <= xa) {
-        xa = FORTRAN_DIM(xa, 1.0);
-        xb = xn - FORTRAN_DIM(xn, xb + 1.0);
+        xa = FORTRAN_DIM(xa, 1.0f);
+        xb = xn - FORTRAN_DIM(xn, xb + 1.0f);
     }
     const int ja = (int)xa;
     const int jb = (int)xb;
     const int n  = jb - ja;
     xa = xb - xa;
-    x  = -0.5 * xa;
+    x  = -0.5f * xa;
     xb += x;
 
     // Pointer to first sample in the window: z[ja+2] .. z[jb+2]
@@ -1952,21 +1859,21 @@ void z1sq1(float z[], const float &x1, const float &x2, float &z0,
     // Endpoint contributions (original code's initial a, b).
     // a accumulates sum of samples with endpoints half-weighted,
     // b accumulates sum of samples * (their x offset).
-    float a_sum = 0.5 * (p[0] + p[n]);
-    float b_sum = 0.5 * (p[0] - p[n]) * x;   // p[0] at offset x, p[n] at offset x+n, rewritten
+    float a_sum = 0.5f * (p[0] + p[n]);
+    float b_sum = 0.5f * (p[0] - p[n]) * x;   // p[0] at offset x, p[n] at offset x+n, rewritten
 
     // Interior samples: i = 2..n  ->  indices 1..n-1, with x advancing by 1 each step.
     // Starting offset for i=2 is x+1.
-    float xi = x + 1.0;
+    float xi = x + 1.0f;
     for (int i = 1; i < n; ++i) {
         float v = p[i];          // single load, reused
         a_sum += v;
         b_sum += v * xi;
-        xi    += 1.0;
+        xi    += 1.0f;
     }
 
     a = a_sum / xa;
-    b = b_sum * 12.0 / ((xa * xa + 2.0) * xa);
+    b = b_sum * 12.0f / ((xa * xa + 2.0f) * xa);
     z0 = a - b * xb;
     zn = a + b * (xn - xb);
 }
@@ -2034,17 +1941,9 @@ float qtile(const int &nn, float a[], const int &ir)
 }
 
 float get_two_qtiles(float a[], int n, int ka, int kb) {
-    // Premier appel sur tout le tableau pour trouver le plus grand index
     std::nth_element(a, a + kb, a + n, std::greater<float>());
-    float res2 = a[kb];
-
-    // Deuxième appel : on ne cherche QUE dans la partie gauche [a, a + k2]
-    // C'est ici que l'on gagne du temps car le range est plus petit.
     std::nth_element(a, a + ka, a + kb, std::greater<float>());
-    float res1 = a[ka];
-
-    // On réaffecte les valeurs selon l'ordre initial demandé
-    return res1 - res2;
+    return a[ka] - a[kb];
 }
 
 float qerf(const float &z)
@@ -2072,61 +1971,117 @@ float qerf(const float &z)
 	return qerfv;
 }
 
-float d1thx(float pfl[], const float &x1, const float &x2)
+
+void z1sq1_and_detrend(float* __restrict__ z, float x1, float x2, int n_samples)
 {
-	int np, ka, kb, n, j;
-    float d1thxv, sn, xa, xb;
-    float *s;
+    // --- Window bounds from header metadata ---
+    const float total  = z[0];          // total number of samples (xn)
+    const float step   = z[1];          // sample spacing
+    const float* data  = z + 2;         // actual sample data starts at index 2
 
-    np = (int)pfl[0];
-    xa = x1 / pfl[1];
-    xb = x2 / pfl[1];
-    d1thxv = 0.0;
-    if (xb - xa < 2.0)
-        return d1thxv;
+    const int i_start = static_cast<int>(std::max(x1 / step, 0.0f));
+    const int i_end   = static_cast<int>(total) 
+                      - static_cast<int>(std::max(0.0f, total - x2 / step));
 
-    ka = (int)(0.1 * (xb - xa + 8.0));
-    ka = MIN(MAX(4, ka), 25);
-    n  = 10 * ka - 5;
-    kb = n - ka + 1;
-    sn = n - 1;
+    // Clamp window to at least 1 sample
+    const int ja = (i_end > i_start) ? i_start : std::max(i_start - 1, 0);
+    const int jb = (i_end > i_start) ? i_end   
+                                      : static_cast<int>(total) 
+                                        - static_cast<int>(std::max(0.0f, total - (i_end + 1.0f)));
 
-    assert((s = new float[n + 2]) != 0);
-    s[0] = sn;
-    s[1] = 1.0;
+    const int   n      = jb - ja;
+    const float window = static_cast<float>(n);       // xa
+    const float x_mid  = -0.5f * window;              // offset so center = 0
+    const float x_b    = static_cast<float>(jb) + x_mid;
 
-    xb = (xb - xa) / sn;
+    // --- Weighted sums for least-squares fit (y = a + b*x) ---
+    // Trapezoidal weighting: endpoints count as 0.5
+    const float* w = data + ja;   // window-local pointer
 
-    float *sp = s + 2;
-    float pos = xa;              /* running position in pfl-index space */
+    float sum_y  = 0.5f * (w[0] + w[n]);
+    float sum_xy = 0.5f * (w[0] - w[n]) * x_mid;   // endpoint x values: x_mid and x_mid+n
 
-    for (j = 0; j < n; j++) {
-        int    ki = (int)pos;     /* integer part: segment index        */
-        float fr = pos - ki;     /* fractional part in [0, 1)          */
-        if (ki + 1 > np) {        /* clamp to last segment              */
-            ki = np - 1;
-            fr = 1.0 + (pos - np);
-        }
-        float a = pfl[ki + 2];
-        float b = pfl[ki + 3];
-        *sp++ = b + (b - a) * (fr - 1.0);
-        /* equivalent to: a + (b - a) * fr, which is the standard lerp */
-        pos += xb;
+    float xi = x_mid + 1.0f;
+    for (int i = 1; i < n; ++i, xi += 1.0f) {
+        sum_y  += w[i];
+        sum_xy += w[i] * xi;
     }
 
-	z1sq1(s, 0.0, sn, xa, xb); //40ms
-	xb = (xb - xa) / sn;
+    // Closed-form least-squares coefficients
+    const float a = sum_y  / window;
+    const float b = sum_xy * 12.0f / ((window * window + 2.0f) * window);
 
-	for (j = 0; j < n; j++) {
-		s[j + 2] -= j*xb;
-	}
+    // --- Fitted values at both ends ---
+    const float y_start = a - b * x_b;
+    const float y_end   = a + b * (total - x_b);
 
-	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
-	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1); // 500ms
-	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
-	delete[]s;
+    // --- Remove linear trend from all samples (single pass, no multiply) ---
+    const float slope = (y_end - y_start) / total;
 
-	return d1thxv;
+    float correction = 0.0f;
+    for (int j = 0; j < n_samples; ++j) {
+        z[j + 2] -= correction;
+        correction += slope;
+    }
+}
+
+// Using a static buffer or pre-allocated scratchpad can further 
+// increase speed if this is called in a tight loop.
+float calculate_delta_h_fast(float pfl[], const float &x1, const float &x2) {
+    const int np = static_cast<int>(pfl[0]);
+    const float xi = pfl[1];
+    
+    // 1. Fast Index Bounds
+    int start_idx = static_cast<int>(x1 / xi) + 2;
+    int end_idx = static_cast<int>(x2 / xi) + 2;
+    
+    if (start_idx < 2) start_idx = 2;
+    if (end_idx > np + 2) end_idx = np + 2;
+    
+    const int n = end_idx - start_idx;
+    if (n < 2) return 0.0f;
+
+    // 2. Optimized Linear Regression (One Pass)
+    double sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+    for (int i = start_idx; i < end_idx; ++i) {
+        float x = (i - 2) * xi;
+        float y = pfl[i];
+        sumX  += x;
+        sumY  += y;
+        sumXX += x * x;
+        sumXY += x * y;
+    }
+
+    const double invN = 1.0 / n;
+    const double slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const double intercept = (sumY - slope * sumX) * invN;
+
+    // 3. Compute Residuals
+    // Use a vector with reserve to minimize heap reallocations
+    std::vector<float> res;
+    res.reserve(n);
+    for (int i = start_idx; i < end_idx; ++i) {
+        float x = (i - 2) * xi;
+        res.push_back(pfl[i] - static_cast<float>(slope * x + intercept));
+    }
+
+    const int i10 = n / 10;
+    const int i90 = (9 * n) / 10;
+
+    // Partial sort to find the 10th percentile
+    std::nth_element(res.begin(), res.begin() + i10, res.end());
+    float h10 = res[i10];
+
+    // Partial sort to find the 90th percentile (only search the remaining range)
+    std::nth_element(res.begin() + i10 + 1, res.begin() + i90, res.end());
+    float h90 = res[i90];
+
+    // 5. Final Calculation with pre-computed constants
+    const float d = x2 - x1;
+    // 1.0 / 50000.0f = 0.00002f
+    const float mapping_factor = 1.0f - 0.8f * std::exp(-d * 0.00002f);
+    
+    return (h90 - h10) / mapping_factor;
 }
 
 //for testing
@@ -2158,8 +2113,8 @@ float d1thx_no_interpolation(float pfl[], const float &x1, const float &x2)
     assert((s = new float[n + 2]) != 0);
     
     std::copy(pfl, pfl + n+2, s);
-s[0] = n;
-s[1] = 1.0;
+	s[0] = n;
+	s[1] = 1.0;
 
 	z1sq1(s, 0.0, sn, xa, xb);
 	xb = (xb - xa) / sn;
@@ -2170,6 +2125,143 @@ s[1] = 1.0;
 
 	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
 	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1); // 500ms
+	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
+	delete[]s;
+
+	return d1thxv;
+}
+
+float calculate_delta_h_adjustable(float pfl[], const float &x1, const float &x2, int N) {
+    const int np = static_cast<int>(pfl[0]);
+    const float xi_orig = pfl[1];
+    const float d = x2 - x1;
+    if (d <= 0.0f) return 0.0f;
+
+    std::vector<float> res;
+    double sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+    int n;
+
+    if (N == 0) { // use all data point
+        int start_idx = static_cast<int>(x1 / xi_orig) + 2;
+        int end_idx   = static_cast<int>(x2 / xi_orig) + 2;
+        if (start_idx < 2)    start_idx = 2;
+        if (end_idx > np + 2) end_idx   = np + 2;
+
+        n = end_idx - start_idx;
+        if (n < 2) return 0.0f;
+
+        res.reserve(n);
+        for (int i = start_idx; i < end_idx; ++i) {
+            float x = (i - 2) * xi_orig;
+            float y = pfl[i];
+            res.push_back(y);
+            sumX  += x;
+            sumY  += y;
+            sumXX += x * x;
+            sumXY += x * y;
+        }
+
+        double slope     = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        double intercept = (sumY - slope * sumX) / n;
+
+        for (int i = 0; i < n; ++i) {
+            float x = (start_idx + i - 2) * xi_orig;
+            res[i] -= static_cast<float>(slope * x + intercept);
+        }
+    } else { // interpolation to N points
+        if (N < 10) N = 10;
+        n = N;
+
+        const float dx_target = d / (N - 1);
+        res.reserve(N);
+
+        for (int i = 0; i < N; ++i) {
+            float x_curr = x1 + (i * dx_target);
+            float pos = x_curr / xi_orig;
+            int idx = (int)pos;
+            float frac = pos - idx;
+            float y = pfl[idx + 2] + (pfl[idx + 3] - pfl[idx + 2]) * frac;
+            res.push_back(y);
+            sumX  += x_curr;
+            sumY  += y;
+            sumXX += x_curr * x_curr;
+            sumXY += x_curr * y;
+        }
+
+        double slope     = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
+        double intercept = (sumY - slope * sumX) / N;
+
+        for (int i = 0; i < N; ++i) {
+            float x_curr = x1 + (i * dx_target);
+            res[i] -= static_cast<float>(slope * x_curr + intercept);
+        }
+    }
+
+    int i10 = (int)(0.1f * (n - 1));
+    int i90 = (int)(0.9f * (n - 1));
+
+    std::nth_element(res.begin(), res.begin() + i10, res.end());
+    float h10 = res[i10];
+    std::nth_element(res.begin() + i10 + 1, res.begin() + i90, res.end());
+    float h90 = res[i90];
+
+    const float mapping_factor = 1.0f - 0.8f * std::exp(-d * 0.00002f);
+    return (h90 - h10) / mapping_factor;
+}
+
+float d1thx(float pfl[], const float &x1, const float &x2)
+{
+	int np, p10, p90, n, j;
+    float d1thxv, sn, x_start, x_end, x_step;
+    float *s;
+
+    np = (int)pfl[0];
+    x_start = x1 / pfl[1];
+    x_end = x2 / pfl[1];
+
+    if (x_end - x_start < 2.0)
+        return 0.0;
+
+    p10 = (int)(0.1 * (x_end - x_start + 8.0));
+    p10 = MIN(MAX(4, p10), 25);
+    n  = 10 * p10 - 5;
+    p90 = n - p10;
+    sn = n - 1;
+
+    assert((s = new float[n + 2]) != 0);
+    s[0] = sn;
+    s[1] = 1.0;
+
+    x_step = (x_end - x_start) / sn;  // step
+
+    float *sp = s + 2;
+    float pos = x_start;              /* running position in pfl-index space */
+
+    for (j = 0; j < n; j++) {
+        int    ki = (int)pos;     /* integer part: segment index        */
+        float fr = pos - ki;     /* fractional part in [0, 1)          */
+        if (ki + 1 > np) {        /* clamp to last segment              */
+            ki = np - 1;
+            fr = 1.0 + (pos - np);
+        }
+        float a = pfl[ki + 2];
+        float b = pfl[ki + 3];
+        *sp++ = a + (b - a) * fr;
+        pos += x_step;
+    }
+
+    float fit_y1, fit_y2, fit_slope;
+	z1sq1(s, 0.0, sn, fit_y1, fit_y2); //40ms
+	fit_slope = (fit_y2 - fit_y1) / sn;
+
+	for (j = 0; j < n; j++) {
+		s[j + 2] -= j*fit_slope;
+	}
+
+	//z1sq1_and_detrend(s, 0.0, sn, n);
+
+	//d1thxv = qtile(n - 1, s + 2, p10 - 1) - qtile(n - 1, s + 2, kb - 1);
+	d1thxv = get_two_qtiles(s + 2, n-1, p10-1, p90); // 500ms
 	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
 	delete[]s;
 
@@ -2230,26 +2322,28 @@ float d1thx2(float pfl[], const float &x1, const float &x2,
 
 void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
 {
-	int np, j;
 	float xl[2], q, za, zb, temp;
 
 	prop.dist = pfl[0] * pfl[1];
-	np = (int)pfl[0];
+	const unsigned int np = (unsigned int)pfl[0];
+
 	hzns(pfl, prop);
 
-	for (j = 0; j < 2; j++)
-		xl[j] = MIN(15.0 * prop.hg[j], 0.1 * prop.dl[j]);
+	xl[0] = MIN(15.0 * prop.hg[0], 0.1 * prop.dl[0]);
+	xl[1] = prop.dist - MIN(15.0 * prop.hg[1], 0.1 * prop.dl[1]);
 
-	xl[1] = prop.dist - xl[1];
-	prop.dh = d1thx(pfl, xl[0], xl[1]);
+	if (dh_n < 0)
+		prop.dh = d1thx(pfl, xl[0], xl[1]);
+	else
+		prop.dh = calculate_delta_h_adjustable(pfl, xl[0], xl[1], dh_n);
 
 	if (prop.dl[0] + prop.dl[1] > 1.5 * prop.dist) {
 		z1sq1(pfl, xl[0], xl[1], za, zb);
 		prop.he[0] = prop.hg[0] + FORTRAN_DIM(pfl[2], za);
 		prop.he[1] = prop.hg[1] + FORTRAN_DIM(pfl[np + 2], zb);
 
-		for (j = 0; j < 2; j++)
-			prop.dl[j] = sqrt(2.0 * prop.he[j] / prop.gme) * exp(-0.07 * sqrt(prop. dh / MAX(prop. he[j], 5.0)));
+		prop.dl[0] = sqrt(2.0 * prop.he[0] / prop.gme) * exp(-0.07 * sqrt(prop. dh / MAX(prop. he[0], 5.0)));
+		prop.dl[1] = sqrt(2.0 * prop.he[1] / prop.gme) * exp(-0.07 * sqrt(prop. dh / MAX(prop. he[1], 5.0)));
 
 		q = prop.dl[0] + prop.dl[1];
 
@@ -2258,16 +2352,17 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 			temp = prop.dist / q;
 			q = temp * temp;
 
-			for (j = 0; j < 2; j++) {
-				prop.he[j] *= q;	/* tx effective height set to be path dist/distance between obstacles */
-				prop.dl[j] = sqrt(2.0 * prop.he[j] / prop.gme) * exp(-0.07 * sqrt(prop.dh / MAX(prop.he[j], 5.0)));
-			}
+			prop.he[0] *= q;	/* tx effective height set to be path dist/distance between obstacles */
+			prop.dl[0] = sqrt(2.0 * prop.he[0] / prop.gme) * exp(-0.07 * sqrt(prop.dh / MAX(prop.he[0], 5.0)));
+			prop.he[1] *= q;	/* tx effective height set to be path dist/distance between obstacles */
+			prop.dl[1] = sqrt(2.0 * prop.he[1] / prop.gme) * exp(-0.07 * sqrt(prop.dh / MAX(prop.he[1], 5.0)));
 		}
 
-		for (j = 0; j < 2; j++) {	/* original empirical adjustment?  uses delta-h to adjust grazing angles */
-			q = sqrt(2.0 * prop.he[j] / prop.gme);
-			prop.the[j] = (0.65 * prop.dh * (q / prop.dl[j] - 1.0) - 2.0 * prop.he[j]) / q;
-		}
+		/* original empirical adjustment?  uses delta-h to adjust grazing angles */
+		q = sqrt(2.0 * prop.he[0] / prop.gme);
+		prop.the[0] = (0.65 * prop.dh * (q / prop.dl[0] - 1.0) - 2.0 * prop.he[0]) / q;
+		q = sqrt(2.0 * prop.he[1] / prop.gme);
+		prop.the[1] = (0.65 * prop.dh * (q / prop.dl[1] - 1.0) - 2.0 * prop.he[1]) / q;
 	}
 
 	else {
@@ -2293,8 +2388,7 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	lrprop(0.0, prop, propa);
 }
 
-void qlrpfl2(float pfl[], int klimx, int mdvarx, prop_type & prop,
-	     propa_type & propa, propv_type & propv)
+void qlrpfl2(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
 {
 	int np, j;
 	float xl[2], dlb, q = 1.0, za, zb, temp, rad, rae1, rae2;
@@ -2446,7 +2540,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	float zsys = 0;
 	float zc, zr;
 	float eno, q;
-	long ja, jb, i, np;
+	int ja, jb, i, np;
 	/* float dkm, xkm; */
 	float fs;
 
@@ -2458,12 +2552,12 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	prop.mdp = -1;
 	zc = qerfi(conf);
 	zr = qerfi(rel);
-	np = (long)elev[0];
+	np = (int)elev[0];
 	/* dkm=(elev[1]*elev[0])/1000.0; */
 	/* xkm=elev[1]/1000.0; */
 	eno = eno_ns_surfref;
 
-	ja = (long)(3.0 + 0.1 * elev[0]);	/* added (long) to correct */
+	ja = (int)(3.0 + 0.1 * elev[0]);	/* added (int) to correct */
 	jb = np - ja + 6;
 
 	for (i = ja - 1; i < jb; ++i)
@@ -2548,7 +2642,7 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	propa_type propa = {};
 	float zsys = 0;
 	float q, fs;
-	long ja, jb, i, np;
+	unsigned int ja, jb, i, np;
 
 	prop.hg[0]  = ctx.tht_m;
 	prop.hg[1]  = rht_m;
@@ -2557,8 +2651,8 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	propv.lvar  = 5;
 	prop.mdp    = -1;
 
-	np = (long)elev[0];
-	ja = (long)(3.0 + 0.1 * elev[0]);
+	np = (unsigned int)elev[0];
+	ja = (unsigned int)(3.0 + 0.1 * elev[0]);
 	jb = np - ja + 6;
 
 	for (i = ja - 1; i < jb; ++i)
@@ -2578,7 +2672,7 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	propv.mdvar = ctx.mdvar;
 	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv);
 
-	fs = ctx.fs_fmhz + 20.0 * log10(prop.dist / 1000.0);
+	fs = ctx.fs_fmhz + 20.0f * log10(prop.dist) - 60.0f;
 	q  = prop.dist - propa.dla;
 
 	if (int(q) < 0.0)
@@ -2666,7 +2760,7 @@ void point_to_point(float tht_m, float rht_m, float eps_dielect,
 	float zsys = 0;
 	float zc, zr;
 	float eno, q;
-	long ja, jb, i, np;
+	unsigned int ja, jb, i, np;
 	/* float dkm, xkm; */
 	float tpd, fs;
 
@@ -2681,7 +2775,7 @@ void point_to_point(float tht_m, float rht_m, float eps_dielect,
 	prop.thenr = 0.0;
 	zc = qerfi(conf);
 	zr = qerfi(rel);
-	np = (long)elev[0];
+	np = (int)elev[0];
 	/* dkm=(elev[1]*elev[0])/1000.0; */
 	/* xkm=elev[1]/1000.0; */
 	eno = eno_ns_surfref;
@@ -2696,7 +2790,7 @@ void point_to_point(float tht_m, float rht_m, float eps_dielect,
 				   normally, SPLAT presets this to 12 */
 	prop.dhd = 0.0;		/* delta_h_diff preset */
 
-	ja = (long)(3.0 + 0.1 * elev[0]);
+	ja = (unsigned int)(3.0 + 0.1 * elev[0]);
 	jb = np - ja + 6;
 
 	for (i = ja - 1; i < jb; ++i)

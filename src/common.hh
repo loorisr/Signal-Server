@@ -10,24 +10,24 @@
 
 
 #ifndef PI
-  #define PI		3.141592653589793
+  #define PI		3.141592653589793f
 #endif
 
 #ifndef TWOPI
-  #define TWOPI		6.283185307179586
+  #define TWOPI		6.283185307179586f
 #endif
 
 #ifndef HALFPI
-  #define HALFPI	1.570796326794896
+  #define HALFPI	1.570796326794896f
 #endif
 
 // Multiplier to convert decimal degrees to radians
-#define DEG2RAD		1.74532925199e-02
-#define RAD2DEG		57.2957795130823
+#define DEG2RAD		1.74532925199e-02f
+#define RAD2DEG		57.2957795130823f
 // Radius of the earth, in meters
-#define	EARTHRADIUS	6371000.0
-#define FOUR_THIRDS	1.3333333333333
-#define KM_PER_DEG_LAT 110.754
+#define	EARTHRADIUS	6371000.0f
+#define FOUR_THIRDS	1.3333333333333f
+#define KM_PER_DEG_LAT 110.754f
 
 #define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS)
 //#define MAX(x,y)((x)>(y)?(x):(y))
@@ -102,6 +102,7 @@ extern int contour_threshold;
 extern bool knifeedge;
 extern int pmenv;
 extern int number_threads;
+extern int dh_n;
 
 extern bool ppa;
 extern int normalise;

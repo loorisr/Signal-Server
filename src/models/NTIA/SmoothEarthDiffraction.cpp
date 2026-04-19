@@ -45,10 +45,10 @@ float SmoothEarthDiffraction(const float d__meter, const float f__mhz, const flo
     {
         // C_0 is the ratio of the 4/3 earth to effective earth (technically Vogler 1964 ratio is 4/3 to effective earth k value), all raised to the (1/3) power.
         // C_0 = (4 / 3k) ^ (1 / 3) [Vogler 1964, Eqn 2]
-        C_0[i] = pow((4.0 / 3.0) * a_0__meter / a__meter[i], THIRD);
+        C_0[i] = cbrt((4.0 / 3.0) * a_0__meter / a__meter[i]);
 
         // [Vogler 1964, Eqn 6a / 7a]
-        K[i] = 0.017778 * C_0[i] * pow(f__mhz, -THIRD) / abs(Z_g);
+        K[i] = 0.017778 * C_0[i] / cbrt(f__mhz) / abs(Z_g);
 
         // compute B_0 for each radius
         // [Vogler 1964, Fig 4]
@@ -56,9 +56,9 @@ float SmoothEarthDiffraction(const float d__meter, const float f__mhz, const flo
     }
 
     // compute x__km for each radius [Vogler 1964, Eqn 2]
-    x__km[1] = B_0[1] * pow(C_0[1], 2) * pow(f__mhz, THIRD) * d__km[1];
-    x__km[2] = B_0[2] * pow(C_0[2], 2) * pow(f__mhz, THIRD) * d__km[2];
-    x__km[0] = B_0[0] * pow(C_0[0], 2) * pow(f__mhz, THIRD) * d__km[0] + x__km[1] + x__km[2];
+    x__km[1] = B_0[1] * pow(C_0[1], 2) * cbrt(f__mhz) * d__km[1];
+    x__km[2] = B_0[2] * pow(C_0[2], 2) * cbrt(f__mhz) * d__km[2];
+    x__km[0] = B_0[0] * pow(C_0[0], 2) * cbrt(f__mhz) * d__km[0] + x__km[1] + x__km[2];
 
     // compute height gain functions
     F_x__db[0] = HeightFunction(x__km[1], K[1]);

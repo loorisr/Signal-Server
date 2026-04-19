@@ -514,11 +514,8 @@ void PathReport(struct site source, struct site destination, const char *name,
 				   the first obstruction along the path. */
 
 				for (x = 2, block = 0; x < y && block == 0; x++) {
-					distance =
-					    path.distance[y] - path.distance[x];
-					test_alt =
-					    FOUR_THIRDS_EARTH +
-					    path.elevation[x];
+					distance =  path.distance[y] - path.distance[x];
+					test_alt = FOUR_THIRDS_EARTH + path.elevation[x];
 
 					/* Calculate the cosine of the elevation
 					   angle of the terrain (test point)

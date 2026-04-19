@@ -284,10 +284,7 @@ float ElevationAngle2(struct site source, struct site destination, float er)
     /* Calculate the cosine of the elevation angle of the
        destination (receiver) as seen by the source (transmitter). */
 
-    cos_xmtr_angle =
-        ((source_alt2) + (distance * distance) -
-         (destination_alt * destination_alt)) / (2.0 * source_alt *
-                             distance);
+    cos_xmtr_angle = ((source_alt2) + (distance * distance) - (destination_alt * destination_alt)) / (2.0f * source_alt * distance);
 
     /* Test all points in between source and destination locations to
        see if the angle to a topographic feature generates a higher
@@ -298,14 +295,11 @@ float ElevationAngle2(struct site source, struct site destination, float er)
     for (x = 2, block = 0; x < path.length && block == 0; x++) {
         distance = path.distance[x];
 
-        test_alt =
-            EARTHRADIUS + (path.elevation[x] ==
-                   0.0 ? path.elevation[x] : path.elevation[x] +
-                   clutter);
+        test_alt = EARTHRADIUS + (path.elevation[x] == 0.0f ? path.elevation[x] : path.elevation[x] + clutter);
 
         cos_test_angle =
             ((source_alt2) + (distance * distance) -
-             (test_alt * test_alt)) / (2.0 * source_alt * distance);
+             (test_alt * test_alt)) / (2.0f * source_alt * distance);
 
         /* Compare these two angles to determine if
            an obstruction exists.  Since we're comparing
@@ -318,7 +312,7 @@ float ElevationAngle2(struct site source, struct site destination, float er)
         if (cos_xmtr_angle >= cos_test_angle) {
             block = 1;
             first_obstruction_angle =
-                (acos(std::clamp(cos_test_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
+                (acos(std::clamp(cos_test_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0f;
         }
     }
 
@@ -326,7 +320,7 @@ float ElevationAngle2(struct site source, struct site destination, float er)
         elevation = first_obstruction_angle;
 
     else
-        elevation = (acos(std::clamp(cos_xmtr_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0;
+        elevation = (acos(std::clamp(cos_xmtr_angle, -1.0f, 1.0f)) * RAD2DEG) - 90.0f;
 
     return elevation;
 }
@@ -352,12 +346,12 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
     h_t = GetElevation(xmtr) + xmtr.alt + EARTHRADIUS;
     d_tx = Distance(rcvr, xmtr);
     cos_tx_angle =
-        ((h_r * h_r) + (d_tx * d_tx) - (h_t * h_t)) / (2.0 * h_r * d_tx);
+        ((h_r * h_r) + (d_tx * d_tx) - (h_t * h_t)) / (2.0f * h_r * d_tx);
     cos_tx_angle_f1 = cos_tx_angle;
     cos_tx_angle_fpt6 = cos_tx_angle;
 
     if (f)
-        lambda = 299792458.0 / (f * 1e6);
+        lambda = 299792458.0f / (f * 1e6);
 
     if (clutter > 0.0) {
         fprintf(outfile, "Terrain has been raised by");
@@ -387,7 +381,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
 
         cos_test_angle =
             ((h_r * h_r) + (d_x * d_x) -
-             (h_x * h_x)) / (2.0 * h_r * d_x);
+             (h_x * h_x)) / (2.0f * h_r * d_x);
 
         if (cos_tx_angle > cos_test_angle) {
             if (h_r == h_r_orig)
@@ -413,10 +407,10 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
             h_r += 1;
             cos_test_angle =
                 ((h_r * h_r) + (d_x * d_x) -
-                 (h_x * h_x)) / (2.0 * h_r * d_x);
+                 (h_x * h_x)) / (2.0f * h_r * d_x);
             cos_tx_angle =
                 ((h_r * h_r) + (d_tx * d_tx) -
-                 (h_t * h_t)) / (2.0 * h_r * d_tx);
+                 (h_t * h_t)) / (2.0f * h_r * d_tx);
         }
 
         if (f) {
@@ -424,7 +418,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
 
             cos_tx_angle_f1 =
                 ((h_r_f1 * h_r_f1) + (d_tx * d_tx) -
-                 (h_t * h_t)) / (2.0 * h_r_f1 * d_tx);
+                 (h_t * h_t)) / (2.0f * h_r_f1 * d_tx);
             h_los =
                 sqrt(h_r_f1 * h_r_f1 + d_x * d_x -
                  2 * h_r_f1 * d_x * cos_tx_angle_f1);
@@ -434,7 +428,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
                 h_r_f1 += 1;
                 cos_tx_angle_f1 =
                     ((h_r_f1 * h_r_f1) + (d_tx * d_tx) -
-                     (h_t * h_t)) / (2.0 * h_r_f1 * d_tx);
+                     (h_t * h_t)) / (2.0f * h_r_f1 * d_tx);
                 h_los =
                     sqrt(h_r_f1 * h_r_f1 + d_x * d_x -
                      2 * h_r_f1 * d_x * cos_tx_angle_f1);
@@ -447,7 +441,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
 
             cos_tx_angle_fpt6 =
                 ((h_r_fpt6 * h_r_fpt6) + (d_tx * d_tx) -
-                 (h_t * h_t)) / (2.0 * h_r_fpt6 * d_tx);
+                 (h_t * h_t)) / (2.0f * h_r_fpt6 * d_tx);
             h_los =
                 sqrt(h_r_fpt6 * h_r_fpt6 + d_x * d_x -
                  2 * h_r_fpt6 * d_x * cos_tx_angle_fpt6);
@@ -460,7 +454,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
                 h_r_fpt6 += 1;
                 cos_tx_angle_fpt6 =
                     ((h_r_fpt6 * h_r_fpt6) + (d_tx * d_tx) -
-                     (h_t * h_t)) / (2.0 * h_r_fpt6 * d_tx);
+                     (h_t * h_t)) / (2.0f * h_r_fpt6 * d_tx);
                 h_los =
                     sqrt(h_r_fpt6 * h_r_fpt6 + d_x * d_x -
                      2 * h_r_fpt6 * d_x *

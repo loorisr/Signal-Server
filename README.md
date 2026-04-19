@@ -7,7 +7,7 @@ Thanks to all contributors of SPLAT! and Signal Server!
 Developped to be used with [this API](https://github.com/loorisr/splat-API)
 
 Improvements:
-- speed: **5 times faster** than the original code (1.38s vs 6.98s for a 100 km radius area calculation).
+- speed: **6 times faster** than the original code (1.15s vs 6.98s for a 100 km radius area calculation).
 - use the total number of cores of a computer. Can be overrided by `-number_threads X`
 - better compilation flags
 - `-geotiff` for geotiff image output
@@ -20,6 +20,7 @@ Improvements:
 - several color palettes with -color
 - add NTIA official ITM code
 - generate geotiff only (no more heavy ppm files)
+- `-dh` to select Delta-H computation method for ITM (default: `d1thx`; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50)
 
 
 # Signal Server
@@ -107,6 +108,7 @@ Input:
      -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)
      -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)
      -hd Use HD mode (1'=30m), (optional, default 3'=90m)
+     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=no interpolation). Default: d1thx
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)

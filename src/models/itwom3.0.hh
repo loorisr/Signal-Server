@@ -34,6 +34,7 @@ ITM_ctx ITM_ctx_init(float tht_m, float eps_dielect, float sgm_conductivity,
 		     int pol, float conf, float rel);
 
 void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
-			     float &dbloss, PropagationMode &mode, int &errnum);
+			     float &dbloss, PropagationMode &mode, int &errnum,
+			     float *cached_dh, bool reuse_cached_dh);
 
 #endif /* _ITWOM30_HH_ */

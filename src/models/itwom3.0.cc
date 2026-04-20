@@ -2320,7 +2320,8 @@ float d1thx2(float pfl[], const float &x1, const float &x2,
 	return d1thx2v;
 }
 
-void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv)
+void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv,
+            float *cached_dh, bool reuse_cached_dh)
 {
 	float xl[2], q, za, zb, temp;
 
@@ -2332,10 +2333,17 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	xl[0] = MIN(15.0 * prop.hg[0], 0.1 * prop.dl[0]);
 	xl[1] = prop.dist - MIN(15.0 * prop.hg[1], 0.1 * prop.dl[1]);
 
-	if (dh_n < 0)
-		prop.dh = d1thx(pfl, xl[0], xl[1]);
-	else
-		prop.dh = calculate_delta_h_adjustable(pfl, xl[0], xl[1], dh_n);
+	if (reuse_cached_dh && cached_dh != NULL) {
+		prop.dh = *cached_dh;
+	} else {
+		if (dh_n < 0)
+			prop.dh = d1thx(pfl, xl[0], xl[1]);
+		else
+			prop.dh = calculate_delta_h_adjustable(pfl, xl[0], xl[1], dh_n);
+
+		if (cached_dh != NULL)
+			*cached_dh = prop.dh;
+	}
 
 	if (prop.dl[0] + prop.dl[1] > 1.5 * prop.dist) {
 		z1sq1(pfl, xl[0], xl[1], za, zb);
@@ -2568,7 +2576,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 
 	propv.mdvar = 12;
 	qlrps(frq_mhz, zsys, q, pol, eps_dielect, sgm_conductivity, prop);
-	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv);
+	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, NULL, false);
 	fs = 32.45 + 20.0 * log10(frq_mhz) + 20.0 * log10(prop.dist / 1000.0);
 	q = prop.dist - propa.dla;
 
@@ -2634,7 +2642,8 @@ ITM_ctx ITM_ctx_init(float tht_m, float eps_dielect, float sgm_conductivity,
  *   - partial log10(frq_mhz) term
  */
 void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
-			     float &dbloss, PropagationMode &mode, int &errnum)
+			     float &dbloss, PropagationMode &mode, int &errnum,
+			     float *cached_dh, bool reuse_cached_dh)
 {
 	if (debug) cnt_point_to_point_ITM++;
 	prop_type  prop  = {};
@@ -2670,7 +2679,7 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	prop.zgndimag = ctx.zgndimag;
 
 	propv.mdvar = ctx.mdvar;
-	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv);
+	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, cached_dh, reuse_cached_dh);
 
 	fs = ctx.fs_fmhz + 20.0f * log10(prop.dist) - 60.0f;
 	q  = prop.dist - propa.dla;

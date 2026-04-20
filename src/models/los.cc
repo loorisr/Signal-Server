@@ -359,6 +359,9 @@ void PlotPropPath(
 		itm_ctx = ITM_ctx_init(source.alt, LR.eps_dielect, LR.sgm_conductivity,
 		                       LR.eno_ns_surfref, LR.frq_mhz, LR.radio_climate,
 		                       LR.pol, LR.conf, LR.rel);
+	float cached_dh = 0.0f;
+	bool cached_dh_valid = false;
+	int points_since_dh_update = 0;
 
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
@@ -421,7 +424,21 @@ void PlotPropPath(
 
 			if (fast_itm) {
 				if (debug) cnt_computeLoss++;
-				point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum);
+				bool reuse_cached_dh = false;
+				if (fast_dh_stride > 0 && distance > 50000.0f && cached_dh_valid) {
+					if (points_since_dh_update < (fast_dh_stride - 1))
+						reuse_cached_dh = true;
+				}
+
+				point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+				                        &cached_dh, reuse_cached_dh);
+
+				if (!reuse_cached_dh) {
+					cached_dh_valid = true;
+					points_since_dh_update = 0;
+				} else {
+					points_since_dh_update++;
+				}
 			} else {
 				loss = computeLoss(prop_model, source.alt, destination.alt,
 				                   path.elevation[y] + destination.alt, distance,

@@ -359,9 +359,11 @@ void PlotPropPath(
 		itm_ctx = ITM_ctx_init(source.alt, LR.eps_dielect, LR.sgm_conductivity,
 		                       LR.eno_ns_surfref, LR.frq_mhz, LR.radio_climate,
 		                       LR.pol, LR.conf, LR.rel);
-	float cached_dh = 0.0f;
-	bool cached_dh_valid = false;
-	int points_since_dh_update = 0;
+	float segment_start_dh = 0.0f;
+	float segment_end_dh = 0.0f;
+	int segment_start_y = -1;
+	int segment_end_y = -1;
+	bool interp_segment_active = false;
 
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
@@ -424,20 +426,45 @@ void PlotPropPath(
 
 			if (fast_itm) {
 				if (debug) cnt_computeLoss++;
-				bool reuse_cached_dh = false;
-				if (fast_dh_stride > 0 && distance > 50000.0f && cached_dh_valid) {
-					if (points_since_dh_update < (fast_dh_stride - 1))
-						reuse_cached_dh = true;
-				}
+				if (fast_dh_stride > 0 && distance > 50000.0f) {
+					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);
 
-				point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
-				                        &cached_dh, reuse_cached_dh);
+					if (start_new_segment) {
+						/* Compute actual loss and delta-h at this segment start. */
+						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+						                        &segment_start_dh, false);
 
-				if (!reuse_cached_dh) {
-					cached_dh_valid = true;
-					points_since_dh_update = 0;
+						const int next_y = MIN(y + fast_dh_stride, path.length - 2);
+						segment_start_y = y;
+						segment_end_y = next_y;
+
+						if (next_y > y) {
+							/* Look ahead once to get delta-h at the next full-compute point. */
+							const float saved_elev0 = elev[0];
+							float tmp_loss = 0.0f;
+							PropagationMode tmp_mode = PROP_MODE_NONE;
+							int tmp_errnum = 0;
+
+							elev[0] = next_y - 1;
+							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, tmp_loss, tmp_mode, tmp_errnum,
+							                        &segment_end_dh, false);
+							elev[0] = saved_elev0;
+							interp_segment_active = true;
+						} else {
+							interp_segment_active = false;
+						}
+					} else {
+						const float denom = float(segment_end_y - segment_start_y);
+						const float t = (denom > 0.0f) ? (float(y - segment_start_y) / denom) : 0.0f;
+						const float interp_dh = segment_start_dh + t * (segment_end_dh - segment_start_dh);
+						float dh_for_point = interp_dh;
+						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+						                        &dh_for_point, true);
+					}
 				} else {
-					points_since_dh_update++;
+					interp_segment_active = false;
+					point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+					                        NULL, false);
 				}
 			} else {
 				loss = computeLoss(prop_model, source.alt, destination.alt,

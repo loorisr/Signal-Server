@@ -22,7 +22,8 @@ Improvements:
 - several color palettes with -color
 - add NTIA official ITM code
 - generate geotiff only (no more heavy ppm files)
-- `-dh` to select Delta-H computation method for ITM (default: `d1thx`; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
+- `-dh` to select Delta-H computation method for ITM (default: ITM legacy code; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
+- `-fast [N]` to speed up ITM by recalculating Delta-H every N points only beyond 50 km on each radial, with linear interpolation between anchor points (default when enabled: `N=10`)
 
 
 # Signal Server
@@ -110,7 +111,8 @@ Input:
      -conf Confidence for ITM model (% of 'situations') 1 to 99 (optional, default 50%)
      -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)
      -hd Use HD mode (1'=30m), (optional, default 3'=90m)
-     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=no interpolation). Default: d1thx
+     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=no interpolation). Default: itm legacy code.
+     -fast [N] Recompute ITM delta-h once every N points beyond 50 km on each radial (ITM only), using linear interpolation in between. Default N=10
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)

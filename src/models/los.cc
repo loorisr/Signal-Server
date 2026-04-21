@@ -426,7 +426,7 @@ void PlotPropPath(
 
 			if (fast_itm) {
 				if (debug) cnt_computeLoss++;
-				if (fast_dh_stride > 0 && distance > 50000.0f) {
+				if (fast_dh_stride > 0 && y > fast_dh_stride) {
 					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);
 
 					if (start_new_segment) {

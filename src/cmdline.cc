@@ -70,7 +70,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)");
         spdlog::info("     -hd Use HD mode (1'=30m), (optional, default 3'=90m)");
         spdlog::info("     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=direct pfl). Default: itm legacy code");
-        spdlog::info("     -fast [N] Recompute ITM delta-h once every N points beyond 50 km on each radial (ITM only). Default N=10");
+        spdlog::info("     -fast [N] Recompute ITM delta-h every N points after the first N points from TX on each radial (ITM only). Default N=10");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
         spdlog::info("     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)");

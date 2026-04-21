@@ -23,7 +23,7 @@ Improvements:
 - add NTIA official ITM code
 - generate geotiff only (no more heavy ppm files)
 - `-dh` to select Delta-H computation method for ITM (default: ITM legacy code; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
-- `-fast [N]` to speed up ITM by recalculating Delta-H every N points only beyond 50 km on each radial, with linear interpolation between anchor points (default when enabled: `N=10`)
+- `-fast [N]` to speed up ITM by recalculating Delta-H every N points after the first N points from TX on each radial, with linear interpolation between points (default when enabled: `N=10`)
 
 
 # Signal Server
@@ -37,8 +37,6 @@ Some additional features and fixes by Aaron A. Collins, N9OZB
                                       McDonnell, W3AXL
 
 This server application will generate RF coverage predictions, producing either 2D profile plots (Point-to-Point) or 360 degree polar plots in WGS-84 projection. 
-
-
 
 ## Requirements
 * C++14-conformant C++ compiler (GCC,G++ / clang)
@@ -112,7 +110,7 @@ Input:
      -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)
      -hd Use HD mode (1'=30m), (optional, default 3'=90m)
      -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=no interpolation). Default: itm legacy code.
-     -fast [N] Recompute ITM delta-h once every N points beyond 50 km on each radial (ITM only), using linear interpolation in between. Default N=10
+     -fast [N] Recompute ITM delta-h every N points after the first N points from TX on each radial (ITM only), using linear interpolation in between. Default N=10
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)

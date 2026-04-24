@@ -113,6 +113,7 @@ static tinycolormap::ColormapType get_colormap()
 	if (color_palette == "cubehelix") return tinycolormap::ColormapType::Cubehelix;
 	if (color_palette == "github")    return tinycolormap::ColormapType::Github;
 	if (color_palette == "gray")      return tinycolormap::ColormapType::Gray;
+	if (color_palette == "jet")       return tinycolormap::ColormapType::Jet;
 	spdlog::warn("Unknown color palette '{}', falling back to heat", color_palette);
 	return tinycolormap::ColormapType::Heat;
 }

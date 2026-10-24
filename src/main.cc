@@ -19,7 +19,6 @@
 *                                                                            *
 \****************************************************************************/
 
-/* GDAL must come before any header that defines MAX */
 #include <gdal.h>
 #include <cpl_conv.h>
 #include <ogr_srs_api.h>
@@ -109,10 +108,10 @@ int main(int argc, char *argv[])
     bbox geo_bounds;
 
     if (ppa) { // TODO: handle +-90 and +/- 180° wrap 
-        min_lat = MIN(rx_site.lat, tx_site.lat);
-        max_lat = MAX(rx_site.lat, tx_site.lat);
-        min_lon = MIN(rx_site.lon, tx_site.lon);
-        max_lon = MAX(rx_site.lon, tx_site.lon);
+        min_lat = std::min(rx_site.lat, tx_site.lat);
+        max_lat = std::max(rx_site.lat, tx_site.lat);
+        min_lon = std::min(rx_site.lon, tx_site.lon);
+        max_lon = std::max(rx_site.lon, tx_site.lon);
         geo_bounds.lower_left = {min_lat, min_lon};
         geo_bounds.upper_right = {max_lat, max_lon};
     } else {

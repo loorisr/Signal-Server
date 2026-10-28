@@ -1647,6 +1647,32 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop, propv_type & propv
 	return avarv;
 }
 
+#ifdef __AVX2__
+/* Return a bitmask of the 8 points in this block that are at or near the
+ * current horizon line.  A non-zero mask means the block must be replayed
+ * with the original scalar arithmetic (an update may occur); zero means the
+ * scalar loop would not have updated anything. */
+static inline int hzns_block_avx2(__m256 dv, __m256 dt, __m256 dr,
+                                  __m256 qcv, float the0, float the1,
+                                  float ztx, float zrx, float eps)
+{
+    const __m256 th0 = _mm256_set1_ps(the0);
+    const __m256 th1 = _mm256_set1_ps(the1);
+    const __m256 ztxv = _mm256_set1_ps(ztx);
+    const __m256 zrxv = _mm256_set1_ps(zrx);
+
+    const __m256 t0 = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(qcv, dt), th0), dt);
+    const __m256 t1 = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(qcv, dr), th1), dr);
+    const __m256 q0 = _mm256_sub_ps(_mm256_sub_ps(dv, t0), ztxv);
+    const __m256 q1 = _mm256_sub_ps(_mm256_sub_ps(dv, t1), zrxv);
+
+    const __m256 lim = _mm256_set1_ps(-eps);
+    const __m256 c0 = _mm256_cmp_ps(q0, lim, _CMP_GT_OQ);
+    const __m256 c1 = _mm256_cmp_ps(q1, lim, _CMP_GT_OQ);
+    return _mm256_movemask_ps(_mm256_or_ps(c0, c1));
+}
+#endif
+
 void hzns(float pfl[], prop_type & prop)
 {
     const int np = static_cast<int>(pfl[0]);
@@ -1675,6 +1701,71 @@ void hzns(float pfl[], prop_type & prop)
     float d_tx__meter = 0.0;
     float d_rx__meter = dist;
 
+#ifdef __AVX2__
+    /* Process 8 points at once with a fixed horizon.  If no point is near the
+     * line, the scalar loop would not update either and the block is skipped.
+     * Otherwise replay the block with the exact scalar arithmetic. */
+    constexpr float eps = 1.0f;
+
+    const __m256 qcv = _mm256_set1_ps(qc);
+    const __m256 step = _mm256_set_ps(8.0f * xi, 7.0f * xi, 6.0f * xi, 5.0f * xi,
+                                      4.0f * xi, 3.0f * xi, 2.0f * xi, xi);
+
+    int i = 1;
+    while (i + 7 < np) {
+        const __m256 dt = _mm256_add_ps(_mm256_set1_ps(d_tx__meter), step);
+        const __m256 dr = _mm256_sub_ps(_mm256_set1_ps(d_rx__meter), step);
+        const __m256 dv = _mm256_loadu_ps(&pfl[i + 2]);
+
+        const int mask = hzns_block_avx2(dv, dt, dr, qcv, the0, the1,
+                                         z_tx__meter, z_rx__meter, eps);
+        if (mask == 0) {
+            for (int k = 0; k < 8; ++k) {
+                d_tx__meter += xi;
+                d_rx__meter -= xi;
+            }
+            i += 8;
+            continue;
+        }
+
+        for (int k = 0; k < 8; ++k) {
+            d_tx__meter += xi;
+            d_rx__meter -= xi;
+            const float val = pfl[i + k + 2];
+
+            float q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
+            if (q > 0.0) {
+                the0 += q / d_tx__meter;
+                prop.dl[0] = d_tx__meter;
+            }
+
+            q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
+            if (q > 0.0) {
+                the1 += q / d_rx__meter;
+                prop.dl[1] = d_rx__meter;
+            }
+        }
+        i += 8;
+    }
+
+    for (; i < np; ++i) {
+        d_tx__meter += xi;
+        d_rx__meter -= xi;
+        const float val = pfl[i + 2];
+
+        float q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
+        if (q > 0.0) {
+            the0 += q / d_tx__meter;
+            prop.dl[0] = d_tx__meter;
+        }
+
+        q = val - (qc * d_rx__meter + the1) * d_rx__meter - z_rx__meter;
+        if (q > 0.0) {
+            the1 += q / d_rx__meter;
+            prop.dl[1] = d_rx__meter;
+        }
+    }
+#else
     // Pointer-based access to avoid repeated indexing calculations
     const float* p_val = &pfl[3];
 
@@ -1698,6 +1789,7 @@ void hzns(float pfl[], prop_type & prop)
             prop.dl[1] = d_rx__meter;
         }
     }
+#endif
 
     prop.the[0] = the0;
     prop.the[1] = the1;

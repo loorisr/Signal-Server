@@ -49,6 +49,11 @@ namespace {
     // Ray currently being processed by this worker (thread-local).
     thread_local int current_ray_index = -1;
 
+    // Dynamic work queue: threads pull the next global ray index.  Ownership
+    // is already fixed by owner_map, so the order does not affect the output.
+    std::atomic<int> next_ray_index{0};
+    int total_ray_count = 0;
+
 	// Check whether this pixel belongs to the ray currently being processed.
 	// Also returns the DEM pixel coordinates so the caller does not have to
 	// recompute them when storing the result.
@@ -149,27 +154,22 @@ namespace {
         // Create a prop radius from our parameters
         PropagationRadius *r = (PropagationRadius*)parameters;
         // Thread buffer allocation
-        
+
 		/* elev and path are allocated dynamically by ReadPath on first call */
 
-        // Check if our start & stop angles are the same
-        if (r->points > 0 && r->start_angle_rad == r->stop_angle_rad)
-        {
-            spdlog::warn("Start & stop angles are the same, this radius segment will be a single line");
-        }
+        spdlog::debug("Starting radius worker {}, {:d} ppd", progress.id, ppd);
 
-        spdlog::debug("Starting radiusPropagation for range {:.2f} to {:.2f}, {} points, {:d} ppd",
-            r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, ppd);
-
-        progress.total.store(r->points);
-
+        progress.total.store(total_ray_count);
         progress.count.store(0);
-        // Iterate over this worker's slice of the global ray list
+
         site edge;
         edge.alt = altitudeLR;
-        for (int i = 0; i < r->points; i++)
-        {
-            const int ray = r->start_index + i;
+
+        for (;;) {
+            const int ray = next_ray_index.fetch_add(1, std::memory_order_relaxed);
+            if (ray >= total_ray_count)
+                break;
+
             const float rad = ray_angles[ray];
 
             // Get coordinates of point on circle
@@ -647,41 +647,12 @@ void PlotPropagationRadius(struct site source)
     }
 
     // Split the global rays into number_threads contiguous slices
-    std::vector<PropagationRadius> radii;
-    const int base_pixels = circle_pixels / number_threads;
-    const int remainder   = circle_pixels % number_threads;
-    int ray_start = 0;
-
+    std::vector<PropagationRadius> radii((size_t)number_threads);
     for (int i = 0; i < number_threads; i++)
-    {
-        const int count = base_pixels + (i < remainder ? 1 : 0);
+        radii[(size_t)i].source = source;
 
-        PropagationRadius propRadius;
-        propRadius.source = source;
-        propRadius.points = count;
-        propRadius.start_index = ray_start;
-
-        if (count > 0) {
-            propRadius.start_angle_rad = ray_angles[ray_start];
-            const int last = (ray_start + count - 1) % circle_pixels;
-            propRadius.stop_angle_rad = ray_angles[last] + ray_step;
-        } else {
-            propRadius.start_angle_rad = 0.0f;
-            propRadius.stop_angle_rad = 0.0f;
-        }
-
-        radii.push_back(propRadius);
-        ray_start += count;
-    }
-
-	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or ~{} point) segments",
-                    number_threads, circle_pixels, ray_step * RAD2DEG, base_pixels);
-
-    // Make sure we didn't do anythng wrong
-    if (radii.size() != (size_t)number_threads) {
-        spdlog::error("Our vector of radii ({}) does not match expected segment count {}", radii.size(), number_threads);
-        exit(1);
-    }
+    spdlog::debug("With {} threads and {} total points, rays are distributed dynamically ({:.2f} degree step)",
+                  number_threads, circle_pixels, ray_step * RAD2DEG);
 
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(number_threads);
@@ -692,14 +663,14 @@ void PlotPropagationRadius(struct site source)
     if (prop_model != LOS)
         build_owner_map(source, circle_pixels);
 
-    // Iterate over the final list of ranges
-    for (size_t i = 0; i < radii.size(); i++) {
-        // Set the segment id
-        thread_progress[i].id = i;
-        // Start a thread
-        spdlog::debug("Starting calc thread for radius segment {:.2f} to {:.2f}", radii[i].start_angle_rad * RAD2DEG, radii[i].stop_angle_rad * RAD2DEG);
-        futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
+    next_ray_index.store(0, std::memory_order_relaxed);
+    total_ray_count = circle_pixels;
 
+    // Start the workers; each one pulls the next ray from the shared queue.
+    for (size_t i = 0; i < radii.size(); i++) {
+        thread_progress[i].id = (int)i;
+        spdlog::debug("Starting calc worker {}", i);
+        futures.push_back( std::async( std::launch::async, radiusPropagation, std::ref(thread_progress[i]), &radii[i] ) );
     }
 
     // Wait for futures to finish

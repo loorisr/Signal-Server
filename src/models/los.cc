@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdlib>
 #include <stdio.h>
 #include <math.h>
 #include <atomic>
@@ -26,8 +27,6 @@
 
 namespace {
 	//bool ***processed; //unused
-	// Tracks whether the shared processed-pixel bitmap has been allocated.
-	bool has_init_processed = false;
 
     // Storage for processing threads
     std::vector<std::thread> threads;
@@ -38,25 +37,22 @@ namespace {
     // Thread progress vector
     std::vector<progress_t> thread_progress;
 
-    // Flat processed-flag array matching the flat DEM, indexed as [x * dem_width_px + y].
-    // std::atomic<uint8_t> gives each pixel its own byte (vector<bool> packs bits,
-    // making concurrent access to adjacent elements a data race).
-    // std::atomic is non-copyable so we use a flat vector allocated via new[].
-    std::unique_ptr<std::atomic<uint8_t>[]> processedPoints;
+    // Global ray angles, built once so a pixel can be assigned deterministically
+    // to the same ray regardless of how work is split across threads.
+    std::vector<float> ray_angles;
 
-	// Allocate and clear the shared processed-pixel bitmap.
-	void init_processed()
-	{
-        int total = dem_height_px * dem_width_px;
-        processedPoints.reset(new std::atomic<uint8_t>[total]);
-        for (int i = 0; i < total; i++)
-            processedPoints[i].store(0, std::memory_order_relaxed);
-        spdlog::debug("Initialized processedPoints vector of side {}x{}", dem_height_px, dem_width_px);
-		has_init_processed = true;
-	}
+    // owner_map[x * dem_width_px + y] = global index of the first ray that
+    // reaches this pixel in the sequential ray order.  This makes the
+    // multi-threaded result identical to the single-threaded one.
+    std::vector<int32_t> owner_map;
 
-	// Claim a pixel once so concurrent workers do not process it twice.
-	bool can_process(float lat, float lon)
+    // Ray currently being processed by this worker (thread-local).
+    thread_local int current_ray_index = -1;
+
+	// Check whether this pixel belongs to the ray currently being processed.
+	// Also returns the DEM pixel coordinates so the caller does not have to
+	// recompute them when storing the result.
+	bool can_process(float lat, float lon, int &x_out, int &y_out)
 	{
 		int x = (int)rint(ppd  * (lat - dem_min_lat));
 		int y = (int)rint(ppd * (lon - dem_min_lon));
@@ -64,8 +60,48 @@ namespace {
 		if (x < 0 || x >= dem_height_px || y < 0 || y >= dem_width_px)
 			return false;
 
-        // Atomically claim this pixel; returns true only for the first thread to do so.
-        return processedPoints[x * dem_width_px + y].exchange(1, std::memory_order_acq_rel) == 0;
+		x_out = x;
+		y_out = y;
+
+		/* The owner map gives the first ray that reaches this pixel.  A ray
+		 * can cross the same pixel more than once (adjacent path samples
+		 * round to the same cell); keep only the first crossing by
+		 * invalidating the entry after it has been claimed. */
+		int32_t &owner = owner_map[(size_t)x * dem_width_px + y];
+		if (owner == current_ray_index) {
+			owner = -2;
+			return true;
+		}
+		return false;
+	}
+
+	/* Assign every pixel to the first ray that reaches it in the global ray
+	 * order.  This is exactly the order a single worker used before, so the
+	 * parallel result no longer depends on thread scheduling. */
+	void build_owner_map(struct site source, int total_rays)
+	{
+		owner_map.assign((size_t)dem_height_px * dem_width_px, -1);
+
+		for (int r = 0; r < total_rays; ++r) {
+			coord point = getPointAtDistance({source.lat, source.lon},
+			                                 max_range, ray_angles[r]);
+			site edge;
+			edge.lat = point.lat;
+			edge.lon = point.lon;
+			edge.alt = altitudeLR;
+
+			ReadPath(source, edge);
+
+			for (int y = 2; y < path.length - 1; ++y) {
+				int x  = (int)rint(ppd * (path.lat[y] - dem_min_lat));
+				int yy = (int)rint(ppd * (path.lon[y] - dem_min_lon));
+				if (x < 0 || x >= dem_height_px || yy < 0 || yy >= dem_width_px)
+					continue;
+				size_t idx = (size_t)x * dem_width_px + yy;
+				if (owner_map[idx] < 0)
+					owner_map[idx] = r;
+			}
+		}
 	}
 
     // Compute one angular slice of the propagation radius.
@@ -78,7 +114,7 @@ namespace {
 		/* elev and path are allocated dynamically by ReadPath on first call */
 
         // Check if our start & stop angles are the same
-        if (r->start_angle_rad == r->stop_angle_rad)
+        if (r->points > 0 && r->start_angle_rad == r->stop_angle_rad)
         {
             spdlog::warn("Start & stop angles are the same, this radius segment will be a single line");
         }
@@ -86,18 +122,17 @@ namespace {
         spdlog::debug("Starting radiusPropagation for range {:.2f} to {:.2f}, {} points, {:d} ppd",
             r->start_angle_rad * RAD2DEG, r->stop_angle_rad * RAD2DEG, r->points, ppd);
 
-        // Get the amount in radians to increment per iteration
-        float rps = (r->stop_angle_rad - r->start_angle_rad) / r->points;
-
         progress.total.store(r->points);
 
         progress.count.store(0);
-        // Iterate
-        float rad = r->start_angle_rad;
+        // Iterate over this worker's slice of the global ray list
         site edge;
         edge.alt = altitudeLR;
         for (int i = 0; i < r->points; i++)
         {
+            const int ray = r->start_index + i;
+            const float rad = ray_angles[ray];
+
             // Get coordinates of point on circle
             coord point = getPointAtDistance({r->source.lat, r->source.lon}, max_range, rad);
             // Create site for prop path
@@ -105,21 +140,18 @@ namespace {
             edge.lon = point.lon;
 
             // Plot
-            if (prop_model == LOS)
+            if (prop_model == LOS) {
+                current_ray_index = -1;
                 PlotLOSPath(r->source, edge);
-            else
+            } else {
+                current_ray_index = ray;
                 PlotPropPath(r->source, edge);
+            }
 
-            // Increment
-            rad += rps;
             progress.count++;
         }
 
-        // float check we covered the whole range
-        if (rad < (r->stop_angle_rad - 0.01f))
-        {
-            spdlog::warn("Only got to {:.2f} degrees when we expected to get to {:.2f} degrees", rad * RAD2DEG, r->stop_angle_rad * RAD2DEG);
-        }
+        current_ray_index = -1;
 
         // Free the buffers we made earlier
         free_elev();
@@ -314,14 +346,14 @@ void PlotPropPath(
 )
 {
 	if (debug) cnt_PlotPropPath++;
-	int x, y, errnum, azimuth;
+	int x, y, errnum, azimuth, px, py;
 	char block = 0;
 	PropagationMode mode = PROP_MODE_NONE;
 	float loss, pattern = 0.0,
 	    xmtr_alt, dest_alt, xmtr_alt2, dest_alt2,
 	    cos_rcvr_angle, cos_test_angle = 0.0, test_alt,
 	    elevation = 0.0, distance = 0.0, distance_test,
-	    field_strength = 0.0, rxp, dBm, diffloss;
+	    field_strength = 0.0, dBm, diffloss;
 
 	ReadPath(source, destination);
 
@@ -336,6 +368,19 @@ void PlotPropPath(
 
 	elev[2] = path.elevation[0];
 	elev[path.length + 1] = path.elevation[path.length - 1];
+
+	/* The ITM profile for receiver point y is the prefix elev[2..y+1].
+	 * Build the prefix sums once per radial so qlrpfl() no longer rescans
+	 * the profile for zsys and for each z1sq1() window. */
+	thread_local ITM_ray_ctx ray_ctx;
+	ray_ctx.build(elev, path.length + 1);
+
+	/* Constant parts of the dBm / field-strength conversions. */
+	const float dbm_const = (LR.erp > 0.0f)
+		? 30.0f + 10.0f * log10f(LR.erp) + 2.14f : 0.0f;
+	const float field_const = (LR.erp > 0.0f)
+		? 139.4f + 20.0f * log10f(LR.frq_mhz) + 10.0f * log10f(LR.erp / 1000.0f)
+		: 0.0f;
 
 
 	/* Since the only energy the Longley-Rice model considers
@@ -368,7 +413,7 @@ void PlotPropPath(
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
-		if (can_process(path.lat[y], path.lon[y])) {
+		if (can_process(path.lat[y], path.lon[y], px, py)) {
 
 			distance = path.distance[y];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
@@ -432,7 +477,7 @@ void PlotPropPath(
 					if (start_new_segment) {
 						/* Compute actual loss and delta-h at this segment start. */
 						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
-						                        &segment_start_dh, false);
+						                        &segment_start_dh, false, &ray_ctx);
 
 						const int next_y = MIN(y + fast_dh_stride, path.length - 2);
 						segment_start_y = y;
@@ -447,7 +492,7 @@ void PlotPropPath(
 
 							elev[0] = next_y - 1;
 							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, tmp_loss, tmp_mode, tmp_errnum,
-							                        &segment_end_dh, false);
+							                        &segment_end_dh, false, &ray_ctx);
 							elev[0] = saved_elev0;
 							interp_segment_active = true;
 						} else {
@@ -459,12 +504,12 @@ void PlotPropPath(
 						const float interp_dh = segment_start_dh + t * (segment_end_dh - segment_start_dh);
 						float dh_for_point = interp_dh;
 						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
-						                        &dh_for_point, true);
+						                        &dh_for_point, true, &ray_ctx);
 					}
 				} else {
 					interp_segment_active = false;
 					point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
-					                        NULL, false);
+					                        NULL, false, &ray_ctx);
 				}
 			} else {
 				loss = computeLoss(prop_model, source.alt, destination.alt,
@@ -491,19 +536,19 @@ void PlotPropPath(
 
 			if (LR.erp != 0.0) {
 				if (dbm) {
-					/* dBm is based on EIRP (ERP + 2.14) */
-					rxp = LR.erp / (pow(10.0, (loss - 2.14) / 10.0));
-					dBm = 30.0 + 10.0 * (log10(rxp));
-                    PutSignal(path.lat[y], path.lon[y], dBm);
+					/* dBm is based on EIRP (ERP + 2.14).  The pow/log10
+					 * pair of the original formula is constant minus loss. */
+					dBm = dbm_const - loss;
+					PutSignalXY(px, py, dBm);
 				}
 				else {
-					field_strength = (139.4 +  (20.0 * log10(LR.frq_mhz)) - loss) +  (10.0 * log10(LR.erp / 1000.0));
-					PutSignal(path.lat[y], path.lon[y], field_strength);
+					field_strength = field_const - loss;
+					PutSignalXY(px, py, field_strength);
 				}
 			}
 
 			else {
-				PutSignal(path.lat[y], path.lon[y], loss);
+				PutSignalXY(px, py, loss);
 			}
 		}
 	}
@@ -546,33 +591,52 @@ void PlotPropagationRadius(struct site source)
     // Ramanujan
     int circle_pixels = (int)ceil(ppd * M_PI / 2.0 * (3.0 * (plot_width + plot_height) - sqrt((3.0 * plot_width + plot_height) * (3.0 * plot_height + plot_width))));
 
-    // Calculate the size of each angular degree section, in rads
-    float section_size_rad = 360.0 / number_threads * DEG2RAD;
-
-    // Calculate the number of points/pixels in each segment
-    int section_pixels = (int)(circle_pixels / number_threads);
-
-    // Create our ranges
-    std::vector<PropagationRadius> radii;
-
-    // Iterate through our number_threads
-    for (int i = 0; i < number_threads; i++)
-    {
-        // Create a new radius
-        PropagationRadius propRadius;
-        // Populate static data
-        propRadius.source = source;
-        propRadius.points = section_pixels;
-        // Calculate start and stop angles
-        propRadius.start_angle_rad = i * section_size_rad;
-        propRadius.stop_angle_rad = (i + 1) * section_size_rad;
-
-        // Add to list
-        radii.push_back(propRadius);
+    /* Build the global ray sequence once.  Using the same sequence for any
+     * thread count makes the ownership map (and therefore the output)
+     * independent of the number of workers. */
+    ray_angles.resize(circle_pixels);
+    /* Match the historical single-thread angle sequence exactly: the old code
+     * used 360 * DEG2RAD (a float) divided by the ray count. */
+    const float full_circle_rad = (float)(360.0 * DEG2RAD);
+    const float ray_step = full_circle_rad / (float)circle_pixels;
+    /* volatile prevents -ffast-math from rewriting the recurrence as i*step,
+     * which would round differently from the historical loop. */
+    volatile float rad = 0.0f;
+    for (int i = 0; i < circle_pixels; i++) {
+        ray_angles[i] = rad;
+        rad = rad + ray_step;
     }
 
-	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or {} point) segments", 
-                    number_threads, circle_pixels, section_size_rad * RAD2DEG, section_pixels);
+    // Split the global rays into number_threads contiguous slices
+    std::vector<PropagationRadius> radii;
+    const int base_pixels = circle_pixels / number_threads;
+    const int remainder   = circle_pixels % number_threads;
+    int ray_start = 0;
+
+    for (int i = 0; i < number_threads; i++)
+    {
+        const int count = base_pixels + (i < remainder ? 1 : 0);
+
+        PropagationRadius propRadius;
+        propRadius.source = source;
+        propRadius.points = count;
+        propRadius.start_index = ray_start;
+
+        if (count > 0) {
+            propRadius.start_angle_rad = ray_angles[ray_start];
+            const int last = (ray_start + count - 1) % circle_pixels;
+            propRadius.stop_angle_rad = ray_angles[last] + ray_step;
+        } else {
+            propRadius.start_angle_rad = 0.0f;
+            propRadius.stop_angle_rad = 0.0f;
+        }
+
+        radii.push_back(propRadius);
+        ray_start += count;
+    }
+
+	spdlog::debug("With {} threads and {} total points, our circular area will be divided into {:.2f}-degree (or ~{} point) segments",
+                    number_threads, circle_pixels, ray_step * RAD2DEG, base_pixels);
 
     // Make sure we didn't do anythng wrong
     if (radii.size() != (size_t)number_threads) {
@@ -583,10 +647,11 @@ void PlotPropagationRadius(struct site source)
     // Size our progress vector appropriately
     thread_progress = std::vector<progress_t>(number_threads);
 
-    // Init our vector for storing processing progress
-    if (!has_init_processed) {
-        init_processed();
-    }
+    /* Pre-compute which ray owns each pixel.  Doing this once reproduces the
+     * old single-threaded first-claim order exactly, while allowing the
+     * expensive ITM pass to run in parallel. */
+    if (prop_model != LOS)
+        build_owner_map(source, circle_pixels);
 
     // Iterate over the final list of ranges
     for (size_t i = 0; i < radii.size(); i++) {
@@ -603,7 +668,6 @@ void PlotPropagationRadius(struct site source)
     for (auto& f : futures)
         f.get();
     futures.clear();
-
 }
 
 // Check whether any terrain point blocks the direct path.

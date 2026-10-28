@@ -48,6 +48,7 @@ bbox getCircularBoundingBox(coord center, float radius);
 bool find_dem_xy(float lat, float lon, int &x_out, int &y_out);
 float GetElevation(struct site location);
 void PutSignal(float lat, float lon, int signal);
+void PutSignalXY(int x, int y, int signal);
 int GetSignal(float lat, float lon);
 
 /* Path / elevation geometry */

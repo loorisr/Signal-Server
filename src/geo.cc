@@ -145,6 +145,12 @@ void PutSignal(float lat, float lon, int signal)
         dem_signal[x][y] = signal;
 }
 
+// Store a signal value using pixel coordinates already resolved by the caller.
+void PutSignalXY(int x, int y, int signal)
+{
+    dem_signal[x][y] = signal;
+}
+
 // Read the stored signal value at the DEM cell for a location.
 int GetSignal(float lat, float lon)
 {

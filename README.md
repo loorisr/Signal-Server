@@ -24,6 +24,9 @@ Improvements:
 - generate geotiff only (no more heavy ppm files)
 - `-dh` to select Delta-H computation method for ITM (default: ITM legacy code; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
 - `-fast [N]` to speed up ITM by recalculating Delta-H every N points after the first N points from TX on each radial, with linear interpolation between points (default when enabled: `N=10`)
+- deterministic multi-threading: each output pixel is assigned to a fixed ray, so the same map is produced with 1, 4 or N threads
+- faster exact ITM delta-h percentile selection (same results, less work per point)
+- `-fast 20` is the recommended ±1 dB compromise on the validation map (99.9 % of pixels within 1 dB, maximum error around 9 dB on isolated shadow boundaries)
 
 
 # Signal Server

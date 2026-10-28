@@ -1,6 +1,8 @@
 #ifndef _ITWOM30_HH_
 #define _ITWOM30_HH_
 
+#include <vector>
+
 #include "../common.hh"
 
 void point_to_point_ITM(float tht_m, float rht_m, float eps_dielect,
@@ -33,8 +35,25 @@ ITM_ctx ITM_ctx_init(float tht_m, float eps_dielect, float sgm_conductivity,
 		     float eno_ns_surfref, float frq_mhz, int radio_climate,
 		     int pol, float conf, float rel);
 
+/* Per-ray prefix sums of the terrain profile.  The profile of a radial is
+ * a growing prefix of the same elev[] array, so values that qlrpfl currently
+ * recomputes with O(n) scans can be answered in O(1):
+ *
+ *   p0[k] = sum_{i=2..k} elev[i]
+ *   p1[k] = sum_{i=2..k} i * elev[i]
+ *
+ * Both arrays must be valid for indices up to the last profile point. */
+struct ITM_ray_ctx {
+	std::vector<double> p0;
+	std::vector<double> p1;
+
+	/* Build the prefix sums for elev[2..last_index]. */
+	void build(const float elev[], int last_index);
+};
+
 void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 			     float &dbloss, PropagationMode &mode, int &errnum,
-			     float *cached_dh, bool reuse_cached_dh);
+			     float *cached_dh, bool reuse_cached_dh,
+			     const ITM_ray_ctx *ray = nullptr);
 
 #endif /* _ITWOM30_HH_ */

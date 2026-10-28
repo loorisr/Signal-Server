@@ -1676,14 +1676,14 @@ void hzns(float pfl[], prop_type & prop)
     float d_rx__meter = dist;
 
     // Pointer-based access to avoid repeated indexing calculations
-    const float* p_val = &pfl[3]; 
+    const float* p_val = &pfl[3];
 
     for (int i = 1; i < np; ++i) {
         d_tx__meter += xi;
         d_rx__meter -= xi;
-        
+
         const float val = *p_val++; // Current elevation point
-        
+
         // Check horizon for side TX
         float q = val - (qc * d_tx__meter + the0) * d_tx__meter - z_tx__meter;
         if (q > 0.0) {
@@ -1878,6 +1878,74 @@ void z1sq1(float z[], const float &x1, const float &x2, float &z0,
     zn = a + b * (xn - xb);
 }
 
+/* Build the prefix sums used by the O(1) variants below.  The profile of a
+ * radial only grows, so this is done once per ray in PlotPropPath(). */
+void ITM_ray_ctx::build(const float elev[], int last_index)
+{
+    if (last_index < 2)
+        last_index = 2;
+
+    p0.resize((size_t)last_index + 1);
+    p1.resize((size_t)last_index + 1);
+
+    p0[0] = p0[1] = 0.0;
+    p1[0] = p1[1] = 0.0;
+
+    for (int k = 2; k <= last_index; ++k) {
+        const double v = elev[k];
+        p0[k] = p0[k - 1] + v;
+        p1[k] = p1[k - 1] + (double)k * v;
+    }
+}
+
+/* Same result as z1sq1(), but the window sums are read from the per-ray
+ * prefix sums instead of being accumulated again.  The formula is exact:
+ *
+ *   a_sum = 0.5*(p[0] + p[n]) + sum(p[1..n-1])
+ *   b_sum = x*a_sum + sum(i * p[i], i=1..n-1)
+ */
+static void z1sq1_prefixed(const float z[], const float &x1,
+                           const float &x2, float &z0, float &zn,
+                           const ITM_ray_ctx &ray)
+{
+    float xn, xa, xb, x, a, b;
+    xn = z[0];
+    xa = int(MAX(x1 / z[1], 0.0f));
+    xb = xn - int(FORTRAN_DIM(xn, x2 / z[1]));
+    if (xb <= xa) {
+        xa = FORTRAN_DIM(xa, 1.0f);
+        xb = xn - FORTRAN_DIM(xn, xb + 1.0f);
+    }
+
+    const int ja = (int)xa;
+    const int jb = (int)xb;
+    const int n  = jb - ja;
+    xa = xb - xa;
+    x  = -0.5f * xa;
+    xb += x;
+
+    const float p_first = z[ja + 2];
+    const float p_last  = z[jb + 2];
+
+    double interior0 = 0.0;
+    double interior1 = 0.0;
+    if (n > 0) {
+        interior0 = ray.p0[jb + 1] - ray.p0[ja + 2];
+        interior1 = (ray.p1[jb + 1] - ray.p1[ja + 2])
+                  - (double)(ja + 2) * interior0;
+    }
+
+    const double a_sum = 0.5 * ((double)p_first + p_last) + interior0;
+    /* b_sum initial term is 0.5*(p_first - p_last)*x; the loop then adds
+     * p[i]*(x+i) for i=1..n-1, hence b_sum = x*(a_sum - p_last) + interior1. */
+    const double b_sum = x * (a_sum - (double)p_last) + interior1;
+
+    a = (float)a_sum / xa;
+    b = (float)b_sum * 12.0f / ((xa * xa + 2.0f) * xa);
+    z0 = a - b * xb;
+    zn = a + b * (xn - xb);
+}
+
 void z1sq2(float z[], const float &x1, const float &x2, float &z0,
 	   float &zn)
 {
@@ -1940,10 +2008,78 @@ float qtile(const int &nn, float a[], const int &ir)
     return a[k];
 }
 
+static thread_local std::vector<float> qtile_scratch;
+
+/* Return a[ka] - a[kb], where a[ka] and a[kb] are the ka-th and kb-th
+ * largest values (std::greater order).  ka/kb are two fixed, well separated
+ * ranks (10% and 90%).  Instead of two full introselect passes over ~245
+ * values, bin the values into a small histogram, keep only the two bins that
+ * contain the requested ranks, and select exactly inside those bins.  The
+ * result is the same order statistics as the nth_element version, just with
+ * far less work per call.  a[] is not modified. */
 float get_two_qtiles(float a[], int n, int ka, int kb) {
-    std::nth_element(a, a + kb, a + n, std::greater<float>());
-    std::nth_element(a, a + ka, a + kb, std::greater<float>());
-    return a[ka] - a[kb];
+    constexpr int NBINS = 64;
+
+    if (n < 2 || ka == kb)
+        return 0.0f;
+
+    float mn = a[0], mx = a[0];
+    for (int i = 1; i < n; ++i) {
+        mn = MIN(mn, a[i]);
+        mx = MAX(mx, a[i]);
+    }
+
+    if (mn == mx)
+        return 0.0f;
+
+    int cnt[NBINS] = {0};
+    const float scale = (float)(NBINS - 1) / (mx - mn);
+
+    for (int i = 0; i < n; ++i) {
+        int b = (int)((a[i] - mn) * scale);
+        b = MIN(MAX(b, 0), NBINS - 1);
+        cnt[b]++;
+    }
+
+    /* Locate the bins holding the descending ranks ka and kb. */
+    int b1 = -1, b2 = -1, before1 = 0, before2 = 0, acc = 0;
+    for (int b = NBINS - 1; b >= 0; --b) {
+        const int c = cnt[b];
+        if (b1 < 0 && acc + c > ka) {
+            b1 = b;
+            before1 = acc;
+        }
+        if (acc + c > kb) {
+            b2 = b;
+            before2 = acc;
+            break;
+        }
+        acc += c;
+    }
+    qtile_scratch.clear();
+    qtile_scratch.reserve((size_t)n);
+    for (int i = 0; i < n; ++i) {
+        int b = (int)((a[i] - mn) * scale);
+        b = MIN(MAX(b, 0), NBINS - 1);
+        if (b == b1 || b == b2)
+            qtile_scratch.push_back(a[i]);
+    }
+
+    const int m = (int)qtile_scratch.size();
+    float *s = qtile_scratch.data();
+    /* The gathered array holds the values of bins b1 and b2 (b1 is the
+     * higher-value bin).  Its first cnt[b1] elements belong to b1, so the
+     * rank of the lower target is shifted by that count when the two bins
+     * differ. */
+    const int i1 = ka - before1;
+    const int i2 = (b1 == b2)
+        ? (kb - before1)
+        : (cnt[b1] + (kb - before2));
+
+    std::nth_element(s, s + i2, s + m, std::greater<float>());
+    const float v2 = s[i2];
+    std::nth_element(s, s + i1, s + i2, std::greater<float>());
+    return s[i1] - v2;
 }
 
 float qerf(const float &z)
@@ -2084,6 +2220,11 @@ float calculate_delta_h_fast(float pfl[], const float &x1, const float &x2) {
     return (h90 - h10) / mapping_factor;
 }
 
+/* Scratch buffer reused across d1thx calls.  This function runs once per
+ * receiver point, so allocating (and freeing) a small array every time is a
+ * measurable cost in area coverage mode. */
+static thread_local std::vector<float> d1thx_scratch;
+
 //for testing
 float d1thx_no_interpolation(float pfl[], const float &x1, const float &x2)
 {
@@ -2110,7 +2251,8 @@ float d1thx_no_interpolation(float pfl[], const float &x1, const float &x2)
     if (kb <= ka)
         return d1thxv;
 
-    assert((s = new float[n + 2]) != 0);
+    d1thx_scratch.resize((size_t)n + 2);
+    s = d1thx_scratch.data();
     
     std::copy(pfl, pfl + n+2, s);
 	s[0] = n;
@@ -2126,7 +2268,6 @@ float d1thx_no_interpolation(float pfl[], const float &x1, const float &x2)
 	//d1thxv = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
 	d1thxv = get_two_qtiles(s + 2, n-1, ka-1, kb-1); // 500ms
 	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
-	delete[]s;
 
 	return d1thxv;
 }
@@ -2228,7 +2369,8 @@ float d1thx(float pfl[], const float &x1, const float &x2)
     p90 = n - p10;
     sn = n - 1;
 
-    assert((s = new float[n + 2]) != 0);
+    d1thx_scratch.resize((size_t)n + 2);
+    s = d1thx_scratch.data();
     s[0] = sn;
     s[1] = 1.0;
 
@@ -2263,7 +2405,6 @@ float d1thx(float pfl[], const float &x1, const float &x2)
 	//d1thxv = qtile(n - 1, s + 2, p10 - 1) - qtile(n - 1, s + 2, kb - 1);
 	d1thxv = get_two_qtiles(s + 2, n-1, p10-1, p90); // 500ms
 	d1thxv /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
-	delete[]s;
 
 	return d1thxv;
 }
@@ -2289,7 +2430,8 @@ float d1thx2(float pfl[], const float &x1, const float &x2,
 	n = 10 * ka - 5;
 	kb = n - ka + 1;
 	sn = n - 1;
-	assert((s = new float[n + 2])!=0);
+	d1thx_scratch.resize((size_t)n + 2);
+	s = d1thx_scratch.data();
 	s[0] = sn;
 	s[1] = 1.0;
 	xb = (xb - xa) / sn;
@@ -2316,12 +2458,11 @@ float d1thx2(float pfl[], const float &x1, const float &x2,
 	//d1thx2v = qtile(n - 1, s + 2, ka - 1) - qtile(n - 1, s + 2, kb - 1);
 	d1thx2v = get_two_qtiles(s + 2, n-1, ka-1, kb-1);
 	d1thx2v /= 1.0 - 0.8 * exp(-(x2 - x1) / 50.0e3);
-	delete[]s;
 	return d1thx2v;
 }
 
 void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & propa, propv_type & propv,
-            float *cached_dh, bool reuse_cached_dh)
+            float *cached_dh, bool reuse_cached_dh, const ITM_ray_ctx *ray)
 {
 	float xl[2], q, za, zb, temp;
 
@@ -2346,7 +2487,10 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	}
 
 	if (prop.dl[0] + prop.dl[1] > 1.5 * prop.dist) {
-		z1sq1(pfl, xl[0], xl[1], za, zb);
+		if (ray)
+			z1sq1_prefixed(pfl, xl[0], xl[1], za, zb, *ray);
+		else
+			z1sq1(pfl, xl[0], xl[1], za, zb);
 		prop.he[0] = prop.hg[0] + FORTRAN_DIM(pfl[2], za);
 		prop.he[1] = prop.hg[1] + FORTRAN_DIM(pfl[np + 2], zb);
 
@@ -2374,8 +2518,13 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	}
 
 	else {
-		z1sq1(pfl, xl[0], 0.9 * prop.dl[0], za, q);
-		z1sq1(pfl, prop.dist - 0.9 * prop.dl[1], xl[1], q, zb);
+		if (ray) {
+			z1sq1_prefixed(pfl, xl[0], 0.9 * prop.dl[0], za, q, *ray);
+			z1sq1_prefixed(pfl, prop.dist - 0.9 * prop.dl[1], xl[1], q, zb, *ray);
+		} else {
+			z1sq1(pfl, xl[0], 0.9 * prop.dl[0], za, q);
+			z1sq1(pfl, prop.dist - 0.9 * prop.dl[1], xl[1], q, zb);
+		}
 		prop.he[0] = prop.hg[0] + FORTRAN_DIM(pfl[2], za);
 		prop.he[1] = prop.hg[1] + FORTRAN_DIM(pfl[np + 2], zb);
 	}
@@ -2576,7 +2725,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 
 	propv.mdvar = 12;
 	qlrps(frq_mhz, zsys, q, pol, eps_dielect, sgm_conductivity, prop);
-	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, NULL, false);
+	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, NULL, false, nullptr);
 	fs = 32.45 + 20.0 * log10(frq_mhz) + 20.0 * log10(prop.dist / 1000.0);
 	q = prop.dist - propa.dla;
 
@@ -2643,7 +2792,8 @@ ITM_ctx ITM_ctx_init(float tht_m, float eps_dielect, float sgm_conductivity,
  */
 void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 			     float &dbloss, PropagationMode &mode, int &errnum,
-			     float *cached_dh, bool reuse_cached_dh)
+			     float *cached_dh, bool reuse_cached_dh,
+			     const ITM_ray_ctx *ray)
 {
 	if (debug) cnt_point_to_point_ITM++;
 	prop_type  prop  = {};
@@ -2664,8 +2814,13 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	ja = (unsigned int)(3.0 + 0.1 * elev[0]);
 	jb = np - ja + 6;
 
-	for (i = ja - 1; i < jb; ++i)
-		zsys += elev[i];
+	if (ray != nullptr) {
+		/* Prefix sums: sum(elev[ja-1 .. jb-1]) */
+		zsys = (float)(ray->p0[jb - 1] - ray->p0[ja - 2]);
+	} else {
+		for (i = ja - 1; i < jb; ++i)
+			zsys += elev[i];
+	}
 	zsys /= (jb - ja + 1);
 
 	/* Inline the constant-optimised portion of qlrps():
@@ -2679,7 +2834,7 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	prop.zgndimag = ctx.zgndimag;
 
 	propv.mdvar = ctx.mdvar;
-	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, cached_dh, reuse_cached_dh);
+	qlrpfl(elev, propv.klim, propv.mdvar, prop, propa, propv, cached_dh, reuse_cached_dh, ray);
 
 	fs = ctx.fs_fmhz + 20.0f * log10(prop.dist) - 60.0f;
 	q  = prop.dist - propa.dla;

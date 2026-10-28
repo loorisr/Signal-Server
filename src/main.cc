@@ -99,6 +99,25 @@ int dem_height_px = 0;
 
 struct LR LR;
 
+/* Development helper: dump the raw signal grid as int32 so optimization
+ * changes can be validated on the real computed values instead of the
+ * 8-bit color-mapped GeoTIFF. Enabled only when SS_RAW_DUMP is set. */
+static void dump_raw_signal(const char *path)
+{
+    FILE *f = fopen(path, "wb");
+    if (f == NULL) {
+        spdlog::error("Cannot open raw dump {}: {}", path, strerror(errno));
+        return;
+    }
+
+    const int32_t header[3] = { (int32_t)dem_height_px, (int32_t)dem_width_px, 0 };
+    fwrite(header, sizeof(header), 1, f);
+    for (int x = 0; x < dem_height_px; x++)
+        fwrite(dem_signal[x], sizeof(int32_t), dem_width_px, f);
+    fclose(f);
+    spdlog::info("Raw signal dump written: {}", path);
+}
+
 // Initialize the run, load terrain data, and dispatch the selected outputs.
 int main(int argc, char *argv[])
 {
@@ -141,6 +160,9 @@ int main(int argc, char *argv[])
     if (!ppa) {
         PlotPropagationRadius(tx_site);
         spdlog::debug("Finished PlotPropagationRadius()");
+
+        if (const char *raw_path = getenv("SS_RAW_DUMP"))
+            dump_raw_signal(raw_path);
 
         // Write image
         if (prop_model == LOS)

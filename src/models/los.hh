@@ -33,6 +33,7 @@ struct PropagationRadius {
     float start_angle_rad, stop_angle_rad;
     site source;
     int points;
+    int start_index;   /* first global ray index handled by this worker */
 };
 
 extern PropModel prop_model;

@@ -1,7 +1,11 @@
 # Optimisation du calcul ITM sur une zone
 
 Branche : `perf/itm-exact-deterministic`
-Commit de référence : `dbb37f0` — *Optimize ITM area coverage and make output deterministic*
+
+Commits de la branche :
+
+- `dbb37f0` — *Optimize ITM area coverage and make output deterministic*
+- `0b497b3` — *Parallelize owner map and speed up delta-h quantile selection*
 
 Ce document décrit les changements apportés pour accélérer le calcul ITM
 sur une zone, sans utiliser `-fast` ni `-dh`, et en conservant des résultats
@@ -154,12 +158,46 @@ SS_RAW_DUMP=/tmp/carte.raw ./build/signalserver ... -o carte
 Cela a servi à vérifier pixel à pixel que les optimisations ne modifiaient
 pas les résultats.
 
+## 8. Travaux complémentaires (commit `0b497b3`)
+
+### Parallélisation de `owner_map`
+
+Le calcul des pixels traversés par chaque rayon est maintenant fait en
+parallèle par tronçons de rayons. Les listes de pixels sont ensuite fusionnées
+séquentiellement dans l'ordre global des rayons, ce qui conserve exactement
+la priorité « premier rayon » et donc le déterminisme.
+
+Gain observé sur la carte de validation : environ 0,3 s en 4 threads
+(3,43 s → 3,16 s) et 0,5 s en 1 thread.
+
+### Réutilisation des quantiles précédents
+
+`get_two_qtiles()` mémorise les deux quantiles du point précédent. La plupart
+des appels (≈98 %) ne sélectionnent plus que dans deux bandes étroites
+(±8 % de l'écart interquantile) autour de ces valeurs, avec un repli exact sur
+le sélecteur par histogramme si l'estimation est périmée.
+
+Le résultat reste identique : 0 pixel différent par rapport au commit
+précédent sur la carte de validation. Le gain est d'environ 0,5 s en 1 thread.
+
+### `hzns`
+
+Deux tentatives ont été mesurées puis abandonnées :
+
+- traitement par blocs avec un horizon figé et repli scalaire : plus lent
+  (12,3 s contre 11,1 s en 1 thread) ;
+- formulation par maximum avec table d'inverses : plus lente et modifiait
+  certains résultats aux frontières d'ombre.
+
+`hzns` reste donc en version scalaire exacte.
+
 ## Résultats
 
 | Version | 1 thread | 4 threads |
 |---|---:|---:|
 | Code original | 15,04 s | 4,12 s |
 | Commit `dbb37f0` (exact) | 11,72 s | 3,43 s |
+| Commit `0b497b3` (exact) | ~11,1–11,3 s | 3,16 s |
 
 Validation :
 
@@ -174,7 +212,7 @@ Validation :
 Le mode exact reste le défaut. Pour un calcul plus rapide avec une tolérance
 d'environ 1 dB, `-fast 20` a été mesuré :
 
-- 4 threads : environ 2,7 s sur la carte de validation ;
+- 4 threads : environ 2,46 s sur la carte de validation ;
 - 99,9 % des pixels à ≤1 dB ;
 - 0,098 % des pixels à >1 dB ;
 - 0,024 % à >2 dB ;
@@ -188,14 +226,15 @@ Exemple :
 
 ## Limites et suites possibles
 
-- `hzns()` reste un poste majeur (~35–40 % du temps exact). Les versions par
-  blocs testées étaient plus lentes que la boucle scalaire d'origine ; une
-  vectorisation exacte demanderait un travail dédié.
-- La sélection des quantiles reste ~25–30 % du temps. Une piste testée
-  ensuite consiste à réutiliser les quantiles du point précédent pour ne
-  sélectionner que dans des bandes étroites, avec repli sur l'histogramme.
-- La construction de `owner_map` est séquentielle dans ce commit. Elle peut
-  être parallélisée en calculant les listes de pixels par rayon en parallèle,
-  puis en fusionnant dans l'ordre global.
+- `hzns()` reste le premier poste (~35–40 % du temps exact). Les versions par
+  blocs et par maximum testées étaient plus lentes ou modifiaient les
+  résultats ; une vectorisation exacte demanderait un travail dédié.
+- La sélection des quantiles reste un poste significatif (~20–25 %). Les
+  bandes autour des quantiles précédents ont déjà réduit le coût ; une
+  vectorisation de la passe de comptage pourrait encore aider.
+- `owner_map` ajoute de la mémoire temporaire : environ 36 Mo de listes de
+  pixels pour 100 km en 1200 ppd, plus la carte d'occupation (~69 Mo).
+  C'est acceptable sur 16 Go, mais à surveiller pour de très grandes zones
+  ou du HD.
 - `-fast 20` est un compromis, pas une garantie mathématique : il faut le
   valider sur les terrains réellement utilisés.

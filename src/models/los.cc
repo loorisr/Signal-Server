@@ -75,14 +75,13 @@ namespace {
 		return false;
 	}
 
-	/* Assign every pixel to the first ray that reaches it in the global ray
-	 * order.  This is exactly the order a single worker used before, so the
-	 * parallel result no longer depends on thread scheduling. */
-	void build_owner_map(struct site source, int total_rays)
+	/* Compute the pixels crossed by rays [first, last) into per-ray lists.
+	 * Runs on worker threads; the lists are merged in global ray order by
+	 * build_owner_map() so the ownership is deterministic. */
+	void collect_ray_pixels(struct site source, int first, int last,
+	                        std::vector<std::vector<int32_t>> &ray_pixels)
 	{
-		owner_map.assign((size_t)dem_height_px * dem_width_px, -1);
-
-		for (int r = 0; r < total_rays; ++r) {
+		for (int r = first; r < last; ++r) {
 			coord point = getPointAtDistance({source.lat, source.lon},
 			                                 max_range, ray_angles[r]);
 			site edge;
@@ -92,14 +91,54 @@ namespace {
 
 			ReadPath(source, edge);
 
+			std::vector<int32_t> &pixels = ray_pixels[r];
+			pixels.clear();
+			pixels.reserve((size_t)MAX(path.length - 2, 0));
+
 			for (int y = 2; y < path.length - 1; ++y) {
 				int x  = (int)rint(ppd * (path.lat[y] - dem_min_lat));
 				int yy = (int)rint(ppd * (path.lon[y] - dem_min_lon));
 				if (x < 0 || x >= dem_height_px || yy < 0 || yy >= dem_width_px)
 					continue;
-				size_t idx = (size_t)x * dem_width_px + yy;
-				if (owner_map[idx] < 0)
-					owner_map[idx] = r;
+				pixels.push_back((int32_t)((size_t)x * dem_width_px + yy));
+			}
+		}
+	}
+
+	/* Assign every pixel to the first ray that reaches it in the global ray
+	 * order.  The path sampling is parallel, but the merge is sequential and
+	 * ordered, so the result is identical to the old single-threaded pass. */
+	void build_owner_map(struct site source, int total_rays)
+	{
+		owner_map.assign((size_t)dem_height_px * dem_width_px, -1);
+
+		std::vector<std::vector<int32_t>> ray_pixels((size_t)total_rays);
+
+		const int workers = MAX(1, number_threads);
+		const int base = total_rays / workers;
+		const int remainder = total_rays % workers;
+
+		std::vector<std::future<void>> futures;
+		futures.reserve((size_t)workers);
+
+		int first = 0;
+		for (int w = 0; w < workers; ++w) {
+			const int count = base + (w < remainder ? 1 : 0);
+			if (count > 0)
+				futures.push_back(std::async(std::launch::async,
+					collect_ray_pixels, source, first, first + count,
+					std::ref(ray_pixels)));
+			first += count;
+		}
+
+		for (auto &f : futures)
+			f.get();
+
+		/* Merge in global ray order: the first ray wins. */
+		for (int r = 0; r < total_rays; ++r) {
+			for (int32_t idx : ray_pixels[(size_t)r]) {
+				if (owner_map[(size_t)idx] < 0)
+					owner_map[(size_t)idx] = r;
 			}
 		}
 	}

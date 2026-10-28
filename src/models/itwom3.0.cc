@@ -2009,19 +2009,72 @@ float qtile(const int &nn, float a[], const int &ir)
 }
 
 static thread_local std::vector<float> qtile_scratch;
+static thread_local std::vector<float> qtile_band1;
+static thread_local std::vector<float> qtile_band2;
+static thread_local float qtile_prev1 = 0.0f;
+static thread_local float qtile_prev2 = 0.0f;
+static thread_local bool  qtile_prev_valid = false;
 
 /* Return a[ka] - a[kb], where a[ka] and a[kb] are the ka-th and kb-th
  * largest values (std::greater order).  ka/kb are two fixed, well separated
- * ranks (10% and 90%).  Instead of two full introselect passes over ~245
- * values, bin the values into a small histogram, keep only the two bins that
- * contain the requested ranks, and select exactly inside those bins.  The
- * result is the same order statistics as the nth_element version, just with
- * far less work per call.  a[] is not modified. */
+ * ranks (10% and 90%).
+ *
+ * The quantiles change slowly from one point to the next along a ray.  Most
+ * calls therefore only need to count the values above two narrow bands
+ * around the previous quantiles and select exactly inside those bands.  If
+ * the previous estimate is stale, fall back to a 64-bin histogram that is
+ * still much cheaper than two full introselect passes.  a[] is not modified.
+ */
 float get_two_qtiles(float a[], int n, int ka, int kb) {
     constexpr int NBINS = 64;
 
     if (n < 2 || ka == kb)
         return 0.0f;
+
+    /* Fast path: narrow bands around the previous two quantiles. */
+    if (qtile_prev_valid && qtile_prev1 > qtile_prev2) {
+        const float width = 0.08f * (qtile_prev1 - qtile_prev2);
+        if (width > 0.0f) {
+            const float lo1 = qtile_prev1 - width, hi1 = qtile_prev1 + width;
+            const float lo2 = qtile_prev2 - width, hi2 = qtile_prev2 + width;
+
+            int above1 = 0, above2 = 0;
+            qtile_band1.clear();
+            qtile_band2.clear();
+            qtile_band1.reserve(64);
+            qtile_band2.reserve(64);
+
+            /* The two bands are disjoint and ordered (lo2 < hi2 < lo1 < hi1),
+             * so one comparison chain is enough. */
+            for (int i = 0; i < n; ++i) {
+                const float v = a[i];
+                if (v > hi1) {
+                    above1++;
+                    above2++;
+                } else if (v >= lo1) {
+                    qtile_band1.push_back(v);
+                    above2++;
+                } else if (v > hi2) {
+                    above2++;
+                } else if (v >= lo2) {
+                    qtile_band2.push_back(v);
+                }
+            }
+
+            const int r1 = ka - above1;
+            const int r2 = kb - above2;
+            if (r1 >= 0 && r1 < (int)qtile_band1.size() &&
+                r2 >= 0 && r2 < (int)qtile_band2.size()) {
+                std::nth_element(qtile_band1.begin(), qtile_band1.begin() + r1,
+                                 qtile_band1.end(), std::greater<float>());
+                std::nth_element(qtile_band2.begin(), qtile_band2.begin() + r2,
+                                 qtile_band2.end(), std::greater<float>());
+                qtile_prev1 = qtile_band1[r1];
+                qtile_prev2 = qtile_band2[r2];
+                return qtile_prev1 - qtile_prev2;
+            }
+        }
+    }
 
     float mn = a[0], mx = a[0];
     for (int i = 1; i < n; ++i) {
@@ -2079,7 +2132,10 @@ float get_two_qtiles(float a[], int n, int ka, int kb) {
     std::nth_element(s, s + i2, s + m, std::greater<float>());
     const float v2 = s[i2];
     std::nth_element(s, s + i1, s + i2, std::greater<float>());
-    return s[i1] - v2;
+    qtile_prev1 = s[i1];
+    qtile_prev2 = v2;
+    qtile_prev_valid = true;
+    return qtile_prev1 - qtile_prev2;
 }
 
 float qerf(const float &z)

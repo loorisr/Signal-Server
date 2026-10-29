@@ -71,6 +71,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -hd Use HD mode (1'=30m), (optional, default 3'=90m)");
         spdlog::info("     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=direct pfl). Default: itm legacy code");
         spdlog::info("     -fast [N] Recompute ITM delta-h every N points after the first N points from TX on each radial (ITM only). Default N=10");
+        spdlog::info("     -fastq [N] Same as -fast, with quadratic delta-h interpolation");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
         spdlog::info("     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)");
@@ -440,6 +441,18 @@ void parse_cmdline(int argc, char *argv[])
         // Fast delta-h cadence for ITM radial plotting
         if (strcmp(argv[x], "-fast") == 0) {
             fast_dh_stride = 10; // default stride
+            z = x + 1;
+            if (z <= y && argv[z][0] && argv[z][0] != '-') {
+                sscanf(argv[z], "%d", &fast_dh_stride);
+                if (fast_dh_stride < 1)
+                    fast_dh_stride = 1;
+            }
+        }
+
+        // Quadratic delta-h interpolation for ITM radial plotting
+        if (strcmp(argv[x], "-fastq") == 0) {
+            fast_quadratic = true;
+            fast_dh_stride = 10;
             z = x + 1;
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 sscanf(argv[z], "%d", &fast_dh_stride);

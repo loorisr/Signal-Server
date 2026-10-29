@@ -449,6 +449,11 @@ void PlotPropPath(
 	int segment_end_y = -1;
 	bool interp_segment_active = false;
 
+	/* Quadratic interpolation needs the anchor before the current segment. */
+	float previous_start_dh = 0.0f;
+	int previous_start_y = -1;
+	bool previous_start_valid = false;
+
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
@@ -514,6 +519,10 @@ void PlotPropPath(
 					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);
 
 					if (start_new_segment) {
+						const float old_start_dh = segment_start_dh;
+						const int old_start_y = segment_start_y;
+						const bool old_valid = (old_start_y >= 0);
+
 						/* Compute actual loss and delta-h at this segment start. */
 						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
 						                        &segment_start_dh, false, &ray_ctx);
@@ -521,6 +530,14 @@ void PlotPropPath(
 						const int next_y = MIN(y + fast_dh_stride, path.length - 2);
 						segment_start_y = y;
 						segment_end_y = next_y;
+
+						if (fast_quadratic && old_valid) {
+							previous_start_dh = old_start_dh;
+							previous_start_y = old_start_y;
+							previous_start_valid = true;
+						} else {
+							previous_start_valid = false;
+						}
 
 						if (next_y > y) {
 							/* Look ahead once to get delta-h at the next full-compute point. */
@@ -538,9 +555,36 @@ void PlotPropPath(
 							interp_segment_active = false;
 						}
 					} else {
-						const float denom = float(segment_end_y - segment_start_y);
-						const float t = (denom > 0.0f) ? (float(y - segment_start_y) / denom) : 0.0f;
-						const float interp_dh = segment_start_dh + t * (segment_end_dh - segment_start_dh);
+						float interp_dh;
+						if (fast_quadratic && previous_start_valid) {
+							const float x  = path.distance[y];
+							const float x0 = path.distance[previous_start_y];
+							const float x1 = path.distance[segment_start_y];
+							const float x2 = path.distance[segment_end_y];
+
+							const float l0 = ((x - x1) * (x - x2)) /
+							                 ((x0 - x1) * (x0 - x2));
+							const float l1 = ((x - x0) * (x - x2)) /
+							                 ((x1 - x0) * (x1 - x2));
+							const float l2 = ((x - x0) * (x - x1)) /
+							                 ((x2 - x0) * (x2 - x1));
+							interp_dh = previous_start_dh * l0
+							          + segment_start_dh * l1
+							          + segment_end_dh * l2;
+
+							const float lo = MIN(previous_start_dh,
+							                     MIN(segment_start_dh, segment_end_dh));
+							const float hi = MAX(previous_start_dh,
+							                     MAX(segment_start_dh, segment_end_dh));
+							interp_dh = std::clamp(interp_dh, lo, hi);
+						} else {
+							const float denom = float(segment_end_y - segment_start_y);
+							const float t = (denom > 0.0f)
+								? (float(y - segment_start_y) / denom) : 0.0f;
+							interp_dh = segment_start_dh
+							          + t * (segment_end_dh - segment_start_dh);
+						}
+
 						float dh_for_point = interp_dh;
 						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
 						                        &dh_for_point, true, &ray_ctx);

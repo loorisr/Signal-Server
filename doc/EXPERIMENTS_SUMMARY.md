@@ -14,6 +14,7 @@ Cette page résume les pistes testées au-delà du mode exact et des modes
 | ITM area `-pm 14` | `test/itm-area` / `1f6a902` | 2,10 s | p90 30 dB, 5,9 % ≤1 dB | écarté |
 | `-fastloss` adaptatif | `perf/fastloss` / `6d6ef6c` | 3,6–4,4 s | 92–96 % ≤1 dB | écarté |
 | `-fastq` quadratique | `perf/fast-quadratic` / `c1c2ac3` | 2,13–2,40 s | identique à `-fast` | sans gain |
+| Échantillonnage angulaire `-rays 3` | `perf/spatial-coarse` / `2ec9f81` | 1,35 s | 68,9 % ≤1 dB, 92,2 % ≤5 dB | utile pour 5 dB / 90 % |
 | PGO | build local | 3,03 s / 2,37 s | identique | sans gain notable |
 
 ## Détail
@@ -52,6 +53,19 @@ se dégrade. Pas de gain exploitable.
 Profil généré sur deux cartes 50 km (exact et `-fast 20`), puis rebuild
 `-fprofile-use`. Gain observé : ~2 % (3,05 → 3,03 s) et ~1 % en `-fast 20`.
 Pas assez pour justifier un build PGO.
+
+### Échantillonnage angulaire (`-rays N`)
+
+Calcul d'un rayon sur N, puis remplissage des pixels manquants par moyenne
+des voisins calculés.
+
+- `-rays 2` : 1,79 s, 79,4 % ≤1 dB, 95,1 % ≤5 dB ;
+- `-rays 3` : 1,35 s, 68,9 % ≤1 dB, **92,2 % ≤5 dB** ;
+- `-rays 4` : 1,13 s, 60,6 % ≤1 dB, 89,4 % ≤5 dB.
+
+C'est le meilleur temps observé pour **5 dB / 90 %** (1,35 s contre 2,09 s
+pour `-fast 400 -dh 10`), mais le remplissage lisse les frontières d'ombre et
+ne permet pas d'atteindre 1 dB / 90 % ou 5 dB / 99 %.
 
 ## Ce qui reste
 

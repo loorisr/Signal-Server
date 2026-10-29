@@ -65,6 +65,13 @@ complet ni `hzns` :
 
 Bon candidat pour un mode 5 dB / 90–99 % très rapide ou une prévisualisation.
 
+**Test effectué (branche `test/itm-area`)** : `-pm 14` tourne en ~2,1 s en
+4 threads (1,5× plus vite que l'exact), mais l'écart p90 avec l'ITM profil
+complet est de **30 dB** ; seulement 5,9 % des pixels sont à ≤1 dB et 21,7 %
+à ≤5 dB. Les variantes (fenêtre complète, siting criteria, mdvar) ne changent
+rien. Le mode est donc écarté pour les objectifs 1/5 dB ; il ne reste
+utilisable que comme aperçu très grossier.
+
 ## 5. Échantillonnage spatial adaptatif
 
 Calculer une grille polaire grossière (un rayon sur deux, un point sur deux),

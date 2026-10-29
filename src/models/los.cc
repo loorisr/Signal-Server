@@ -327,6 +327,28 @@ float computeLoss(PropModel model, float tx_alt, float rx_alt, float rx_terrain_
             mode = PROP_MODE_NONE;
         }
         break;
+    case ITM_AREA:
+        {
+            /* Horizon-free delta-h window: the area model does not use the
+             * terrain profile for diffraction, only the irregularity parameter. */
+            float x1 = std::min(15.0f * tx_alt, 0.1f * dm);
+            float x2 = dm - std::min(15.0f * rx_alt, 0.1f * dm);
+            if (x2 <= x1)
+                x2 = dm;
+
+            const float delta_h = d1thx(elev, x1, x2);
+            long warnings = 0;
+
+            errnum = ITM_AREA_CR(tx_alt, rx_alt,
+                                 SITING_CRITERIA__RANDOM, SITING_CRITERIA__RANDOM,
+                                 dkm, delta_h, LR.radio_climate, LR.eno_ns_surfref,
+                                 LR.frq_mhz, LR.pol, LR.eps_dielect,
+                                 LR.sgm_conductivity, MDVAR__SINGLE_MESSAGE_MODE,
+                                 LR.conf * 100.0f, LR.rel * 100.0f,
+                                 &loss, &warnings);
+            mode = PROP_MODE_NONE;
+        }
+        break;
     case HATA:
         loss = HATApathLoss(LR.frq_mhz, tx_alt, rx_terrain_alt, dkm, pmenv);
         break;

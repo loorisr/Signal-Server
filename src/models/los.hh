@@ -26,6 +26,7 @@ enum PropModel {
     ELGI_V_U = 11,
     SOIL = 12,
     ITM_NTIA = 13,
+    ITM_AREA = 14,
 };
 
 // Angular propagation area

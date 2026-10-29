@@ -320,6 +320,9 @@ void PathReport(struct site source, struct site destination, const char *name,
 		case ITM_NTIA:
 			fprintf(fd2, "NTIA Irregular Terrain Model\n");
 			break;
+		case ITM_AREA:
+			fprintf(fd2, "NTIA Irregular Terrain Model (area mode)\n");
+			break;
 		case LOS:
 			fprintf(fd2, "Line of sight\n");
 			break;
@@ -666,7 +669,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 				20.0 * log10(voltage));
 		}
 
-		if (propmodel == ITM_LR || propmodel == ITM_P2P || propmodel == ITM_NTIA) {
+		if (propmodel == ITM_LR || propmodel == ITM_P2P || propmodel == ITM_NTIA || propmodel == ITM_AREA) {
 			fprintf(fd2, "Longley-Rice model error number: %d",
 				errnum);
 

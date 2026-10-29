@@ -56,4 +56,7 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 			     float *cached_dh, bool reuse_cached_dh,
 			     const ITM_ray_ctx *ray = nullptr);
 
+/* Legacy ITM terrain irregularity parameter over [x1, x2] (meters). */
+float d1thx(float pfl[], const float &x1, const float &x2);
+
 #endif /* _ITWOM30_HH_ */

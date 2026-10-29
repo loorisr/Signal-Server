@@ -11,12 +11,12 @@ Cette page résume les pistes testées au-delà du mode exact et des modes
 | `-fast 50` | idem | 2,24 s | 99,34 % ≤1 dB | retenu |
 | `-fast 100 -dh 50` | idem | 2,14 s | 96,56 % ≤1 dB, 99,84 % ≤5 dB | retenu |
 | `-fast 400 -dh 10` | idem | 2,09 s | 97,23 % ≤5 dB | retenu |
-| ITM area `-pm 14` | `test/itm-area` / `1f6a902` | 2,10 s | p90 30 dB, 5,9 % ≤1 dB | écarté |
-| `-fastloss` adaptatif | `perf/fastloss` / `6d6ef6c` | 3,6–4,4 s | 92–96 % ≤1 dB | écarté |
-| `-fastq` quadratique | `perf/fast-quadratic` / `c1c2ac3` | 2,13–2,40 s | identique à `-fast` | sans gain |
-| Échantillonnage angulaire `-rays 3` | `perf/spatial-coarse` / `2ec9f81` | 1,35 s | 68,9 % ≤1 dB, 92,2 % ≤5 dB | utile pour 5 dB / 90 % |
+| ITM area `-pm 14` | `test/itm-area` / `b0d9820` | 2,10 s | p90 30 dB, 5,9 % ≤1 dB | écarté |
+| `-fastloss` adaptatif | `perf/fastloss` / `b5cfca3` | 3,6–4,4 s | 92–96 % ≤1 dB | écarté |
+| `-fastq` quadratique | `perf/fast-quadratic` / `e3ba1a2` | 2,13–2,40 s | identique à `-fast` | sans gain |
+| Échantillonnage angulaire `-rays 3` | `perf/spatial-coarse` / `d7334e8` | 1,35 s | 68,9 % ≤1 dB, 92,2 % ≤5 dB | utile pour 5 dB / 90 % |
 | Remplissage angulaire par profils | test local | 3,11 s (`-rays 2`) | 83,4 % ≤1 dB, 95,8 % ≤5 dB | dominé par le remplissage simple |
-| Interpolation des horizons `-fasthz 10` | `perf/fast-hz` / `8b7b424` | 2,62 s | 61,7 % ≤1 dB, 80,1 % ≤5 dB | écarté |
+| Interpolation des horizons `-fasthz 10` | `perf/fast-hz` / `d8f01b1` | 2,62 s | 61,7 % ≤1 dB, 80,1 % ≤5 dB | écarté |
 | PGO | build local | 3,03 s / 2,37 s | identique | sans gain notable |
 
 ## Détail

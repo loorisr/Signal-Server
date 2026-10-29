@@ -1,6 +1,6 @@
 # Pistes d'optimisation restantes
 
-État après les commits `dbb37f0` et `0b497b3` : le mode exact tourne autour de
+État après les commits `ad752e8` et `1efb1be` : le mode exact tourne autour de
 11,1 s en 1 thread et 3,16 s en 4 threads sur la carte de validation
 (45.0N 5.0E (point de test générique), 100 km, 1200 ppd, ITM, txh 10 m, rxh 10 m, 145 MHz, 50 W).
 

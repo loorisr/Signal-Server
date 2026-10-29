@@ -4,8 +4,8 @@ Branche : `perf/itm-exact-deterministic`
 
 Commits de la branche :
 
-- `dbb37f0` — *Optimize ITM area coverage and make output deterministic*
-- `0b497b3` — *Parallelize owner map and speed up delta-h quantile selection*
+- `ad752e8` — *Optimize ITM area coverage and make output deterministic*
+- `1efb1be` — *Parallelize owner map and speed up delta-h quantile selection*
 
 Ce document décrit les changements apportés pour accélérer le calcul ITM
 sur une zone, sans utiliser `-fast` ni `-dh`, et en conservant des résultats
@@ -158,7 +158,7 @@ SS_RAW_DUMP=/tmp/carte.raw ./build/signalserver ... -o carte
 Cela a servi à vérifier pixel à pixel que les optimisations ne modifiaient
 pas les résultats.
 
-## 8. Travaux complémentaires (commit `0b497b3`)
+## 8. Travaux complémentaires (commit `1efb1be`)
 
 ### Parallélisation de `owner_map`
 
@@ -196,8 +196,8 @@ Deux tentatives ont été mesurées puis abandonnées :
 | Version | 1 thread | 4 threads |
 |---|---:|---:|
 | Code original | 15,04 s | 4,12 s |
-| Commit `dbb37f0` (exact) | 11,72 s | 3,43 s |
-| Commit `0b497b3` (exact) | ~11,1–11,3 s | 3,16 s |
+| Commit `ad752e8` (exact) | 11,72 s | 3,43 s |
+| Commit `1efb1be` (exact) | ~11,1–11,3 s | 3,16 s |
 
 Validation :
 

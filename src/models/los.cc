@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
+#include <functional>
 #include <stdio.h>
 #include <math.h>
 #include <atomic>
@@ -184,7 +185,10 @@ namespace {
                 PlotLOSPath(r->source, edge);
             } else {
                 current_ray_index = ray;
-                PlotPropPath(r->source, edge);
+                if (prop_model == ITM_LR && fastloss_stride > 0 && !knifeedge)
+                    PlotPropPathFastLoss(r->source, edge);
+                else
+                    PlotPropPath(r->source, edge);
             }
 
             progress.count++;
@@ -591,6 +595,156 @@ void PlotPropPath(
 			}
 		}
 	}
+}
+
+/* Interpolate the full ITM loss along a radial instead of recomputing it at
+ * every pixel.  Full ITM is evaluated at anchors; intermediate pixels get a
+ * linear interpolation in distance.  Only pixels owned by this radial are
+ * written. */
+void PlotPropPathFastLoss(struct site source, struct site destination)
+{
+	if (debug) cnt_PlotPropPath++;
+
+	ReadPath(source, destination);
+	if (path.length < 5 || fastloss_stride < 1)
+		return;
+
+	const int last = path.length - 2;
+
+	elev[1] = path.distance[2] - path.distance[1];
+	for (int x = 1; x < path.length - 1; x++)
+		elev[x + 2] = clutter + path.elevation[x];
+	elev[2] = path.elevation[0];
+	elev[path.length + 1] = path.elevation[path.length - 1];
+
+	thread_local ITM_ray_ctx ray_ctx;
+	ray_ctx.build(elev, path.length + 1);
+
+	const ITM_ctx itm_ctx = ITM_ctx_init(source.alt, LR.eps_dielect,
+		LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
+		LR.radio_climate, LR.pol, LR.conf, LR.rel);
+
+	const float dbm_const = (LR.erp > 0.0f)
+		? 30.0f + 10.0f * log10f(LR.erp) + 2.14f : 0.0f;
+	const float field_const = (LR.erp > 0.0f)
+		? 139.4f + 20.0f * log10f(LR.frq_mhz) + 10.0f * log10f(LR.erp / 1000.0f)
+		: 0.0f;
+
+	const int azimuth = (int)rint(Azimuth(source, destination));
+	const float xmtr_alt = FOUR_THIRDS_EARTH + source.alt + path.elevation[0];
+	const float xmtr_alt2 = xmtr_alt * xmtr_alt;
+
+	/* Elevation angle of the first obstruction, only needed when an antenna
+	 * elevation pattern is loaded. */
+	auto elevation_at = [&](int y) -> float {
+		if (!got_elevation_pattern)
+			return 0.0f;
+
+		float dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
+		float cos_rcvr_angle = (xmtr_alt2 + path.distance[y] * path.distance[y]
+		                        - dest_alt * dest_alt) /
+		                       (2.0f * xmtr_alt * path.distance[y]);
+		cos_rcvr_angle = std::clamp(cos_rcvr_angle, -1.0f, 1.0f);
+
+		float cos_test_angle = 0.0f;
+		bool blocked = false;
+		for (int x = 2; x < y && !blocked; x++) {
+			const float distance_test = path.distance[x];
+			const float test_alt = FOUR_THIRDS_EARTH + path.elevation[x] + clutter;
+			cos_test_angle = (xmtr_alt2 + distance_test * distance_test
+			                  - test_alt * test_alt) /
+			                 (2.0f * xmtr_alt * distance_test);
+			cos_test_angle = std::clamp(cos_test_angle, -1.0f, 1.0f);
+			if (cos_rcvr_angle >= cos_test_angle)
+				blocked = true;
+		}
+
+		const float ca = blocked ? cos_test_angle : cos_rcvr_angle;
+		return acos(std::clamp(ca, -1.0f, 1.0f)) * RAD2DEG - 90.0f;
+	};
+
+	auto write_pixel = [&](int y, float loss, float elevation) {
+		const int x = (int)rint(10.0 * (10.0 - elevation));
+		if (x >= 0 && x <= 1000)
+			loss -= LR.antenna_pattern[azimuth][x];
+
+		int px, py;
+		if (!can_process(path.lat[y], path.lon[y], px, py))
+			return;
+
+		if (LR.erp != 0.0f) {
+			if (dbm)
+				PutSignalXY(px, py, dbm_const - loss);
+			else
+				PutSignalXY(px, py, field_const - loss);
+		} else {
+			PutSignalXY(px, py, loss);
+		}
+	};
+
+	auto compute_loss = [&](int y, float &loss, PropagationMode &mode) {
+		if (debug) cnt_computeLoss++;
+		elev[0] = y - 1;
+		int errnum = 0;
+		mode = PROP_MODE_NONE;
+		point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode,
+		                        errnum, NULL, false, &ray_ctx);
+	};
+
+	auto fill_segment = [&](int y0, float loss0, int y1, float loss1) {
+		const float d0 = path.distance[y0];
+		const float d1 = path.distance[y1];
+		const float inv_dd = (d1 > d0) ? 1.0f / (d1 - d0) : 0.0f;
+		for (int k = y0; k < y1; k++) {
+			const float t = (path.distance[k] - d0) * inv_dd;
+			const float loss = loss0 + t * (loss1 - loss0);
+			write_pixel(k, loss, elevation_at(k));
+		}
+	};
+
+	std::function<void(int, float, PropagationMode, int, float,
+	                   PropagationMode, int)> refine =
+		[&](int y0, float loss0, PropagationMode mode0,
+		    int y1, float loss1, PropagationMode mode1, int depth) {
+			if (y1 <= y0 + 1)
+				return;
+
+			const int ym = (y0 + y1) / 2;
+			float lossm = 0.0f;
+			PropagationMode modem = PROP_MODE_NONE;
+			compute_loss(ym, lossm, modem);
+
+			const float linear = 0.5f * (loss0 + loss1);
+			const bool same_mode = (modem == mode0 && modem == mode1);
+			if (same_mode && fabsf(lossm - linear) <= fastloss_tol && depth < 8) {
+				fill_segment(y0, loss0, ym, lossm);
+				fill_segment(ym, lossm, y1, loss1);
+			} else {
+				refine(y0, loss0, mode0, ym, lossm, modem, depth + 1);
+				refine(ym, lossm, modem, y1, loss1, mode1, depth + 1);
+			}
+		};
+
+	int y = 2;
+	float loss0 = 0.0f;
+	PropagationMode mode0 = PROP_MODE_NONE;
+	compute_loss(y, loss0, mode0);
+
+	while (y < last) {
+		const int y1 = MIN(y + fastloss_stride, last);
+		float loss1 = 0.0f;
+		PropagationMode mode1 = PROP_MODE_NONE;
+		compute_loss(y1, loss1, mode1);
+
+		refine(y, loss0, mode0, y1, loss1, mode1, 0);
+
+		// The anchor itself is written by the next segment (or at the end).
+		y = y1;
+		loss0 = loss1;
+		mode0 = mode1;
+	}
+
+	write_pixel(last, loss0, elevation_at(last));
 }
 
 // Divide a circular plot area into worker slices and render each one.

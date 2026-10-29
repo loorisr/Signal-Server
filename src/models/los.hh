@@ -50,6 +50,7 @@ void PlotLOSPath(struct site source, struct site destination);
 
 // Plot propagation loss or signal along the path between two sites.
 void PlotPropPath(struct site source, struct site destination);
+void PlotPropPathFastLoss(struct site source, struct site destination);
 
 // Plot a radial propagation surface centered on the source site.
 void PlotPropagationRadius(struct site source);

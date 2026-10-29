@@ -50,6 +50,17 @@ Interpolation à trois ancres avec clamp. Les temps et précisions sont dans le
 bruit par rapport à `-fast` ; à N=50, p99,9 passe de 4 à 3 dB mais le maximum
 se dégrade. Pas de gain exploitable.
 
+### Termes de variabilité (`avar`)
+
+Mesure du coût de `avar` en désactivant l'appel dans le chemin rapide :
+
+- exact normal : 11,32 s en 1 thread ;
+- sans `avar` : 11,20 s.
+
+Soit ~0,12 s, environ **1 %** du temps exact. Une approximation ou une
+interpolation de `avar` ne peut donc pas améliorer significativement le
+temps ; elle n'a pas été implémentée pour ne pas dégrader la précision.
+
 ### PGO
 
 Profil généré sur deux cartes 50 km (exact et `-fast 20`), puis rebuild

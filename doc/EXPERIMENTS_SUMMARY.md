@@ -91,6 +91,21 @@ Même à N=10 : 2,62 s, 61,7 % ≤1 dB seulement. Les horizons changent de faço
 discontinue quand un obstacle devient dominant ; l'interpolation est trop
 grossière.
 
+### Erreur de contour (seuil `-rt`)
+
+Pourcentage de pixels dont le côté du seuil diffère de la référence exacte :
+
+| Mode | Temps | seuil -120 dBm | -110 dBm | -100 dBm |
+|---|---:|---:|---:|---:|
+| `-fast 20` | 2,46 s | 0,08 % | 0,09 % | 0,04 % |
+| `-fast 50` | 2,24 s | 0,14 % | 0,17 % | 0,13 % |
+| `-fast 100 -dh 50` | 2,14 s | 0,38 % | 0,51 % | 0,33 % |
+| `-rays 3` | 1,35 s | 2,07 % | 1,40 % | 0,58 % |
+
+Si l'usage est une carte de **contour** et non un raster dBm complet,
+`-rays 3` donne une frontière à ~1–2 % près en 1,35 s. `-fast 20` est presque
+exact sur le contour (0,08 %) en 2,46 s.
+
 ## Ce qui reste
 
 - **Échantillonnage spatial adaptatif** : calculer une grille polaire

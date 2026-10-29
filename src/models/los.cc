@@ -449,6 +449,12 @@ void PlotPropPath(
 	int segment_end_y = -1;
 	bool interp_segment_active = false;
 
+	ITM_horizon hz_start = {};
+	ITM_horizon hz_end = {};
+	int hz_start_y = -1;
+	int hz_end_y = -1;
+	bool hz_segment_active = false;
+
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
@@ -510,7 +516,51 @@ void PlotPropPath(
 
 			if (fast_itm) {
 				if (debug) cnt_computeLoss++;
-				if (fast_dh_stride > 0 && y > fast_dh_stride) {
+				if (fast_hz_stride > 0 && y > fast_hz_stride) {
+					const bool start_new_segment = (!hz_segment_active || y >= hz_end_y);
+
+					if (start_new_segment) {
+						ITM_horizon_override(nullptr);
+						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+						                        NULL, false, &ray_ctx);
+						hz_start = ITM_last_horizon();
+
+						const int next_y = MIN(y + fast_hz_stride, path.length - 2);
+						hz_start_y = y;
+						hz_end_y = next_y;
+
+						if (next_y > y) {
+							const float saved_elev0 = elev[0];
+							float tmp_loss = 0.0f;
+							PropagationMode tmp_mode = PROP_MODE_NONE;
+							int tmp_errnum = 0;
+
+							elev[0] = next_y - 1;
+							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, tmp_loss,
+							                        tmp_mode, tmp_errnum, NULL, false, &ray_ctx);
+							hz_end = ITM_last_horizon();
+							elev[0] = saved_elev0;
+							hz_segment_active = true;
+						} else {
+							hz_segment_active = false;
+						}
+					} else {
+						const float denom = float(hz_end_y - hz_start_y);
+						const float t = (denom > 0.0f)
+							? (float(y - hz_start_y) / denom) : 0.0f;
+
+						ITM_horizon hz;
+						hz.dl0  = hz_start.dl0  + t * (hz_end.dl0  - hz_start.dl0);
+						hz.dl1  = hz_start.dl1  + t * (hz_end.dl1  - hz_start.dl1);
+						hz.the0 = hz_start.the0 + t * (hz_end.the0 - hz_start.the0);
+						hz.the1 = hz_start.the1 + t * (hz_end.the1 - hz_start.the1);
+
+						ITM_horizon_override(&hz);
+						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+						                        NULL, false, &ray_ctx);
+						ITM_horizon_override(nullptr);
+					}
+				} else if (fast_dh_stride > 0 && y > fast_dh_stride) {
 					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);
 
 					if (start_new_segment) {

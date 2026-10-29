@@ -1647,8 +1647,35 @@ float avar(float zzt, float zzl, float zzc, prop_type & prop, propv_type & propv
 	return avarv;
 }
 
+static thread_local bool hz_override_active = false;
+static thread_local ITM_horizon hz_override;
+static thread_local ITM_horizon hz_last;
+
+void ITM_horizon_override(const ITM_horizon *hz)
+{
+    if (hz == nullptr) {
+        hz_override_active = false;
+    } else {
+        hz_override = *hz;
+        hz_override_active = true;
+    }
+}
+
+ITM_horizon ITM_last_horizon()
+{
+    return hz_last;
+}
+
 void hzns(float pfl[], prop_type & prop)
 {
+    if (hz_override_active) {
+        prop.dl[0] = hz_override.dl0;
+        prop.dl[1] = hz_override.dl1;
+        prop.the[0] = hz_override.the0;
+        prop.the[1] = hz_override.the1;
+        return;
+    }
+
     const int np = static_cast<int>(pfl[0]);
     if (np < 2) {
         // prop.dl and prop.the must be set; skip with safe defaults to avoid
@@ -1701,6 +1728,11 @@ void hzns(float pfl[], prop_type & prop)
 
     prop.the[0] = the0;
     prop.the[1] = the1;
+
+    hz_last.dl0 = prop.dl[0];
+    hz_last.dl1 = prop.dl[1];
+    hz_last.the0 = prop.the[0];
+    hz_last.the1 = prop.the[1];
 }
 
 /*

@@ -56,4 +56,14 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 			     float *cached_dh, bool reuse_cached_dh,
 			     const ITM_ray_ctx *ray = nullptr);
 
+/* Horizon state produced by hzns().  Setting an override makes the next
+ * hzns() call reuse these values instead of scanning the profile. */
+struct ITM_horizon {
+	float dl0, dl1;
+	float the0, the1;
+};
+
+void ITM_horizon_override(const ITM_horizon *hz); /* nullptr disables */
+ITM_horizon ITM_last_horizon();
+
 #endif /* _ITWOM30_HH_ */

@@ -104,6 +104,7 @@ extern int pmenv;
 extern int number_threads;
 extern int dh_n;
 extern int fast_dh_stride;
+extern int fast_hz_stride;
 
 extern bool ppa;
 extern int normalise;

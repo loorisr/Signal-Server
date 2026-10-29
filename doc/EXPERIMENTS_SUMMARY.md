@@ -61,6 +61,43 @@ Soit ~0,12 s, environ **1 %** du temps exact. Une approximation ou une
 interpolation de `avar` ne peut donc pas améliorer significativement le
 temps ; elle n'a pas été implémentée pour ne pas dégrader la précision.
 
+### Maths en float
+
+Remplacement global des appels `exp/log/sqrt/pow/atan/sin/cos` par leurs
+variantes float dans `itwom3.0.cc` :
+
+- 1 thread : 11,28 s contre 11,32 s ;
+- 4 threads : 3,09 s contre 3,09 s ;
+- 47 pixels à ±1 dB au lieu de 43.
+
+Aucun gain : les arguments float étaient déjà résolus en `expf`/`logf` par
+les surcharges C++ ; les appels restants ne sont pas le goulot.
+
+### Micro-optimisations ITM
+
+Suppression du `= {}` de `prop_type`/`propv_type`/`propa_type` dans le
+chemin rapide :
+
+- 1 thread : 11,48 s ; 4 threads : 3,11 s ;
+- 3 437 pixels à ±1 dB (champs non initialisés) ;
+- aucun gain de temps.
+
+Écarté. Les branches `if (debug)` et le prefetch n'ont pas été retenus non
+plus : coût négligeable devant le calcul.
+
+### iGPU
+
+Le N100 dispose d'un iGPU Intel UHD (24 EU environ) avec OpenCL.
+Portage possible mais peu attractif :
+
+- ITM est très branché (horizons, diffraction) et peu vectorisable ;
+- la mémoire est partagée avec le CPU (un seul canal sur N100) ;
+- il faudrait transférer/maintenir les profils et les paramètres ;
+- le gain serait probablement nul ou négatif pour l'ITM complet.
+
+L'iGPU pourrait éventuellement servir aux modèles simples (LOS, FSPL, Hata)
+ou au rendu, pas au cœur ITM. Le portage complet n'est pas recommandé.
+
 ### PGO
 
 Profil généré sur deux cartes 50 km (exact et `-fast 20`), puis rebuild

@@ -71,6 +71,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -hd Use HD mode (1'=30m), (optional, default 3'=90m)");
         spdlog::info("     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=direct pfl). Default: itm legacy code");
         spdlog::info("     -fast [N] Recompute ITM delta-h every N points after the first N points from TX on each radial (ITM only). Default N=10");
+        spdlog::info("     -rays [N] Compute only one radial out of N, then fill gaps from neighbours");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
         spdlog::info("     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)");
@@ -445,6 +446,17 @@ void parse_cmdline(int argc, char *argv[])
                 sscanf(argv[z], "%d", &fast_dh_stride);
                 if (fast_dh_stride < 1)
                     fast_dh_stride = 1;
+            }
+        }
+
+        // Coarse angular sampling: one active radial out of N
+        if (strcmp(argv[x], "-rays") == 0) {
+            ray_stride = 2;
+            z = x + 1;
+            if (z <= y && argv[z][0] && argv[z][0] != '-') {
+                sscanf(argv[z], "%d", &ray_stride);
+                if (ray_stride < 1)
+                    ray_stride = 1;
             }
         }
 

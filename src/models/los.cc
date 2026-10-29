@@ -110,6 +110,48 @@ namespace {
 		}
 	}
 
+	/* Fill pixels owned by skipped radials from their already-computed
+	 * neighbours.  Used only by the coarse angular sampling mode. */
+	void fill_missing_pixels()
+	{
+		const int H = dem_height_px;
+		const int W = dem_width_px;
+
+		for (int pass = 0; pass < 16; ++pass) {
+			bool changed = false;
+
+			for (int x = 1; x < H - 1; ++x) {
+				for (int y = 1; y < W - 1; ++y) {
+					const size_t idx = (size_t)x * W + y;
+					if (owner_map[idx] < 0)
+						continue;
+
+					int sum = 0, count = 0;
+					for (int dx = -1; dx <= 1; ++dx) {
+						for (int dy = -1; dy <= 1; ++dy) {
+							if (dx == 0 && dy == 0)
+								continue;
+							const size_t nidx = (size_t)(x + dx) * W + (y + dy);
+							if (owner_map[nidx] == -2) {
+								sum += dem_signal[x + dx][y + dy];
+								count++;
+							}
+						}
+					}
+
+					if (count > 0) {
+						dem_signal[x][y] = sum / count;
+						owner_map[idx] = -2;
+						changed = true;
+					}
+				}
+			}
+
+			if (!changed)
+				break;
+		}
+	}
+
 	/* Assign every pixel to the first ray that reaches it in the global ray
 	 * order.  The path sampling is parallel, but the merge is sequential and
 	 * ordered, so the result is identical to the old single-threaded pass. */
@@ -169,6 +211,12 @@ namespace {
             const int ray = next_ray_index.fetch_add(1, std::memory_order_relaxed);
             if (ray >= total_ray_count)
                 break;
+
+            if (ray_stride > 1 && prop_model != LOS &&
+                (ray % ray_stride) != 0) {
+                progress.count++;
+                continue;
+            }
 
             const float rad = ray_angles[ray];
 
@@ -678,6 +726,9 @@ void PlotPropagationRadius(struct site source)
     for (auto& f : futures)
         f.get();
     futures.clear();
+
+    if (ray_stride > 1 && prop_model != LOS)
+        fill_missing_pixels();
 }
 
 // Check whether any terrain point blocks the direct path.

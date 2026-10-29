@@ -15,6 +15,8 @@ Cette page résume les pistes testées au-delà du mode exact et des modes
 | `-fastloss` adaptatif | `perf/fastloss` / `6d6ef6c` | 3,6–4,4 s | 92–96 % ≤1 dB | écarté |
 | `-fastq` quadratique | `perf/fast-quadratic` / `c1c2ac3` | 2,13–2,40 s | identique à `-fast` | sans gain |
 | Échantillonnage angulaire `-rays 3` | `perf/spatial-coarse` / `2ec9f81` | 1,35 s | 68,9 % ≤1 dB, 92,2 % ≤5 dB | utile pour 5 dB / 90 % |
+| Remplissage angulaire par profils | test local | 3,11 s (`-rays 2`) | 83,4 % ≤1 dB, 95,8 % ≤5 dB | dominé par le remplissage simple |
+| Interpolation des horizons `-fasthz 10` | `perf/fast-hz` / `8b7b424` | 2,62 s | 61,7 % ≤1 dB, 80,1 % ≤5 dB | écarté |
 | PGO | build local | 3,03 s / 2,37 s | identique | sans gain notable |
 
 ## Détail
@@ -66,6 +68,28 @@ des voisins calculés.
 C'est le meilleur temps observé pour **5 dB / 90 %** (1,35 s contre 2,09 s
 pour `-fast 400 -dh 10`), mais le remplissage lisse les frontières d'ombre et
 ne permet pas d'atteindre 1 dB / 90 % ou 5 dB / 99 %.
+
+### Remplissage angulaire par profils
+
+Calcul des rayons actifs en profil complet, puis interpolation entre les deux
+rayons encadrants à distance égale, au lieu de la moyenne 8-voisins.
+
+- `-rays 2` : 3,11 s, 83,4 % ≤1 dB, 95,8 % ≤5 dB ;
+- `-rays 3` : 2,35 s, 76,4 % ≤1 dB, 93,9 % ≤5 dB ;
+- `-rays 4` : 1,94 s, 72,0 % ≤1 dB, 92,5 % ≤5 dB.
+
+Meilleure précision que la moyenne simple, mais le coût des profils complets
+et du remplissage annule le gain. Dominé par `-rays 3` moyenne (1,35 s) pour
+5 dB / 90 %.
+
+### Interpolation des horizons (`-fasthz`)
+
+Calcul de `dl0`, `dl1`, `the0`, `the1` aux ancres et interpolation pour les
+points intermédiaires, le reste de l'ITM étant calculé à chaque pixel.
+
+Même à N=10 : 2,62 s, 61,7 % ≤1 dB seulement. Les horizons changent de façon
+discontinue quand un obstacle devient dominant ; l'interpolation est trop
+grossière.
 
 ## Ce qui reste
 

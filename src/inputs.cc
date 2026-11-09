@@ -13,6 +13,10 @@
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <string>
+#include <cstring>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cstdio>
 
 #include "common.hh"
 #include "main.hh"
@@ -327,6 +331,74 @@ int LoadPAT(char *az_filename, char *el_filename)
  * Returns 1 on success, 0 if already loaded, negative errno on error.
  */
 
+/* Decoded-tile cache (-demcache).  A cache file holds the tile exactly as
+ * GDAL decoded it for this ppd: a small header then ppd*ppd float32 values.
+ * It is only used when it is newer than the source GeoTIFF. */
+namespace {
+struct DemCacheHeader {
+    char magic[8];          /* "SSDEMv1\0" */
+    int32_t ppd;
+    int32_t reserved;
+};
+
+std::string dem_cache_file(const std::string &filename)
+{
+    return DEM_cache_path + filename + "." + std::to_string(ppd) + ".f32";
+}
+
+/* Read the cached tile into buf (ppd*ppd floats).  Returns false if there is
+ * no valid, up-to-date cache entry. */
+bool dem_cache_read(const std::string &filename, const std::string &src_path, float *buf)
+{
+    if (DEM_cache_path.empty())
+        return false;
+    const std::string cpath = dem_cache_file(filename);
+    struct stat cst, sst;
+    if (stat(cpath.c_str(), &cst) != 0)
+        return false;
+    if (stat(src_path.c_str(), &sst) == 0 && sst.st_mtime > cst.st_mtime)
+        return false;           /* source tile changed since caching */
+    const size_t n = (size_t)ppd * ppd;
+    if ((size_t)cst.st_size != sizeof(DemCacheHeader) + n * sizeof(float))
+        return false;
+
+    FILE *f = fopen(cpath.c_str(), "rb");
+    if (!f)
+        return false;
+    DemCacheHeader h;
+    bool ok = fread(&h, sizeof h, 1, f) == 1 &&
+              memcmp(h.magic, "SSDEMv1", 8) == 0 && h.ppd == ppd &&
+              fread(buf, sizeof(float), n, f) == n;
+    fclose(f);
+    return ok;
+}
+
+/* Store a decoded tile.  Written to a temporary file then renamed, so that
+ * concurrent runs never see a partial file. */
+void dem_cache_write(const std::string &filename, const float *buf)
+{
+    if (DEM_cache_path.empty())
+        return;
+    const std::string cpath = dem_cache_file(filename);
+    const std::string tmp = cpath + ".tmp" + std::to_string(getpid());
+    FILE *f = fopen(tmp.c_str(), "wb");
+    if (!f) {
+        spdlog::warn("DEM cache: cannot write {}: {}", tmp, strerror(errno));
+        return;
+    }
+    DemCacheHeader h = {};
+    memcpy(h.magic, "SSDEMv1", 8);
+    h.ppd = ppd;
+    const size_t n = (size_t)ppd * ppd;
+    bool ok = fwrite(&h, sizeof h, 1, f) == 1 && fwrite(buf, sizeof(float), n, f) == n;
+    ok = (fclose(f) == 0) && ok;
+    if (!ok || rename(tmp.c_str(), cpath.c_str()) != 0) {
+        spdlog::warn("DEM cache: cannot write {}", cpath);
+        unlink(tmp.c_str());
+    }
+}
+} // namespace
+
 // Load a single Copernicus DEM tile into the in-memory terrain buffers.
 int LoadCopernicus(int tile_lat, int tile_lon)
 {
@@ -342,30 +414,38 @@ int LoadCopernicus(int tile_lat, int tile_lon)
         res_str, ns, lat_abs, ew, lon_abs);
 
     std::string path_plus_name = DEM_path + filename;
-    GDALDatasetH ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
-    if (ds == NULL) {
-        spdlog::debug("LoadCopernicus: file not found: {}", filename);
-        return -ENOENT;
-    }
-
-    spdlog::debug("LoadCopernicus: loading \"{}\"...", path_plus_name);
-
-    GDALRasterBandH band = GDALGetRasterBand(ds, 1);
-
-    int src_x = GDALGetRasterXSize(ds);
-    int src_y = GDALGetRasterYSize(ds);
-
     float *buf = new float[ppd * ppd];
-    CPLErr err = (CPLErr)GDALRasterIO(band, GF_Read,
-                                      0, 0, src_x, src_y,
-                                      buf, ppd, ppd,
-                                      GDT_Float32, 0, 0);
-    GDALClose(ds);
 
-    if (err != CE_None) {
-        spdlog::error("LoadCopernicus: RasterIO failed for {}", path_plus_name);
-        delete[] buf;
-        return -EIO;
+    if (dem_cache_read(filename, path_plus_name, buf)) {
+        spdlog::debug("LoadCopernicus: \"{}\" read from cache", filename);
+    } else {
+        GDALDatasetH ds = GDALOpen(path_plus_name.c_str(), GA_ReadOnly);
+        if (ds == NULL) {
+            spdlog::debug("LoadCopernicus: file not found: {}", filename);
+            delete[] buf;
+            return -ENOENT;
+        }
+
+        spdlog::debug("LoadCopernicus: loading \"{}\"...", path_plus_name);
+
+        GDALRasterBandH band = GDALGetRasterBand(ds, 1);
+
+        int src_x = GDALGetRasterXSize(ds);
+        int src_y = GDALGetRasterYSize(ds);
+
+        CPLErr err = (CPLErr)GDALRasterIO(band, GF_Read,
+                                          0, 0, src_x, src_y,
+                                          buf, ppd, ppd,
+                                          GDT_Float32, 0, 0);
+        GDALClose(ds);
+
+        if (err != CE_None) {
+            spdlog::error("LoadCopernicus: RasterIO failed for {}", path_plus_name);
+            delete[] buf;
+            return -EIO;
+        }
+
+        dem_cache_write(filename, buf);
     }
 
     int gx_base = (tile_lat - dem_min_lat) * ppd;

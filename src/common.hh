@@ -119,6 +119,7 @@ extern float field_strength;
 extern float altitudeLR;
 
 extern std::string DEM_path;
+extern std::string DEM_cache_path;
 extern std::string color_palette;
 extern std::string output_filename;
 

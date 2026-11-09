@@ -48,6 +48,8 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -dem Directory containing Copernicus DEM GeoTIFF COG tiles");
         spdlog::info("                  (Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif for 1200 ppd,");
         spdlog::info("                   Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif for 3600 ppd)");
+        spdlog::info("     -demcache (Optional) Directory for a cache of decoded DEM tiles (raw float32). Filled on first use,");
+        spdlog::info("                  then read instead of decompressing the GeoTIFF. Same elevations, faster loading.");
         spdlog::info("     -color Color palette: heat (default), jet, turbo, viridis, magma, plasma, inferno, hot, parula, gray, hsv, cubehelix, cividis, github");
         spdlog::info("Input:");
         spdlog::info("     -lat Tx Latitude (decimal degrees) -70/+70");
@@ -252,6 +254,13 @@ void parse_cmdline(int argc, char *argv[])
 
             if (z <= y && argv[z][0] && argv[z][0] != '-')
                 DEM_path = argv[z];
+        }
+
+        if (strcmp(argv[x], "-demcache") == 0) {
+            z = x + 1;
+
+            if (z <= y && argv[z][0] && argv[z][0] != '-')
+                DEM_cache_path = argv[z];
         }
 
         if (strcmp(argv[x], "-lat") == 0) {
@@ -578,6 +587,9 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::error("Frequency too low for Propagation model");
         exit(EINVAL);
     }
+
+    if (!DEM_cache_path.empty() && DEM_cache_path.back() != '/')
+        DEM_cache_path += '/';
 
     /* Ensure a trailing '/' is present in DEM_path */
 

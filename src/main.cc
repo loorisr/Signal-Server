@@ -50,6 +50,7 @@
 int ppd = 1200;
 
 std::string DEM_path;
+std::string DEM_cache_path;   /* -demcache: decoded tile cache (empty = off) */
 std::string color_palette = "heat";
 std::string output_filename;
 

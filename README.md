@@ -23,10 +23,10 @@ Improvements:
 - add NTIA official ITM code
 - generate geotiff only (no more heavy ppm files)
 - `-dh` to select Delta-H computation method for ITM (default: ITM legacy code; or `calculate_delta_h_adjustable` with N interpolated points, no interpolation, recommended >=50, allows for 30-40% faster calculation)
-- `-fast [N]` to speed up ITM by recalculating Delta-H every N points after the first N points from TX on each radial, with linear interpolation between points (default when enabled: `N=10`)
+- two ITM (`-pm 1`) speed modes, see [doc/ITM_MODES.md](doc/ITM_MODES.md):
+  - **exact (default)**: bit-identical to the original single-threaded code, for any thread count (1.4× faster than the original single-threaded run);
+  - **`-fast [N]`** (default `N=10`): horizons from per-ray convex hulls (O(log n) instead of O(n) per pixel) and delta-h recomputed every N points with linear interpolation in between. `-fast 1` is quasi-exact (≤1 dB on 99.99 % of pixels), `-fast 10` is ~3.6× faster than the original with 99.98 % of pixels within 1 dB on a 100 km Alpine map
 - deterministic multi-threading: each output pixel is assigned to a fixed ray, so the same map is produced with 1, 4 or N threads
-- faster exact ITM delta-h percentile selection (same results, less work per point)
-- `-fast 20` is the recommended ±1 dB compromise on the validation map (99.9 % of pixels within 1 dB, maximum error around 9 dB on isolated shadow boundaries)
 
 
 # Signal Server
@@ -113,7 +113,7 @@ Input:
      -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)
      -hd Use HD mode (1'=30m), (optional, default 3'=90m)
      -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=no interpolation). Default: itm legacy code.
-     -fast [N] Recompute ITM delta-h every N points after the first N points from TX on each radial (ITM only), using linear interpolation in between. Default N=10
+     -fast [N] Faster, approximate ITM (ITM only): fast horizon search, and delta-h recomputed every N points after the first N points from TX on each radial, with linear interpolation in between. Default N=10. -fast 1 = fast horizons only (quasi-exact)
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)

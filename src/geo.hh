@@ -54,7 +54,9 @@ int GetSignal(float lat, float lon);
 /* Path / elevation geometry */
 float ElevationAngle(struct site source, struct site destination);
 float ElevationAngle2(struct site source, struct site destination, float er);
-void ReadPath(struct site source, struct site destination);
+/* with_elevation=false skips the DEM lookups (path.elevation is then left
+ * unset), for callers that only need the sampled coordinates. */
+void ReadPath(struct site source, struct site destination, bool with_elevation = true);
 void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f, FILE *outfile);
 
 /* Memory management */

@@ -202,7 +202,7 @@ static void alloc_path(int size)
 }
 
 // Generate the sampled great-circle path and cache terrain samples along it.
-void ReadPath(struct site source, struct site destination)
+void ReadPath(struct site source, struct site destination, bool with_elevation)
 {
     if (debug) cnt_ReadPath++;
 
@@ -251,7 +251,7 @@ void ReadPath(struct site source, struct site destination)
 
             path.lat[c]       = lat2;
             path.lon[c]       = lon2;
-            path.elevation[c] = GetElevation({lat2, lon2, 0.0});
+            path.elevation[c] = with_elevation ? GetElevation({lat2, lon2, 0.0}) : 0.0f;
             path.distance[c]  = distance;
         }
     }
@@ -259,7 +259,7 @@ void ReadPath(struct site source, struct site destination)
     /* Make sure exact destination point is recorded at path.length-1 */
     path.lat[c]       = destination.lat;
     path.lon[c]       = destination.lon;
-    path.elevation[c] = GetElevation(destination);
+    path.elevation[c] = with_elevation ? GetElevation(destination) : 0.0f;
     path.distance[c]  = total_distance;
 
     path.length = c + 1;

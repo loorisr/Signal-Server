@@ -48,6 +48,8 @@
 #include <math.h>
 #include <immintrin.h>
 #include <vector>
+#include <cstdint>
+#include <cfloat>
 
 #include "../common.hh"
 #include "../geo.hh"
@@ -1703,6 +1705,273 @@ void hzns(float pfl[], prop_type & prop)
     prop.the[1] = the1;
 }
 
+
+/* ------------------------------------------------------------------------
+ * Per-ray context and fast horizon search (-fast mode).
+ * ------------------------------------------------------------------------ */
+
+void ITM_ray_ctx::build(const float elev[], int last_index)
+{
+    const int n = MAX(last_index - 2, 0);  /* points i = 0..n -> elev[2+i] */
+    last_i = n;
+    if (!fast_horizons)
+        return;   /* the exact mode does not use the per-ray context */
+
+    dtx.resize((size_t)n + 1);
+    /* Same float recurrence as hzns(): d_tx += xi.  volatile keeps
+     * -ffast-math from rewriting it as i * xi, which rounds differently. */
+    const float xi = elev[1];
+    volatile float d = 0.0f;
+    dtx[0] = 0.0f;
+    for (int i = 1; i <= n; ++i) {
+        d = d + xi;
+        dtx[(size_t)i] = d;
+    }
+
+    /* Prefix sums: p0[k] = sum elev[2..k], p1[k] = sum k*elev[k]. */
+    const int L = n + 2;
+    p0.resize((size_t)L + 1);
+    p1.resize((size_t)L + 1);
+    p0[0] = p0[1] = 0.0;
+    p1[0] = p1[1] = 0.0;
+    for (int k = 2; k <= L; ++k) {
+        const double v = elev[k];
+        p0[(size_t)k] = p0[(size_t)k - 1] + v;
+        p1[(size_t)k] = p1[(size_t)k - 1] + (double)k * v;
+    }
+
+    /* Reference earth-curvature term for the whole ray.  The exact gme
+     * depends on the mean profile height of each pixel, but varies little
+     * along a ray; it is only used to *select* the horizon points, whose
+     * angles are then evaluated with the pixel's own gme. */
+    {
+        const int ja = (int)(3.0 + 0.1 * n), jb = n - ja + 6;
+        double zs = 0.0;
+        if (jb > ja)
+            zs = (p0[(size_t)jb - 1] - p0[(size_t)ja - 2]) / (jb - ja + 1);
+        double ens = eno_ns;
+        if (zs != 0.0)
+            ens *= exp(-zs / 9460.0);
+        qc_ref = 0.5 * 157e-9 * (1.0 - 0.04665 * exp(ens / 179.3));
+    }
+
+    /* TX side: c_i = (z_i - z_tx)/d_i, and the first index of the maximum
+     * of c_i - qc_ref*d_i over [1..i] (prefix argmax). */
+    tx_c.resize((size_t)n + 1);
+    tx_best.resize((size_t)n + 1);
+    tx_c[0] = 0.0f;
+    tx_best[0] = 0;
+    double best = -DBL_MAX;
+    int best_i = 0;
+    for (int i = 1; i <= n; ++i) {
+        tx_c[(size_t)i] = (elev[2 + i] - (elev[2] + tx_height)) / dtx[(size_t)i];
+        const double a = (double)tx_c[(size_t)i] - qc_ref * dtx[(size_t)i];
+        if (a > best) {
+            best = a;
+            best_i = i;
+        }
+        tx_best[(size_t)i] = best_i;
+    }
+
+    /* RX side: points (x_i, g_i) with g_i = z_i - qc_ref*x_i^2 (terrain
+     * lowered by the earth curvature).  The RX horizon of a receiver at
+     * distance D is the tangent point, from (D, z_rx - qc_ref*D^2), of the
+     * upper convex hull of the points before it. */
+    hx.resize((size_t)n + 1);
+    hg.resize((size_t)n + 1);
+    for (int i = 0; i <= n; ++i) {
+        hx[(size_t)i] = dtx[(size_t)i];
+        hg[(size_t)i] = (double)elev[2 + i] - qc_ref * hx[(size_t)i] * hx[(size_t)i];
+    }
+    for (auto &h : hull)
+        h.reset();
+    stream = 0;
+}
+
+void ITM_ray_ctx::RxHull::reset()
+{
+    v.clear();
+    added = 0;
+}
+
+/* Extend the upper hull with points 1..last (monotone chain). */
+void ITM_ray_ctx::RxHull::add_upto(int last, const double *x, const double *g)
+{
+    if (v.capacity() < (size_t)last + 1)
+        v.reserve((size_t)last + 64);
+    for (int i = added + 1; i <= last; ++i) {
+        while (v.size() >= 2) {
+            const int a = v[v.size() - 2], b = v[v.size() - 1];
+            const double cr = (x[b] - x[a]) * (g[i] - g[a]) - (g[b] - g[a]) * (x[i] - x[a]);
+            if (cr >= 0.0)      /* b is not strictly above segment a-i */
+                v.pop_back();
+            else
+                break;
+        }
+        v.push_back(i);
+    }
+    if (last > added)
+        added = last;
+}
+
+/* Index of the hull vertex maximising (g_i - W) / (D - x_i), D > x_i.
+ * Along the upper hull this is unimodal; ties go to the smaller index. */
+int ITM_ray_ctx::RxHull::query(double D, double W, const double *x, const double *g) const
+{
+    int lo = 0, hi = (int)v.size() - 1;
+    while (lo < hi) {
+        const int mid = (lo + hi) >> 1;
+        const int a = v[(size_t)mid], b = v[(size_t)mid + 1];
+        /* f(b) > f(a)  <=>  (g_b - W)(D - x_a) > (g_a - W)(D - x_b) */
+        if ((g[b] - W) * (D - x[a]) > (g[a] - W) * (D - x[b]))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return v[(size_t)lo];
+}
+
+/* Optimisation barrier: forces a float value to be materialised so that
+ * -ffast-math cannot fuse or reassociate a recurrence across iterations. */
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#define FLOAT_BARRIER(v) asm volatile("" : "+x"(v))
+#elif defined(__GNUC__) && defined(__aarch64__)
+#define FLOAT_BARRIER(v) asm volatile("" : "+w"(v))
+#else
+#define FLOAT_BARRIER(v) do { volatile float _fb = (v); (v) = _fb; } while (0)
+#endif
+
+namespace {
+
+/* Reproduces the float recurrence d = d - xi (one rounding per step) and can
+ * jump ahead by many steps.  Inside a binade [2^e, 2^(e+1)) a float is
+ * d = M * u with an integer mantissa M in [2^23, 2^24) and u = 2^(e-23).
+ * While the exact result of a step stays in the binade, rounding to the u
+ * grid gives fl(d - xi) = (M - R) * u with R = xi/u rounded to nearest (a tie
+ * can only happen if xi/u is exactly half-way; then we take single steps).
+ * k steps are therefore (M - k*R) * u, exactly. */
+struct FloatSubChain {
+    float d;
+    float xi;
+    int   i;
+
+    void advance_to(int target)
+    {
+        while (i < target) {
+            uint32_t bits;
+            memcpy(&bits, &d, sizeof bits);
+            const int E = (int)((bits >> 23) & 0xff);
+            if (E > 0 && E < 255) {
+                const int64_t M = (int64_t)((bits & 0x7fffff) | 0x800000);
+                /* q = xi / u = xi * 2^(150 - E), exact in double */
+                uint64_t sb = (uint64_t)(1023 + 150 - E) << 52;
+                double scale;
+                memcpy(&scale, &sb, sizeof scale);
+                const double q = (double)xi * scale;
+                const double fl = floor(q);
+                const double frac = q - fl;
+                if (frac != 0.5 && q < 4503599627370496.0) {
+                    const int64_t Fl = (int64_t)fl;
+                    const int64_t R = (frac < 0.5) ? Fl : Fl + 1;
+                    /* step j (1-based) stays in the binade iff
+                     * M - 2^23 - (j-1)*R - q >= 0 */
+                    const int64_t A = M - 0x800000 - Fl - (frac > 0.0 ? 1 : 0);
+                    if (A >= 0 && R > 0) {
+                        int64_t k = A / R + 1;
+                        if (k > (int64_t)(target - i))
+                            k = target - i;
+                        const int64_t Mn = M - k * R;
+                        /* Mn >= 2^23 - R + ... > 0, value (Mn * u) exact */
+                        uint64_t ub = (uint64_t)(1023 + E - 150) << 52;
+                        double u;
+                        memcpy(&u, &ub, sizeof u);
+                        d = (float)((double)Mn * u);
+                        i += (int)k;
+                        continue;
+                    }
+                }
+            }
+            /* single exact float step */
+            float t = d;
+            FLOAT_BARRIER(t);
+            d = t - xi;
+            ++i;
+        }
+    }
+};
+
+} // namespace
+
+/* Approximate (fast) horizon search used by the -fast mode.
+ *
+ * Mathematically the same horizons as hzns(): the TX (RX) horizon is the
+ * profile point with the largest elevation angle seen from the TX (RX), the
+ * first one in profile order on ties.  hzns() updates the running angle
+ * incrementally (the0 += q/d), a long chain of dependent divisions; here the
+ * angles are computed independently (vectorised) and reduced with a max.
+ *
+ * The horizon distances are the exact accumulated float distances used by
+ * hzns(), because the delta-h window depends on them.  The angles differ
+ * from hzns() by float rounding only, which can occasionally select another
+ * point on a near-tie. */
+void hzns_fast(float pfl[], prop_type &prop, const ITM_ray_ctx &ray)
+{
+    const int np = static_cast<int>(pfl[0]);
+    if (np < 2 || np - 1 > ray.last_i) {
+        hzns(pfl, prop);
+        return;
+    }
+
+    const float xi = pfl[1];
+    const float dist = prop.dist;
+    const float z_tx = pfl[2] + prop.hg[0];
+    const float z_rx = pfl[np + 2] + prop.hg[1];
+    const float qc = 0.5f * prop.gme;
+
+    float the0 = (z_rx - z_tx) / dist - qc * dist;
+    float the1 = -((z_rx - z_tx) / dist) - qc * dist;
+    float dl0 = dist, dl1 = dist;
+
+    const int last = np - 1;
+    const float *dtx = ray.dtx.data();
+    const float *val = pfl + 2;
+
+    /* TX side: O(1) with the per-ray prefix argmax. */
+    {
+        const int i = ray.tx_best[(size_t)last];
+        const float a = ray.tx_c[(size_t)i] - qc * dtx[i];
+        if (a > the0) {
+            the0 = a;
+            dl0 = dtx[i];
+        }
+    }
+
+    /* RX side: tangent to the upper hull of points 1..last, O(log n). */
+    {
+        ITM_ray_ctx::RxHull &h = ray.hull[ray.stream];
+        if (h.added > last)
+            h.reset();          /* not monotone: rebuild (rare) */
+        h.add_upto(last, ray.hx.data(), ray.hg.data());
+        const double D = dist;
+        const double W = (double)z_rx - ray.qc_ref * D * D;
+        const int i = h.query(D, W, ray.hx.data(), ray.hg.data());
+        const float d = dist - dtx[i];
+        const float a = (val[i] - z_rx) / d - qc * d;
+        if (a > the1) {
+            /* Reproduce the accumulated float distance of hzns(). */
+            FloatSubChain chain{dist, xi, 0};
+            chain.advance_to(i);
+            dl1 = chain.d;
+            the1 = a;
+        }
+    }
+
+    prop.dl[0] = dl0;
+    prop.dl[1] = dl1;
+    prop.the[0] = the0;
+    prop.the[1] = the1;
+}
+
 /*
 void hzns_inprogress(float pfl[], prop_type & prop)
 {
@@ -1878,28 +2147,9 @@ void z1sq1(float z[], const float &x1, const float &x2, float &z0,
     zn = a + b * (xn - xb);
 }
 
-/* Build the prefix sums used by the O(1) variants below.  The profile of a
- * radial only grows, so this is done once per ray in PlotPropPath(). */
-void ITM_ray_ctx::build(const float elev[], int last_index)
-{
-    if (last_index < 2)
-        last_index = 2;
-
-    p0.resize((size_t)last_index + 1);
-    p1.resize((size_t)last_index + 1);
-
-    p0[0] = p0[1] = 0.0;
-    p1[0] = p1[1] = 0.0;
-
-    for (int k = 2; k <= last_index; ++k) {
-        const double v = elev[k];
-        p0[k] = p0[k - 1] + v;
-        p1[k] = p1[k - 1] + (double)k * v;
-    }
-}
-
-/* Same result as z1sq1(), but the window sums are read from the per-ray
- * prefix sums instead of being accumulated again.  The formula is exact:
+/* Same result as z1sq1() up to float rounding (used by -fast only): the
+ * window sums are read from the per-ray prefix sums instead of being
+ * accumulated again.  The formula is exact in real arithmetic:
  *
  *   a_sum = 0.5*(p[0] + p[n]) + sum(p[1..n-1])
  *   b_sum = x*a_sum + sum(i * p[i], i=1..n-1)
@@ -2014,6 +2264,7 @@ static thread_local std::vector<float> qtile_band2;
 static thread_local float qtile_prev1 = 0.0f;
 static thread_local float qtile_prev2 = 0.0f;
 static thread_local bool  qtile_prev_valid = false;
+static thread_local float qtile_width = 0.03f;
 
 /* Return a[ka] - a[kb], where a[ka] and a[kb] are the ka-th and kb-th
  * largest values (std::greater order).  ka/kb are two fixed, well separated
@@ -2025,52 +2276,99 @@ static thread_local bool  qtile_prev_valid = false;
  * the previous estimate is stale, fall back to a 64-bin histogram that is
  * still much cheaper than two full introselect passes.  a[] is not modified.
  */
+/* Put the r-th largest value of a[0..n) at a[r] (exact, like nth_element). */
+static inline void select_desc(float *a, int n, int r)
+{
+    if (n <= 24) {
+        for (int i = 1; i < n; ++i) {
+            const float v = a[i];
+            int j = i;
+            while (j > 0 && a[j - 1] < v) {
+                a[j] = a[j - 1];
+                --j;
+            }
+            a[j] = v;
+        }
+    } else {
+        std::nth_element(a, a + r, a + n, std::greater<float>());
+    }
+}
+
 float get_two_qtiles(float a[], int n, int ka, int kb) {
     constexpr int NBINS = 64;
 
     if (n < 2 || ka == kb)
         return 0.0f;
 
-    /* Fast path: narrow bands around the previous two quantiles. */
+    /* Fast path: narrow bands around the previous two quantiles.
+     * Pass 1 only counts (branch-free, vectorisable); pass 2 gathers the few
+     * values inside each band with a branch-free compaction. */
     if (qtile_prev_valid && qtile_prev1 > qtile_prev2) {
-        const float width = 0.08f * (qtile_prev1 - qtile_prev2);
+        /* Band half-width, relative to the inter-quantile range.  It adapts
+         * so that bands hold only a few values: the selection is exact for
+         * any width, only the speed depends on it. */
+        const float width = qtile_width * (qtile_prev1 - qtile_prev2);
         if (width > 0.0f) {
             const float lo1 = qtile_prev1 - width, hi1 = qtile_prev1 + width;
             const float lo2 = qtile_prev2 - width, hi2 = qtile_prev2 + width;
 
-            int above1 = 0, above2 = 0;
-            qtile_band1.clear();
-            qtile_band2.clear();
-            qtile_band1.reserve(64);
-            qtile_band2.reserve(64);
-
-            /* The two bands are disjoint and ordered (lo2 < hi2 < lo1 < hi1),
-             * so one comparison chain is enough. */
+            int gt_hi1 = 0, ge_lo1 = 0, gt_hi2 = 0, ge_lo2 = 0;
             for (int i = 0; i < n; ++i) {
                 const float v = a[i];
-                if (v > hi1) {
-                    above1++;
-                    above2++;
-                } else if (v >= lo1) {
-                    qtile_band1.push_back(v);
-                    above2++;
-                } else if (v > hi2) {
-                    above2++;
-                } else if (v >= lo2) {
-                    qtile_band2.push_back(v);
-                }
+                gt_hi1 += (v > hi1);
+                ge_lo1 += (v >= lo1);
+                gt_hi2 += (v > hi2);
+                ge_lo2 += (v >= lo2);
             }
 
-            const int r1 = ka - above1;
-            const int r2 = kb - above2;
-            if (r1 >= 0 && r1 < (int)qtile_band1.size() &&
-                r2 >= 0 && r2 < (int)qtile_band2.size()) {
-                std::nth_element(qtile_band1.begin(), qtile_band1.begin() + r1,
-                                 qtile_band1.end(), std::greater<float>());
-                std::nth_element(qtile_band2.begin(), qtile_band2.begin() + r2,
-                                 qtile_band2.end(), std::greater<float>());
-                qtile_prev1 = qtile_band1[r1];
-                qtile_prev2 = qtile_band2[r2];
+            const int r1 = ka - gt_hi1, n1 = ge_lo1 - gt_hi1;
+            const int r2 = kb - gt_hi2, n2 = ge_lo2 - gt_hi2;
+            const bool hit = (r1 >= 0 && r1 < n1 && r2 >= 0 && r2 < n2);
+            if (!hit)
+                qtile_width = MIN(qtile_width * 1.5f, 0.25f);
+            else if (MAX(n1, n2) > 8)
+                qtile_width = MAX(qtile_width * 0.85f, 0.002f);
+            else if (MAX(n1, n2) < 3)
+                qtile_width = MIN(qtile_width * 1.1f, 0.25f);
+            if (hit) {
+                qtile_band1.resize((size_t)n + 8);
+                qtile_band2.resize((size_t)n + 8);
+                float *b1 = qtile_band1.data();
+                float *b2 = qtile_band2.data();
+                int c1 = 0, c2 = 0;
+                int i = 0;
+#if defined(__AVX2__)
+                /* Band members are rare: test 8 values at once and only
+                 * look at the lanes that hit. */
+                const __m256 vlo1 = _mm256_set1_ps(lo1), vhi1 = _mm256_set1_ps(hi1);
+                const __m256 vlo2 = _mm256_set1_ps(lo2), vhi2 = _mm256_set1_ps(hi2);
+                for (; i + 8 <= n; i += 8) {
+                    const __m256 v = _mm256_loadu_ps(a + i);
+                    const int m1 = _mm256_movemask_ps(_mm256_and_ps(
+                        _mm256_cmp_ps(v, vlo1, _CMP_GE_OQ), _mm256_cmp_ps(v, vhi1, _CMP_LE_OQ)));
+                    const int m2 = _mm256_movemask_ps(_mm256_and_ps(
+                        _mm256_cmp_ps(v, vlo2, _CMP_GE_OQ), _mm256_cmp_ps(v, vhi2, _CMP_LE_OQ)));
+                    if (m1 | m2) {
+                        for (int k = 0; k < 8; ++k) {
+                            b1[c1] = a[i + k];
+                            c1 += (m1 >> k) & 1;
+                            b2[c2] = a[i + k];
+                            c2 += (m2 >> k) & 1;
+                        }
+                    }
+                }
+#endif
+                for (; i < n; ++i) {
+                    const float v = a[i];
+                    b1[c1] = v;
+                    c1 += (v >= lo1) & (v <= hi1);
+                    b2[c2] = v;
+                    c2 += (v >= lo2) & (v <= hi2);
+                }
+                select_desc(b1, c1, r1);
+                select_desc(b2, c2, r2);
+                qtile_prev1 = b1[r1];
+                qtile_prev2 = b2[r2];
                 return qtile_prev1 - qtile_prev2;
             }
         }
@@ -2525,7 +2823,10 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	prop.dist = pfl[0] * pfl[1];
 	const unsigned int np = (unsigned int)pfl[0];
 
-	hzns(pfl, prop);
+	if (ray && ray->fast_horizons)
+		hzns_fast(pfl, prop, *ray);
+	else
+		hzns(pfl, prop);
 
 	xl[0] = MIN(15.0 * prop.hg[0], 0.1 * prop.dl[0]);
 	xl[1] = prop.dist - MIN(15.0 * prop.hg[1], 0.1 * prop.dl[1]);
@@ -2543,7 +2844,7 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	}
 
 	if (prop.dl[0] + prop.dl[1] > 1.5 * prop.dist) {
-		if (ray)
+		if (ray && ray->fast_horizons)
 			z1sq1_prefixed(pfl, xl[0], xl[1], za, zb, *ray);
 		else
 			z1sq1(pfl, xl[0], xl[1], za, zb);
@@ -2574,7 +2875,7 @@ void qlrpfl(float pfl[], int klimx, int mdvarx, prop_type & prop, propa_type & p
 	}
 
 	else {
-		if (ray) {
+		if (ray && ray->fast_horizons) {
 			z1sq1_prefixed(pfl, xl[0], 0.9 * prop.dl[0], za, q, *ray);
 			z1sq1_prefixed(pfl, prop.dist - 0.9 * prop.dl[1], xl[1], q, zb, *ray);
 		} else {
@@ -2870,8 +3171,8 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 	ja = (unsigned int)(3.0 + 0.1 * elev[0]);
 	jb = np - ja + 6;
 
-	if (ray != nullptr) {
-		/* Prefix sums: sum(elev[ja-1 .. jb-1]) */
+	if (ray && ray->fast_horizons) {
+		/* -fast: prefix sums, sum(elev[ja-1 .. jb-1]) */
 		zsys = (float)(ray->p0[jb - 1] - ray->p0[ja - 2]);
 	} else {
 		for (i = ja - 1; i < jb; ++i)
@@ -2911,6 +3212,55 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 
 	dbloss = avar(ctx.zr, 0.0, ctx.zc, prop, propv) + fs;
 	errnum = prop.kwx;
+}
+
+/* Terrain irregularity (delta-h) of the profile, computed exactly as
+ * point_to_point_ITM_fast() would compute it, but without the rest of the
+ * ITM chain (lrprop, avar...).  Used by -fast to look ahead to the next
+ * delta-h anchor. */
+float ITM_delta_h_fast(const ITM_ctx &ctx, float rht_m, float elev[],
+		       const ITM_ray_ctx *ray)
+{
+	prop_type prop = {};
+	float zsys = 0;
+	unsigned int ja, jb, i, np;
+
+	prop.hg[0] = ctx.tht_m;
+	prop.hg[1] = rht_m;
+
+	np = (unsigned int)elev[0];
+	ja = (unsigned int)(3.0 + 0.1 * elev[0]);
+	jb = np - ja + 6;
+	if (ray && ray->fast_horizons) {
+		/* -fast: prefix sums, sum(elev[ja-1 .. jb-1]) */
+		zsys = (float)(ray->p0[jb - 1] - ray->p0[ja - 2]);
+	} else {
+		for (i = ja - 1; i < jb; ++i)
+			zsys += elev[i];
+	}
+	zsys /= (jb - ja + 1);
+
+	prop.ens = ctx.eno;
+	if (zsys != 0.0)
+		prop.ens *= exp(-zsys / 9460.0);
+	prop.gme = 157e-9 * (1.0 - 0.04665 * exp(prop.ens / 179.3));
+
+	prop.dist = elev[0] * elev[1];
+	if (ray && ray->fast_horizons) {
+		/* Look-ahead calls form their own monotone sequence of profile
+		 * lengths: use the second RX hull. */
+		ray->stream = 1;
+		hzns_fast(elev, prop, *ray);
+		ray->stream = 0;
+	} else
+		hzns(elev, prop);
+
+	float xl0 = MIN(15.0 * prop.hg[0], 0.1 * prop.dl[0]);
+	float xl1 = prop.dist - MIN(15.0 * prop.hg[1], 0.1 * prop.dl[1]);
+
+	if (dh_n < 0)
+		return d1thx(elev, xl0, xl1);
+	return calculate_delta_h_adjustable(elev, xl0, xl1, dh_n);
 }
 
 void point_to_point(float tht_m, float rht_m, float eps_dielect,

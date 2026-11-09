@@ -83,8 +83,13 @@ namespace {
 	/* Compute the pixels crossed by rays [first, last) into per-ray lists.
 	 * Runs on worker threads; the lists are merged in global ray order by
 	 * build_owner_map() so the ownership is deterministic. */
+	struct RayPixel {
+		int32_t idx;      /* x * dem_width_px + y */
+		float distance;   /* path.distance of the sample */
+	};
+
 	void collect_ray_pixels(struct site source, int first, int last,
-	                        std::vector<std::vector<int32_t>> &ray_pixels)
+	                        std::vector<std::vector<RayPixel>> &ray_pixels)
 	{
 		for (int r = first; r < last; ++r) {
 			coord point = getPointAtDistance({source.lat, source.lon},
@@ -94,9 +99,9 @@ namespace {
 			edge.lon = point.lon;
 			edge.alt = altitudeLR;
 
-			ReadPath(source, edge);
+			ReadPath(source, edge, false);   /* coordinates only */
 
-			std::vector<int32_t> &pixels = ray_pixels[r];
+			std::vector<RayPixel> &pixels = ray_pixels[r];
 			pixels.clear();
 			pixels.reserve((size_t)MAX(path.length - 2, 0));
 
@@ -105,7 +110,8 @@ namespace {
 				int yy = (int)rint(ppd * (path.lon[y] - dem_min_lon));
 				if (x < 0 || x >= dem_height_px || yy < 0 || yy >= dem_width_px)
 					continue;
-				pixels.push_back((int32_t)((size_t)x * dem_width_px + yy));
+				pixels.push_back({(int32_t)((size_t)x * dem_width_px + yy),
+				                  path.distance[y]});
 			}
 		}
 	}
@@ -117,7 +123,7 @@ namespace {
 	{
 		owner_map.assign((size_t)dem_height_px * dem_width_px, -1);
 
-		std::vector<std::vector<int32_t>> ray_pixels((size_t)total_rays);
+		std::vector<std::vector<RayPixel>> ray_pixels((size_t)total_rays);
 
 		const int workers = MAX(1, number_threads);
 		const int base = total_rays / workers;
@@ -139,11 +145,20 @@ namespace {
 		for (auto &f : futures)
 			f.get();
 
-		/* Merge in global ray order: the first ray wins. */
+		/* Merge in global ray order: the first ray wins.  This replays the
+		 * sequential PlotPropPath() loop exactly, including its stop
+		 * condition: a ray stops after the first pixel it processes beyond
+		 * max_range, so it must not own the pixels it never reaches (they
+		 * stay available to later rays, as in the original code). */
 		for (int r = 0; r < total_rays; ++r) {
-			for (int32_t idx : ray_pixels[(size_t)r]) {
-				if (owner_map[(size_t)idx] < 0)
-					owner_map[(size_t)idx] = r;
+			float distance = 0.0f;
+			for (const RayPixel &p : ray_pixels[(size_t)r]) {
+				if (distance > max_range)
+					break;
+				if (owner_map[(size_t)p.idx] < 0) {
+					owner_map[(size_t)p.idx] = r;
+					distance = p.distance;
+				}
 			}
 		}
 	}
@@ -408,10 +423,14 @@ void PlotPropPath(
 	elev[2] = path.elevation[0];
 	elev[path.length + 1] = path.elevation[path.length - 1];
 
-	/* The ITM profile for receiver point y is the prefix elev[2..y+1].
-	 * Build the prefix sums once per radial so qlrpfl() no longer rescans
-	 * the profile for zsys and for each z1sq1() window. */
+	/* The ITM profile for receiver point y is the prefix elev[2..y+1] of
+	 * this radial.  In -fast mode, per-ray data (horizon angle tables,
+	 * prefix sums) is built once here instead of being recomputed for
+	 * every receiver point.  The exact mode does not use it. */
 	thread_local ITM_ray_ctx ray_ctx;
+	ray_ctx.tx_height = source.alt;
+	ray_ctx.eno_ns = LR.eno_ns_surfref;
+	ray_ctx.fast_horizons = (fast_dh_stride > 0 && prop_model == ITM_LR);
 	ray_ctx.build(elev, path.length + 1);
 
 	/* Constant parts of the dBm / field-strength conversions. */
@@ -510,28 +529,32 @@ void PlotPropPath(
 
 			if (fast_itm) {
 				if (debug) cnt_computeLoss++;
-				if (fast_dh_stride > 0 && y > fast_dh_stride) {
+				if (fast_dh_stride > 1 && y > fast_dh_stride) {
 					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);
 
 					if (start_new_segment) {
-						/* Compute actual loss and delta-h at this segment start. */
-						point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
-						                        &segment_start_dh, false, &ray_ctx);
+						if (interp_segment_active && y == segment_end_y) {
+							/* delta-h at this anchor was already computed by
+							 * the previous look-ahead: reuse it. */
+							segment_start_dh = segment_end_dh;
+							float dh = segment_start_dh;
+							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+							                        &dh, true, &ray_ctx);
+						} else {
+							/* Compute actual loss and delta-h at this segment start. */
+							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, loss, mode, errnum,
+							                        &segment_start_dh, false, &ray_ctx);
+						}
 
 						const int next_y = MIN(y + fast_dh_stride, path.length - 2);
 						segment_start_y = y;
 						segment_end_y = next_y;
 
 						if (next_y > y) {
-							/* Look ahead once to get delta-h at the next full-compute point. */
+							/* Look ahead: only delta-h is needed at the next anchor. */
 							const float saved_elev0 = elev[0];
-							float tmp_loss = 0.0f;
-							PropagationMode tmp_mode = PROP_MODE_NONE;
-							int tmp_errnum = 0;
-
 							elev[0] = next_y - 1;
-							point_to_point_ITM_fast(itm_ctx, destination.alt, elev, tmp_loss, tmp_mode, tmp_errnum,
-							                        &segment_end_dh, false, &ray_ctx);
+							segment_end_dh = ITM_delta_h_fast(itm_ctx, destination.alt, elev, &ray_ctx);
 							elev[0] = saved_elev0;
 							interp_segment_active = true;
 						} else {

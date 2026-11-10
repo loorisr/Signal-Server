@@ -33,6 +33,9 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# OpenMP SIMD directives only (no OpenMP runtime): used by the -fast batch
+set_source_files_properties(models/itm_batch.cc PROPERTIES COMPILE_OPTIONS "-fopenmp-simd")
+
 # Prepare internal libraries search
 include_directories(models)
 
@@ -46,7 +49,7 @@ add_library(egli STATIC models/egli.cc)
 add_library(ericsson STATIC models/ericsson.cc)
 add_library(fspl STATIC models/fspl.cc)
 add_library(hata STATIC models/hata.cc)
-add_library(itwom3.0 STATIC models/itwom3.0.cc)
+add_library(itwom3.0 STATIC models/itwom3.0.cc models/itm_batch.cc)
 add_library(los STATIC models/los.cc models/egli.cc)
 add_library(ntia STATIC
     models/NTIA/ComputeDeltaH.cpp

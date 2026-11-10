@@ -136,9 +136,71 @@ un point de plus change très peu un profil de 1000 points : un pas de 10
 près de l'émetteur et de ~50 à 100 km devrait donner 10–15 % de gain à
 précision proche. À mesurer.
 
-### C. ITM par lots SIMD
+### C. ITM par lots SIMD — **implémenté, retenu**
 
-Traiter 8 pixels à la fois (AVX2) dans `lrprop`/`adiff`/`alos`/`avar` :
-2–3× sur cette partie, mais réécriture lourde d'un code très branché.
+Voir la section « Résultat de la piste C » ci-dessous.
 
 Voir aussi `doc/FAST_VS_DH.md` pour la comparaison `-fast` / `-dh`.
+
+## Résultat de la piste C : `lrprop` vectorisé (`-fast`)
+
+À ne pas confondre avec la branche `perf/hzns-avx2`, qui vectorisait la
+recherche d'horizon (`hzns`) : 1,2× en 1 thread mais 62 000 pixels faux, et
+dépassée depuis par l'enveloppe convexe de `-fast`. Ici c'est la fin de la
+chaîne ITM (`lrprop`) qui est calculée pour 8 pixels à la fois.
+
+### Principe (`src/models/itm_batch.cc`)
+
+- Pour chaque rayon, `-fast` fait d'abord l'analyse de profil de tous ses
+  pixels (horizons, delta-h, hauteurs effectives : scalaire, même ordre et
+  même logique d'ancres qu'avant), puis calcule les pertes par lots
+  (`ITM_batch`).
+- Les pixels sont séparés en « ligne de vue » (`dist < dlsa`) et « au-delà
+  de l'horizon radio » (troposcatter), pour que chaque lot de 8 suive un seul
+  chemin de code.
+- `lrprop` avec `adiff`, `fht`, `aknfe`, `alos`, `ascat`, `h0f` et `ahd`
+  est transcrit voie par voie, sans branchement (sélections, nombres
+  complexes explicites, état de `ascat` porté par voie), dans une boucle
+  `#pragma omp simd` que GCC vectorise en AVX2 (8 floats) avec les
+  fonctions vectorielles de la glibc (libmvec : `expf`, `logf`, `log10f`,
+  `cbrtf`, `sinf`, `cosf`). Seule l'option `-fopenmp-simd` est ajoutée
+  (aucun runtime OpenMP).
+- `avar` et le calcul du mode restent scalaires.
+- Le code est dans un fichier séparé : ajouter du code à `itwom3.0.cc`
+  change les choix d'inlining du compilateur et cassait le bit-exact du mode
+  exact.
+
+### Précision
+
+Version vectorisée contre la même chose en scalaire : **13 pixels** à 1 dB
+sur 1,28 M (Alpes 50 km), 7 pixels sur 0,83 M (Bresse). Précision par
+rapport à la référence inchangée (99,954 % à ≤1 dB en `-fast 10`).
+Mode exact non touché (0 pixel différent à 50 et 100 km, 1 et 4 threads).
+
+### Temps (4 threads, `-demcache`, meilleur de 5)
+
+| Cas | Avant | Après | Gain |
+|---|---:|---:|---:|
+| Alpes 50 km, `-fast 10` | 0,451 s | 0,369 s | −18 % |
+| Alpes 50 km, `-fast 20` | 0,420 s | 0,328 s | −22 % |
+| Alpes 100 km, `-fast 10` | 1,706 s | 1,344 s | −21 % |
+| Alpes 100 km, `-fast 20` | 1,546 s | 1,173 s | −24 % |
+| Alpes 50 km, `-fast 10`, 1 thread | 1,507 s | 1,142 s | −24 % |
+| Bresse 446 MHz 40 km, `-fast 10` | 0,294 s | 0,285 s | −3 % |
+
+En plaine avec un émetteur bas, `lrprop` pesait déjà peu : le temps y est
+dominé par le delta-h (~25 %) et les horizons (~13 %), d'où un gain faible
+(c'est le terrain de la piste B).
+
+Sur N100 (cœurs Gracemont, unités SIMD 128 bits), une instruction AVX2 de
+256 bits s'exécute en deux moitiés : le gain y sera probablement plus faible
+que sur ce Xeon. À mesurer sur la machine cible.
+
+## Note sur la reproductibilité du mode exact
+
+Avec `-march=native`, le code d'origine lui-même ne donne pas exactement le
+même résultat d'un processeur à l'autre (le compilateur choisit d'autres
+instructions) : 4 pixels à ±1 dB sur 1,28 M entre deux machines virtuelles
+de générations différentes. Le mode exact est bit-identique à `master`
+**compilé avec les mêmes options sur la même machine**, ce qui a été vérifié
+sur chacune des deux.

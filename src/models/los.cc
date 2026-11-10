@@ -468,10 +468,86 @@ void PlotPropPath(
 	int segment_end_y = -1;
 	bool interp_segment_active = false;
 
+	/* -fast: the profile analysis of every pixel this ray owns is done first
+	 * (same order and delta-h logic as the main loop), then the losses are
+	 * computed in batches with lrprop() vectorised (ITM_batch). */
+	const bool fast_batch = fast_itm && fast_dh_stride > 0;
+	struct BatchPixel {
+		int y, px, py;
+	};
+	thread_local ITM_batch batch;
+	thread_local std::vector<BatchPixel> batch_px;
+	size_t batch_pos = 0;
+	if (fast_batch) {
+		batch.clear();
+		batch_px.clear();
+		float dsel = 0.0f;   /* same stop condition as the main loop */
+		for (int yy = 2; yy < path.length - 1 && dsel <= max_range; yy++) {
+			int qx, qy;
+			if (!can_process(path.lat[yy], path.lon[yy], qx, qy))
+				continue;
+			batch_px.push_back({yy, qx, qy});
+			dsel = path.distance[yy];
+			elev[0] = yy - 1;
+
+			if (fast_dh_stride > 1 && yy > fast_dh_stride) {
+				const bool start_new_segment = (!interp_segment_active || yy >= segment_end_y);
+
+				if (start_new_segment) {
+					if (interp_segment_active && yy == segment_end_y) {
+						/* delta-h at this anchor was already computed by
+						 * the previous look-ahead: reuse it. */
+						segment_start_dh = segment_end_dh;
+						float dh = segment_start_dh;
+						batch.add(itm_ctx, destination.alt, elev, &dh, true, &ray_ctx);
+					} else {
+						/* Compute actual loss and delta-h at this segment start. */
+						batch.add(itm_ctx, destination.alt, elev, &segment_start_dh, false, &ray_ctx);
+					}
+
+					const int next_y = MIN(yy + fast_dh_stride, path.length - 2);
+					segment_start_y = yy;
+					segment_end_y = next_y;
+
+					if (next_y > yy) {
+						/* Look ahead: only delta-h is needed at the next anchor. */
+						const float saved_elev0 = elev[0];
+						elev[0] = next_y - 1;
+						segment_end_dh = ITM_delta_h_fast(itm_ctx, destination.alt, elev, &ray_ctx);
+						elev[0] = saved_elev0;
+						interp_segment_active = true;
+					} else {
+						interp_segment_active = false;
+					}
+				} else {
+					const float denom = float(segment_end_y - segment_start_y);
+					const float t = (denom > 0.0f) ? (float(yy - segment_start_y) / denom) : 0.0f;
+					const float interp_dh = segment_start_dh + t * (segment_end_dh - segment_start_dh);
+					float dh_for_point = interp_dh;
+					batch.add(itm_ctx, destination.alt, elev, &dh_for_point, true, &ray_ctx);
+				}
+			} else {
+				interp_segment_active = false;
+				batch.add(itm_ctx, destination.alt, elev, NULL, false, &ray_ctx);
+			}
+		}
+		batch.run();
+	}
+
 	for (y = 2; (y < (path.length - 1) && distance <= max_range);  y++) {
 		/* Process this point only if it
 		   has not already been processed. */
-		if (can_process(path.lat[y], path.lon[y], px, py)) {
+		bool take;
+		if (fast_batch) {
+			take = (batch_pos < batch_px.size() && batch_px[batch_pos].y == y);
+			if (take) {
+				px = batch_px[batch_pos].px;
+				py = batch_px[batch_pos].py;
+			}
+		} else {
+			take = can_process(path.lat[y], path.lon[y], px, py);
+		}
+		if (take) {
 
 			distance = path.distance[y];
 			dest_alt = FOUR_THIRDS_EARTH + destination.alt + path.elevation[y];
@@ -527,7 +603,12 @@ void PlotPropPath(
 				path.elevation[y] = 1;
 			}
 
-			if (fast_itm) {
+			if (fast_batch) {
+				if (debug) cnt_computeLoss++;
+				loss = batch.loss((int)batch_pos);
+				mode = batch.mode((int)batch_pos);
+				batch_pos++;
+			} else if (fast_itm) {
 				if (debug) cnt_computeLoss++;
 				if (fast_dh_stride > 1 && y > fast_dh_stride) {
 					const bool start_new_segment = (!interp_segment_active || y >= segment_end_y);

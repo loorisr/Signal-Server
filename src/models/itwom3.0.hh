@@ -87,4 +87,28 @@ void point_to_point_ITM_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 float ITM_delta_h_fast(const ITM_ctx &ctx, float rht_m, float elev[],
 		       const ITM_ray_ctx *ray = nullptr);
 
+/* -fast: ITM point-to-point losses of several receiver points, with
+ * lrprop() vectorised over the batch (itm_batch.cc).  add() runs the scalar
+ * profile analysis of one point immediately (cached_dh is read/written as
+ * by point_to_point_ITM_fast); run() computes all the losses. */
+class ITM_batch {
+public:
+	ITM_batch();
+	~ITM_batch();
+	ITM_batch(const ITM_batch &) = delete;
+	ITM_batch &operator=(const ITM_batch &) = delete;
+
+	void clear();
+	int size() const;
+	void add(const ITM_ctx &ctx, float rht_m, float elev[], float *cached_dh,
+		 bool reuse_cached_dh, const ITM_ray_ctx *ray);
+	void run(bool vectorised = true);
+	float loss(int i) const;
+	PropagationMode mode(int i) const;
+
+private:
+	struct Impl;
+	Impl *impl;
+};
+
 #endif /* _ITWOM30_HH_ */

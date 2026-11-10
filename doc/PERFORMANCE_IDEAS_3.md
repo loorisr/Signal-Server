@@ -107,3 +107,38 @@ approximer à bon compte. Les gains qui restent sont hors du modèle :
 - garder le MNT en mémoire dans un processus serveur (piste 7) ;
 - réduire le nombre de pixels réellement calculés quand le besoin le permet
   (piste 6, contour seulement).
+
+## Pistes suivantes (non implémentées)
+
+### A. Sauter les pixels largement sous le seuil `-rt`
+
+Les pixels sous le seuil ne sont pas dessinés (on voit le relief). On
+calcule un point sur deux le long du rayon ; si les deux voisins sont
+sous `rt − marge`, celui du milieu n'est pas calculé.
+
+Potentiel mesuré sur la carte de référence 100 km (voisins horizontaux de
+l'image, marge 10 dB) :
+
+| Seuil `-rt` | Pixels dont les deux voisins sont sous seuil − 10 dB | Dont en réalité ≥ seuil |
+|---|---:|---:|
+| −120 dBm | 51,5 % | 0,05 % |
+| −110 dBm | 66,5 % | 0,04 % |
+| −100 dBm | 81,0 % | 0,02 % |
+
+Soit 25 à 40 % de calculs ITM en moins en sautant un point sur deux ; gain
+de temps estimé 20–30 % à 100 km (estimation, pas mesure). Le raster brut
+devient faux sous le seuil : à réserver au cas où seule l'image compte.
+
+### B. Pas d'ancre du delta-h proportionnel à la distance
+
+En `-fast 10`, le delta-h pèse encore ~18 % du temps. Loin de l'émetteur,
+un point de plus change très peu un profil de 1000 points : un pas de 10
+près de l'émetteur et de ~50 à 100 km devrait donner 10–15 % de gain à
+précision proche. À mesurer.
+
+### C. ITM par lots SIMD
+
+Traiter 8 pixels à la fois (AVX2) dans `lrprop`/`adiff`/`alos`/`avar` :
+2–3× sur cette partie, mais réécriture lourde d'un code très branché.
+
+Voir aussi `doc/FAST_VS_DH.md` pour la comparaison `-fast` / `-dh`.

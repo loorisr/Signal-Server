@@ -5,13 +5,13 @@
 | Mode | Option | Résultat |
 |---|---|---|
 | Exact (défaut) | aucune | **identique au bit près** au code d'origine exécuté sur 1 thread, quel que soit le nombre de threads |
-| Rapide | `-fast [N]` (N=10 par défaut) | approché : horizons par enveloppe convexe, delta-h recalculé tous les N points et interpolé entre deux |
+| Rapide | `-fast [N]` (N=50 par défaut) | approché : horizons par enveloppe convexe, delta-h recalculé tous les N points et interpolé entre deux |
 
 `-fast 1` ne garde que l'accélération des horizons (delta-h calculé à chaque
 point) : c'est un mode quasi exact. `-dh` reste disponible et se combine avec
 `-fast`.
 
-**Réglage recommandé : `-fast 50`** (voir [Choix de N](#choix-de-n-pour--fast)).
+**Réglage recommandé et valeur par défaut : `-fast 50`** (voir [Choix de N](#choix-de-n-pour--fast)).
 
 ## Résultats
 
@@ -99,7 +99,7 @@ Lecture :
   retrouve `-fast 1`. Les valeurs 200–500 sont les pires : moins précises
   sans être plus rapides.
 
-**Réglage recommandé : `-fast 50`.** ITM est un modèle statistique dont
+**Réglage recommandé, et valeur par défaut de `-fast` : N = 50.** ITM est un modèle statistique dont
 l'incertitude propre se compte en plusieurs dB : une précision de 1 dB par
 rapport au mode exact n'a pas de sens physique. À `-fast 50`, 99,96 % des
 pixels restent à 3 dB près, le contour à −120 dBm ne bouge que pour 0,14 %
@@ -173,7 +173,7 @@ mkdir build && cd build && cmake ../src && make -j
 ./signalserver -dem DEM/ -lat 45.0 -lon 5.0 -txh 20 -rxh 2 -f 145 \
   -erp 50 -dbm -rt -120 -R 100 -pm 1 -o carte
 # rapide
-./signalserver ... -fast 10 -o carte
+./signalserver ... -fast -o carte      # N=50 par défaut
 ```
 
 `SS_RAW_DUMP=/chemin/carte.raw` écrit la grille brute (int32) pour comparer

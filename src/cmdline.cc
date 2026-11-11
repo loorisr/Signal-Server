@@ -72,7 +72,7 @@ void parse_cmdline(int argc, char *argv[])
         spdlog::info("     -number_threads Number of worker threads to divide the plot rectangle into (default = CPU core numbers)");
         spdlog::info("     -hd Use HD mode (1'=30m), (optional, default 3'=90m)");
         spdlog::info("     -dh Delta-H method for ITM: N points for calculate_delta_h_adjustable (0=direct pfl). Default: itm legacy code");
-        spdlog::info("     -fast [N] Faster, approximate ITM (ITM only): fast horizon search, and delta-h recomputed every N points after the first N points from TX on each radial (linear interpolation in between). Default N=10. -fast 1: fast horizons only (quasi-exact). Without -fast, the result is identical to the original code.");
+        spdlog::info("     -fast [N] Faster, approximate ITM (ITM only): fast horizon search, and delta-h recomputed every N points after the first N points from TX on each radial (linear interpolation in between). Default N=50 (recommended: 99.96 % of pixels within 3 dB of the exact mode on a 100 km map; larger N is not faster). -fast 1: fast horizons only (quasi-exact). Without -fast, the result is identical to the original code.");
         spdlog::info("Output:");
         spdlog::info("     -o basename (Output file basename - required, min 5 chars)");
         spdlog::info("     -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)");
@@ -448,7 +448,7 @@ void parse_cmdline(int argc, char *argv[])
 
         // Fast delta-h cadence for ITM radial plotting
         if (strcmp(argv[x], "-fast") == 0) {
-            fast_dh_stride = 10; // default stride
+            fast_dh_stride = 50; // default stride
             z = x + 1;
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
                 sscanf(argv[z], "%d", &fast_dh_stride);

@@ -9,7 +9,7 @@ Developped to be used with [this API](https://github.com/loorisr/splat-API)
 It is optimized for speed for area calculations.
 
 Improvements:
-- speed: **6 times faster** than the original code (1.15s vs 6.98s for a 100 km radius area calculation).
+- speed: **10 times faster** than the original [W3AXL](https://github.com/W3AXL/Signal-Server) code with default settings (0.75 s vs 7.56 s for a 100 km radius ITM area calculation on 20 threads), **22 times faster** with `-fast` (0.34 s). At equal thread count: ~3× (exact) and ~10× (`-fast`).
 - use the total number of cores of a computer. Can be overrided by `-number_threads X`
 - better compilation flags
 - `-geotiff` for geotiff image output

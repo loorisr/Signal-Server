@@ -8,7 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Optimization
-set(CMAKE_CXX_FLAGS "-O3 -march=native -ffast-math")
+# Target CPU: "native" for local builds; set e.g. -DSIGNALSERVER_ARCH=alderlake
+# (Intel N100) or x86-64-v3 (any AVX2 CPU) when the binary runs on another
+# machine (CI / Docker). Flags given via -DCMAKE_CXX_FLAGS come last and win.
+set(SIGNALSERVER_ARCH "native" CACHE STRING "Value passed to -march")
+set(CMAKE_CXX_FLAGS "-O3 -march=${SIGNALSERVER_ARCH} -ffast-math ${CMAKE_CXX_FLAGS}")
 
 # Compiler warnings
 if (MSVC)

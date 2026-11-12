@@ -46,7 +46,9 @@
 #include <string.h>
 #include <algorithm>
 #include <math.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
+#endif
 #include <vector>
 #include <cstdint>
 #include <cfloat>

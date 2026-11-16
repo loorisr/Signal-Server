@@ -246,8 +246,8 @@ void PathReport(struct site source, struct site destination, const char *name,
 	   terminal setting and output file type.  If no extension is
 	   found, .png is assumed. */
 
-	int x, y, z, errnum;
-	char basename[255], term[30], ext[15], report_name[80], block = 0;
+	int x, y, z, errnum = 0;
+	char basename[255], term[30], ext[15], block = 0;
 	PropagationMode mode = PROP_MODE_NONE;
 	float maxloss = -100000.0, minloss = 100000.0, angle1, angle2,
 	    azimuth, pattern = 0.0, patterndB = 0.0,
@@ -255,12 +255,13 @@ void PathReport(struct site source, struct site destination, const char *name,
 	    source_alt, test_alt, dest_alt, source_alt2, dest_alt2,
 	    distance, elevation,
 	    free_space_loss = 0.0, eirp =
-	    0.0, voltage, rxp, power_density, dkm;
+	    0.0, voltage, rxp, power_density;
 	FILE *fd = NULL, *fd2 = NULL;
 
-	snprintf(report_name, 80, "%s.txt", name);
+	/* No fixed-size buffer: long output paths used to be truncated. */
+	const std::string report_name = std::string(name) + ".txt";
 
-	fd2 = fopen(report_name, "w");
+	fd2 = fopen(report_name.c_str(), "w");
 	if (fd2 == NULL) {
 		spdlog::error("PathReport: cannot open {} for writing: {}", report_name, strerror(errno));
 		return;
@@ -325,7 +326,7 @@ void PathReport(struct site source, struct site destination, const char *name,
 	fprintf(fd2, "Azimuth to Tx: %.2f degrees grid\n", azimuth);
 
 
-	fprintf(fd2, "Downtilt angle to Rx: %+.4f degrees\n",
+	fprintf(fd2, "Downtilt angle to Tx: %+.4f degrees\n",
 		angle1);
 
 	if (LR.frq_mhz > 0.0) {
@@ -577,10 +578,12 @@ void PathReport(struct site source, struct site destination, const char *name,
 
 			elev[1] = path.distance[y] - path.distance[y - 1];
 
-			dkm = (elev[1] * elev[0]) / 1000;	// km
-
+			/* computeLoss() expects the distance in meters (it converts
+			   to km itself); passing km made the empirical models
+			   (Hata, COST, FSPL...) see a path 1000 times too short. */
 			loss = computeLoss(propmodel, source.alt, destination.alt,
-			                   path.elevation[y] + destination.alt, dkm,
+			                   path.elevation[y] + destination.alt,
+			                   elev[1] * elev[0],
 			                   mode, errnum);
 
 			if (block)
@@ -612,9 +615,11 @@ void PathReport(struct site source, struct site destination, const char *name,
 		distance = link_distance;
 
 		if (distance != 0.0) {
+			/* distance is in meters: 32.45 + 20 log(f MHz) + 20 log(d km).
+			   (36.6 was the constant for a distance in miles.) */
 			free_space_loss =
-			    36.6 + (20.0 * log10(LR.frq_mhz)) +
-			    (20.0 * log10(distance));
+			    32.45 + (20.0 * log10(LR.frq_mhz)) +
+			    (20.0 * log10(distance / 1000.0));
 			fprintf(fd2, "Free space path loss: %.2f dB\n",
 				free_space_loss);
 		}
@@ -651,9 +656,10 @@ void PathReport(struct site source, struct site destination, const char *name,
 			    (eirp /
 			     (pow
 			      (10.0, (total_loss - free_space_loss) / 10.0)));
-			/* divide by 4*PI*distance_in_meters squared */
-			power_density /= (4.0 * PI * distance * distance *
-					  2589988.11);
+			/* divide by 4*PI*distance_in_meters squared
+			   (2589988.11 m2 per square mile was only needed when
+			   the distance was in miles) */
+			power_density /= (4.0 * PI * distance * distance);
 
 			fprintf(fd2, "Field strength at Rx: %.2f dBuV/meter\n",
 				field_strength);

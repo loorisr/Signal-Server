@@ -394,19 +394,14 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, float f,
                 fprintf(outfile,
                     "Between RX and TX, obstructions were detected :\n\n");
 
-            if (path.lat[x] >= 0.0) {
-                fprintf(outfile,
-                    "   %8.4f N,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                    path.lat[x], path.lon[x],
-                    d_x / 1000.0,
-                    h_x - EARTHRADIUS);
-            } else {
-                fprintf(outfile,
-                    "   %8.4f S,%9.4f W, %5.2f kilometers, %6.2f meters AMSL\n",
-                    -path.lat[x], path.lon[x],
-                    d_x / 1000.0,
-                    h_x - EARTHRADIUS);
-            }
+            /* Longitudes are east-positive here (they were west-positive
+               in SPLAT!, hence the former hard-coded "W"). */
+            fprintf(outfile,
+                "   %8.4f %c,%9.4f %c, %5.2f kilometers, %6.2f meters AMSL\n",
+                fabsf(path.lat[x]), path.lat[x] >= 0.0f ? 'N' : 'S',
+                fabsf(path.lon[x]), path.lon[x] >= 0.0f ? 'E' : 'W',
+                d_x / 1000.0,
+                h_x - EARTHRADIUS);
         }
 
         while (cos_tx_angle > cos_test_angle) {

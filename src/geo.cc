@@ -562,35 +562,9 @@ void alloc_dem(int min_lat, int min_lon, int tiles_lat, int tiles_lon)
     dem_signal = new int *[dem_height_px];
     for (int i = 0; i < dem_height_px; i++) {
         dem_data[i]   = new float        [dem_width_px]();
-        dem_signal[i] = new int[dem_width_px]();
+        dem_signal[i] = new int[dem_width_px];
+        /* Not zero: 0 is a valid (and very strong) signal level, so areas
+         * without a DEM tile used to be drawn as full signal. */
+        std::fill(dem_signal[i], dem_signal[i] + dem_width_px, SIGNAL_NODATA);
     }
-}
-
-// TODO: temporary test — delete after validation
-void test_Azimuth(void)
-{
-    struct { const char *name; site a; site b; float expected; } cases[] = {
-        // Due North: az should be 0
-        {"N",  {45.0, 0.0, 0.0}, {46.0, 0.0, 0.0}, 0.0},
-        {"E",  {0.0, 5.0, 0.0}, {0.0, 7.0, 0.0}, 90.0},
-        {"S",  {45.0, 5.0, 0.0}, {44.0, 5.0, 0.0}, 180.0},
-        {"W",  {45.0, 7.0, 0.0}, {45.0, 5.0, 0.0}, 270.0},
-        {"NE", {45.7, 6.4, 0.0}, {45.8, 6.5, 0.0}, 45.0},
-    };
-
-    spdlog::info("--- Azimuth unit tests ---");
-    bool all_ok = true;
-    for (auto &c : cases) {
-        float got = Azimuth(c.a, c.b);
-        float err = fabs(got - c.expected);
-        bool ok = err < 1.0; // 1 degree tolerance
-        spdlog::info("  {}: expected {:.1f}, got {:.2f} {}",
-                     c.name, c.expected, got, ok ? "OK" : "FAIL");
-        if (!ok) all_ok = false;
-    }
-    if (!all_ok)
-        spdlog::error("Azimuth test FAILED");
-    else
-        spdlog::info("Azimuth test PASSED");
-    spdlog::info("--------------------------");
 }

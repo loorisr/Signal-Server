@@ -30,6 +30,9 @@
 #define KM_PER_DEG_LAT 110.754f
 
 #define	FOUR_THIRDS_EARTH (FOUR_THIRDS * EARTHRADIUS)
+
+/* Value of dem_signal[][] for a pixel that has not been computed. */
+#define SIGNAL_NODATA	(-200)
 //#define MAX(x,y)((x)>(y)?(x):(y))
 
 

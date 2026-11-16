@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <climits>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "tinycolormap.hpp"
@@ -23,20 +24,14 @@
 #include "models/los.hh"
 #include "outputs.hh"
 
-// Write an RGBA raster to a GeoTIFF using the current geographic bounds.
-void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename)
+// Write an RGBA raster to a GeoTIFF.  (west, north) is the outer corner of
+// the top-left pixel and pixel_deg the pixel size, both in degrees.
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename,
+                        double west, double north, double pixel_deg)
 {
-    char tif_file[300];
-    float ulx, uly, lrx, lry;
-
-    /* Build .tif output path */
-    snprintf(tif_file, sizeof(tif_file), "%s.tif", filename);
-
-    /* Compute geographic bounds */
-    ulx = min_lon;
-    uly = max_lat;
-    lrx = max_lon;
-    lry = min_lat;
+    /* Build .tif output path (no fixed-size buffer: long paths were truncated) */
+    const std::string tif_path = std::string(filename) + ".tif";
+    const char *tif_file = tif_path.c_str();
 
     GDALDriverH drv = GDALGetDriverByName("GTiff");
     if (drv == NULL) {
@@ -61,12 +56,12 @@ void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, cons
     }
 
     double gt[6] = {
-        ulx,
-        (lrx - ulx) / img_width,
+        west,
+        pixel_deg,
         0.0,
-        uly,
+        north,
         0.0,
-        (lry - uly) / img_height   /* negative → north-up raster */
+        -pixel_deg   /* negative → north-up raster */
     };
     GDALSetGeoTransform(ds, gt);
 
@@ -127,12 +122,19 @@ static void render_geotiff(const char *filename,
 {
 	const int width  = (int)((float)ppd * (max_lon - min_lon));
 	const int height = (int)((float)ppd * (max_lat - min_lat));
-	const float conversion = 255.0 / pow((float)(max_elevation - min_elevation), ONE_OVER_GAMMA);
-	const float scale_range = scale_max - scale_min;
+	/* A perfectly flat (or missing) DEM would otherwise divide by zero. */
+	const float conversion = (max_elevation > min_elevation)
+		? 255.0 / pow((float)(max_elevation - min_elevation), ONE_OVER_GAMMA) : 0.0f;
+	const float scale_range = (scale_max > scale_min) ? scale_max - scale_min : 1.0f;
 
 	spdlog::debug("Writing \"{}\" ({} x {} pixmap image)...", filename, width, height);
 
 	if (!geotiff || filename == NULL) return;
+
+	if (width <= 0 || height <= 0) {
+		spdlog::error("Nothing to write: the plot area is empty ({} x {} pixels)", width, height);
+		return;
+	}
 
 	std::vector<uint8_t> rgba((size_t)width * height * 4, 0);
 	uint8_t *p = rgba.data();
@@ -151,8 +153,9 @@ static void render_geotiff(const char *filename,
 				if (!sig) {
 					if (!ngs) {
 						/* Grayscale terrain */
-						unsigned terrain = (unsigned)(0.5 + pow((float)(dem_data[x0][y0] - min_elevation), ONE_OVER_GAMMA) * conversion);
-						r = g = b = (uint8_t)terrain;
+						const float rel_el = std::max(dem_data[x0][y0] - (float)min_elevation, 0.0f);
+						unsigned terrain = (unsigned)(0.5 + pow(rel_el, ONE_OVER_GAMMA) * conversion);
+						r = g = b = (uint8_t)std::min(terrain, 255u);
 						a = 255;
 					}
 				} else {
@@ -165,7 +168,15 @@ static void render_geotiff(const char *filename,
 			*p++ = r; *p++ = g; *p++ = b; *p++ = a;
 		}
 	}
-	write_geotiff_rgba(rgba.data(), width, height, filename);
+	/* Image pixel (col, row) is DEM cell (x_base - row, y_base + col), and a
+	 * DEM cell index is the rounded position, i.e. the cell is centred on
+	 * dem_min + index / ppd.  Georeference the raster on that exact grid:
+	 * using the requested bounds as the image corners shifted the map by
+	 * half a pixel and slightly stretched it. */
+	const double pixel_deg = 1.0 / (double)ppd;
+	const double west  = (double)dem_min_lon + ((double)y_base - 0.5) * pixel_deg;
+	const double north = (double)dem_min_lat + ((double)x_base + 0.5) * pixel_deg;
+	write_geotiff_rgba(rgba.data(), width, height, filename, west, north, pixel_deg);
 }
 
 // Render path-loss contours as a GeoTIFF.
@@ -184,7 +195,10 @@ int DoSigStr(const char *filename)
 {
 	render_geotiff(filename, get_colormap(), 0.0, 128.0, false,
 		[](int sig) -> std::optional<float> {
-			if (sig < 0)
+			/* Negative values are below any plotted level; this also
+			 * covers SIGNAL_NODATA (pixels that were never computed).
+			 * -rt hides everything weaker than the threshold. */
+			if (sig < 0 || (contour_threshold != 0 && sig < contour_threshold))
 				return std::nullopt;
 			return sig;
 		});
@@ -194,10 +208,15 @@ int DoSigStr(const char *filename)
 // Render received power as a GeoTIFF.
 void DoRxdPwr(const char *filename)
 {
+	/* Without -rt (threshold 0) there is no lower bound to scale the colours
+	 * on: use a typical receiver noise floor instead of a zero-width scale. */
+	const float scale_min = (contour_threshold < 0) ? (float)contour_threshold : -130.0f;
 	render_geotiff(filename, get_colormap(),
-		(float)contour_threshold, 0.0, false,
+		scale_min, 0.0, false,
 		[](int sig) -> std::optional<float> {
-			if (contour_threshold != 0 && sig < contour_threshold)
+			/* Pixels that were never computed (outside the radius, or
+			 * inside a missing DEM tile) must stay transparent. */
+			if (sig <= SIGNAL_NODATA || (contour_threshold != 0 && sig < contour_threshold))
 				return std::nullopt;
 			return sig;
 		});

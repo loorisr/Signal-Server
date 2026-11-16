@@ -5,7 +5,8 @@
 
 #include "models/los.hh"
 
-void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename);
+void write_geotiff_rgba(const uint8_t *rgba, int img_width, int img_height, const char *filename,
+                        double west, double north, double pixel_deg);
 
 void DoPathLoss(const char *filename);
 

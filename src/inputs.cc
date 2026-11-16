@@ -465,7 +465,7 @@ int LoadCopernicus(int tile_lat, int tile_lon)
 
     for (int r = 0; r < ppd; r++) {
         int gx = gx_base + (ppd - 1 - r);
-        std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ppd, -200);
+        std::fill(dem_signal[gx] + gy_base, dem_signal[gx] + gy_base + ppd, SIGNAL_NODATA);
         for (int c = 0; c < ppd; c++) {
             float val = buf[r * ppd + c];
             dem_data[gx][gy_base + c] = val;
@@ -540,11 +540,26 @@ int LoadTopoData(bbox region)
     }
 
     int rc = 0;
+    int loaded = 0, missing = 0;
     for (auto& f : futures) {
         int result = f.get();
-        if (result < 0 && result != -ENOENT)
+        if (result > 0)
+            loaded++;
+        else if (result == -ENOENT)
+            missing++;
+        else if (result < 0)
             rc = -result;
     }
+
+    /* A missing tile is normal over the sea, but when none at all is found
+     * the DEM directory is most likely wrong: say so instead of silently
+     * computing over a flat earth. */
+    if (loaded == 0 && rc == 0)
+        spdlog::warn("No DEM tile found in \"{}\" for this area ({} missing): the terrain is assumed flat, at sea level",
+                     DEM_path, missing);
+    else if (missing > 0)
+        spdlog::info("{} DEM tile(s) not found (assumed to be sea)", missing);
+
     return rc;
 }
 

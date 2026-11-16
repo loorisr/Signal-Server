@@ -119,7 +119,8 @@ Input:
 Output:
      -o basename (Output file basename - required, min 5 chars)
      -dbm Plot Rxd signal power (in dBm)instead of field strength (in dBuV/m)
-     -rt Rx Threshold (dBm / dBuV/m)
+     -rt Rx Threshold (dBm / dBuV/m): weaker pixels are not drawn. With -dbm it is also the
+          bottom of the colour scale (default scale without -rt: -130 to 0 dBm)
      -R Radius (kilometers)
      -pm Propagation model. 1: ITM, 2: LOS, 3: Hata, 4: ECC33,
           5: SUI, 6: COST-Hata, 7: FSPL, 8: ITWOM, 9: Ericsson,
@@ -128,7 +129,7 @@ Output:
      -ked Knife edge diffraction (Already on for ITM)
      -geotiff Output a geotiff file
 Antenna:
-     -ant (antenna pattern file basename+path for .az and .el files)
+     -ant (antenna pattern file basename+path for .az and/or .el files; default: the -o basename)
      -txh Tx Height (above ground)
      -rxh Rx Height(s) (optional. Default=1)
      -rxg Rx gain dBd (optional for PPA text report)

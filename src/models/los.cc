@@ -269,49 +269,58 @@ static float ked(float freq, float rxh, float dm)
 	}
 }
 
-// to complete
 // Mark line-of-sight points along the source-to-destination path.
 void PlotLOSPath(struct site source, struct site destination)
 {
     /* This function analyzes the path between the source and
        destination locations. It determines which points along
-       the path have line-of-sight visibility to the source.
-    */
+       the path have line-of-sight visibility to the source: a point is
+       visible when its elevation angle, as seen from the transmitter, is
+       higher than that of every terrain point before it on the path.
 
-    int x, y;
-    char block = 0;
-    float cos_test_angle, cos_rcvr_angle;
-    float distance, tx_alt, distance_test, tx_alt2, test_alt, test_alt2, dest_alt, dest_alt2;
+       The angles are compared through their cosines (law of cosines on
+       the triangle transmitter / earth centre / point):
+
+           cos = (tx^2 + d^2 - h^2) / (2 tx d)
+
+       a smaller cosine being a higher elevation angle.  tx^2 - h^2 is
+       evaluated as (tx - h)(tx + h) with the height difference taken
+       before the earth radius is added: in single precision the squares
+       (~4e13) would otherwise swallow both d^2 and sub-metre heights. */
 
     ReadPath(source, destination);
 
-    tx_alt = EARTHRADIUS + source.alt + GetElevation(source);
-    tx_alt2 = tx_alt * tx_alt;
+    const float tx_height = source.alt + path.elevation[0];   /* AMSL */
+    const float tx_alt = EARTHRADIUS + tx_height;
+    const float two_r = 2.0f * EARTHRADIUS;
 
-    distance = 0.0;
+    /* Lowest cosine (= highest elevation angle) of the terrain seen so far. */
+    float min_cos_terrain = 2.0f;
+    float distance = 0.0f;
 
-    for (y = 1; (y < (path.length - 1)) && distance <= max_range; y++) {
+    for (int y = 1; (y < (path.length - 1)) && distance <= max_range; y++) {
         distance = path.distance[y];
-        dest_alt = EARTHRADIUS + destination.alt + path.elevation[y];
-        dest_alt2 = dest_alt * dest_alt;
-        
-        cos_rcvr_angle = ((tx_alt2) + (distance * distance) - (dest_alt2)) / (2.0 * tx_alt * distance);
-        cos_rcvr_angle = MIN(1.0, MAX(-1.0, cos_rcvr_angle));
+        if (distance <= 0.0f)
+            continue;
 
-        for (x = 2, block = 0; (x < y && block == 0); x++) {
-            distance_test = path.distance[x];
-            test_alt = EARTHRADIUS + path.elevation[x] + clutter;
-            test_alt2 = test_alt * test_alt;
+        const float inv = 1.0f / (2.0f * tx_alt * distance);
+        const float d2 = distance * distance;
 
-            /* Calculate the cosine of the elevation between transmitter and this test point. */
-            cos_test_angle = ((tx_alt2) + (distance_test * distance_test) - (test_alt2)) / (2.0 * tx_alt * distance_test);
-            cos_test_angle = std::clamp(cos_test_angle, -1.0f, 1.0f);
+        const float rx_height = destination.alt + path.elevation[y];
+        const float cos_rcvr_angle =
+            ((tx_height - rx_height) * (two_r + tx_height + rx_height) + d2) * inv;
 
-            if (cos_rcvr_angle >= cos_test_angle) { //block
-                block = 1;
-            } else {
-                PutSignal(path.lat[x], path.lon[x], 200);
-            }
+        if (cos_rcvr_angle < min_cos_terrain)
+            PutSignal(path.lat[y], path.lon[y], 200);
+
+        /* As before, the first samples next to the transmitter are not
+           treated as obstructions. */
+        if (y >= 2) {
+            const float test_height = path.elevation[y] + clutter;
+            const float cos_test_angle =
+                ((tx_height - test_height) * (two_r + tx_height + test_height) + d2) * inv;
+            if (cos_test_angle < min_cos_terrain)
+                min_cos_terrain = cos_test_angle;
         }
     }
 }

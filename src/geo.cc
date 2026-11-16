@@ -527,6 +527,7 @@ void free_dem(void)
 // Release the per-thread elevation buffer.
 void free_elev(void) {
   delete [] elev;
+  elev = nullptr;
   elev_allocated = 0;
 }
 
@@ -537,6 +538,7 @@ void free_path(void)
     delete [] path.lon;
     delete [] path.elevation;
     delete [] path.distance;
+    path.lat = path.lon = path.elevation = path.distance = nullptr;
     path_allocated = 0;
 }
 

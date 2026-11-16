@@ -26,6 +26,8 @@ void parse_cmdline(int argc, char *argv[])
     altitudeLR     = 1;
     prop_model     = ITM_LR;
     number_threads = std::thread::hardware_concurrency();
+    if (number_threads < 1)
+        number_threads = 1;	/* hardware_concurrency() may return 0 */
     mapfile.clear();
 
     std::string antenna_file;
@@ -536,6 +538,47 @@ void parse_cmdline(int argc, char *argv[])
         exit(EINVAL);
 
     }
+    if (ppa) {
+        if (rx_site.lat > 90 || rx_site.lat < -90) {
+            spdlog::error("Either the Rx lat (-rla) was missing or out of range!");
+            exit(EINVAL);
+        }
+        if (rx_site.lon > 180.0 || rx_site.lon < -180.0) {
+            spdlog::error("Either the Rx lon (-rlo) was missing or out of range! (expected -180 to +180)");
+            exit(EINVAL);
+        }
+    }
+    if ((geotiff || ppa) && output_filename.empty()) {
+        spdlog::error("An output file basename (-o) is required");
+        exit(EINVAL);
+    }
+    if (mapfile.empty())
+        mapfile = output_filename;	/* "-o -": default name */
+    if (prop_model < ITM_LR || prop_model > ITM_NTIA) {
+        spdlog::error("Unknown propagation model (-pm): expected 1 to 13");
+        exit(EINVAL);
+    }
+    /* The ITM variability is undefined at 0 % and 100 % (infinite deviate) */
+    if (!(LR.rel > 0.0099f && LR.rel < 0.9901f)) {
+        spdlog::error("Reliability (-rel) out of range (1 to 99 %)");
+        exit(EINVAL);
+    }
+    if (!(LR.conf > 0.0099f && LR.conf < 0.9901f)) {
+        spdlog::error("Confidence (-conf) out of range (1 to 99 %)");
+        exit(EINVAL);
+    }
+    if (LR.radio_climate < 1 || LR.radio_climate > 7) {
+        spdlog::error("Climate code (-cl) out of range (1 to 7)");
+        exit(EINVAL);
+    }
+    if (!ppa && !(max_range > 0.0f)) {
+        spdlog::error("Radius (-R) must be greater than 0");
+        exit(EINVAL);
+    }
+    if (LR.erp < 0.0f) {
+        spdlog::error("Power was out of range!");
+        exit(EINVAL);
+    }
     if (LR.frq_mhz < 20 || LR.frq_mhz > 100000) {
         spdlog::error("Either the Frequency was missing or out of range!");
         exit(EINVAL);
@@ -595,10 +638,13 @@ void parse_cmdline(int argc, char *argv[])
         exit(EINVAL);
     }
 
+    if (!ppa && !geotiff)
+        spdlog::warn("-geotiff not given: the coverage is computed but no image is written");
+
     spdlog::info("-------------------------------- Plot Information --------------------------------");
     spdlog::info("    TX site parameters: {:.6f}N, {:.6f}E, {:.0f} m AGL", tx_site.lat, tx_site.lon, tx_site.alt);
     spdlog::info("    Plot parameters: {:.2f}-km radius, resolution of {} ppd", max_range/1000, ppd);
-    spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (uint8_t)(LR.conf * 100));
+    spdlog::info("    Model parameters: {} MHz at {} W EIRP (dBd), {}% confidence", LR.frq_mhz, LR.erp, (int)lroundf(LR.conf * 100));
     spdlog::info("    Worker threads: {}", number_threads);
     spdlog::info("");
     spdlog::info("    Directories:");

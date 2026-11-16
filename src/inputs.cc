@@ -142,8 +142,13 @@ int LoadPAT(char *az_filename, char *el_filename)
 			/* Perform azimuth pattern rotation and load azimuth_pattern[361]
 			   with azimuth pattern data in its final form. */
 
+			/* The rotation read from the file is not range-checked:
+			   normalise it so that the index stays inside the array. */
+			int rot = (int)rintf(rotation) % 360;
+			if (rot < 0) rot += 360;
+
 			for (x = 0; x < 360; x++) {
-				y = x + (int)rintf(rotation);
+				y = x + rot;
 
 				if (y >= 360) y -= 360;
 
@@ -299,20 +304,25 @@ int LoadPAT(char *az_filename, char *el_filename)
 			}
 
 			got_elevation_pattern = true;
-
-			for (x = 0; x <= 360; x++) {
-				for (y = 0; y <= 1000; y++) {
-					elevation = got_elevation_pattern ? elevation_pattern[x][y] : 1.0f;
-					az        = got_azimuth_pattern   ? azimuth_pattern[x]      : 1.0f;
-					float linear = az * elevation;
-					/* Store pre-computed dB value to avoid log10() at every sample.
-					 * linear == 0.0 maps to 0.0 dB (no adjustment) to preserve
-					 * legacy behaviour for missing/null pattern entries. */
-					LR.antenna_pattern[x][y] = (linear > 0.0f) ? 20.0 * log10(linear) : 0.0;
-				}
-			}
 		}
 	} // el_fd scope
+
+	/* Combine the two patterns.  This must also run when only one of the
+	   two files exists (an azimuth-only pattern used to be silently
+	   ignored because this loop was tied to the .el file). */
+	if (got_azimuth_pattern || got_elevation_pattern) {
+		for (x = 0; x <= 360; x++) {
+			for (y = 0; y <= 1000; y++) {
+				elevation = got_elevation_pattern ? elevation_pattern[x][y] : 1.0f;
+				az        = got_azimuth_pattern   ? azimuth_pattern[x]      : 1.0f;
+				float linear = az * elevation;
+				/* Store pre-computed dB value to avoid log10() at every sample.
+				 * linear == 0.0 maps to 0.0 dB (no adjustment) to preserve
+				 * legacy behaviour for missing/null pattern entries. */
+				LR.antenna_pattern[x][y] = (linear > 0.0f) ? 20.0 * log10(linear) : 0.0;
+			}
+		}
+	}
 	return 0;
 }
 

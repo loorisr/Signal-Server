@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <string>
 #include <thread>
+#include <math.h>
 
 #include <spdlog/spdlog.h>
 
@@ -26,8 +28,7 @@ void parse_cmdline(int argc, char *argv[])
     number_threads = std::thread::hardware_concurrency();
     mapfile.clear();
 
-    char antenna_file[255];
-    char *az_filename = NULL, *el_filename = NULL;
+    std::string antenna_file;
 
     spdlog::info("Version {} ({} {})", VERSION, GIT_BRANCH, GIT_COMMIT_HASH);
     spdlog::info("    Compile date: {} {}", __DATE__, __TIME__);
@@ -127,7 +128,6 @@ void parse_cmdline(int argc, char *argv[])
     antenna_rotation = -1;  // unique defaults to test usage
     antenna_downtilt = 99.0; // don't mess with them!
     antenna_dt_direction = -1;
-    antenna_file[0] = '\0';
 
     tx_site.lat = 91.0;
     tx_site.lon = 181.0;
@@ -164,7 +164,7 @@ void parse_cmdline(int argc, char *argv[])
             z = x + 1;
 
             if (z <= y && argv[z][0] && argv[z][0] != '-') {
-                strncpy(antenna_file, argv[z], 253);
+                antenna_file = argv[z];
             }
         }
 
@@ -510,27 +510,19 @@ void parse_cmdline(int argc, char *argv[])
 
     /* Load antenna pattern files now that all arguments have been parsed.
      * Use -ant basename if provided, otherwise fall back to the output basename. */
-    if (!output_filename.empty()) {
-        const char *az_base = (antenna_file[0] != '\0') ? antenna_file : output_filename.c_str();
-        size_t az_needed = strlen(az_base) + 3 + 1;
-
-        az_filename = (char*)calloc(az_needed, sizeof(char));
-        if (az_filename == NULL) exit(ENOMEM);
-        el_filename = (char*)calloc(az_needed, sizeof(char));
-        if (el_filename == NULL) { free(az_filename); exit(ENOMEM); }
-
-        snprintf(az_filename, az_needed, "%s.az", az_base);
-        snprintf(el_filename, az_needed, "%s.el", az_base);
+    if (!antenna_file.empty() || !output_filename.empty()) {
+        const std::string az_base = !antenna_file.empty() ? antenna_file : output_filename;
+        std::string az_filename = az_base + ".az";
+        std::string el_filename = az_base + ".el";
 
         int result;
-        if ((result = LoadPAT(az_filename, el_filename)) != 0) {
-            spdlog::error("Permissions error reading antenna pattern file");
-            free(az_filename);
-            free(el_filename);
+        if ((result = LoadPAT(az_filename.data(), el_filename.data())) != 0) {
+            spdlog::error("Error reading antenna pattern file {}(.az/.el): {}", az_base, strerror(result));
             exit(result);
         }
-        free(az_filename);
-        free(el_filename);
+        if (!antenna_file.empty() && !got_azimuth_pattern && !got_elevation_pattern)
+            spdlog::warn("-ant {}: neither {} nor {} was found, no antenna pattern is applied",
+                         antenna_file, az_filename, el_filename);
     }
 
     /* ERROR DETECTION */

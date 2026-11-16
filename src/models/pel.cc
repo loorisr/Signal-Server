@@ -24,6 +24,9 @@ Frequency: N/A
 Distance (km): Any
 */
 	// Plane earth loss is independent of frequency.
-	float dbloss = 40*log10(d) + 20*log10(TxH) + 20*log10(RxH);
+	/* L = 40 log(d) - 20 log(ht) - 20 log(hr), with d in meters: the loss
+	   decreases when the antennas are raised.  The heights used to be
+	   added and the distance left in km. */
+	float dbloss = 40*log10(d * 1000.0) - 20*log10(TxH) - 20*log10(RxH);
 	return dbloss;
 }

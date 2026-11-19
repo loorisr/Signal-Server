@@ -152,6 +152,13 @@ It can run with or without terrain data and can even be used to simulate radiati
 ##### Directory containing Digital Elevation Models (DEM)
 Use Copernicus DEM GeoTIFF COG tiles. The parser expects filenames such as `Copernicus_DSM_COG_30_N##_00_?###_00_DEM.tif` for 1200 ppd and `Copernicus_DSM_COG_10_N##_00_?###_00_DEM.tif` for 3600 ppd.
 
+#### How the terrain profile is built (no interpolation)
+- **Elevation of a point**: the value of the **nearest DEM pixel** (the point is rounded to the nearest pixel centre). There is no interpolation between pixels. A point less than half a pixel from the east or north edge of a tile reads the first pixel of the next tile, so the loaded area is widened by one pixel on every side.
+- **Profile**: samples along the great circle from TX to RX, one per DEM pixel crossed. The step is the path length divided by its length in grid pixels, so it depends on the bearing: about 93 m north–south and about 65 m east–west at 45° latitude with GLO-90 (about 74 m on the diagonal). The last sample is the exact RX point.
+- **Coverage maps**: rays are cast from the TX to points on the circle of radius `-R`. Each map pixel belongs to exactly one ray, the first one that reaches it. Its value is the ITM result for the profile from the TX to the ray sample that falls in that pixel, so the RX point is somewhere inside the pixel, not exactly at its centre.
+
+Other tools sample the same DEM differently. For example, itm-api (a Rust ITM server) interpolates bilinearly between the 4 nearest pixels and uses a fixed 92.66 m step. On 40 random links in the Alps at 145 MHz, with the same ITM version (`-pm 13`, NTIA v1.3), the ground elevation at the same RX point then differs by about 14 m on average, and up to about 55 m on steep slopes. Point-to-point losses differ by 2.8 dB on average (72 % within 3 dB), and by more than 10 dB on some paths with two horizons: ITM is very sensitive to a few metres at the top of an obstacle. Neither choice is more correct; they are two ways of reading a 90 m DEM.
+
 
 ### Antenna radiation pattern(s)
 Antenna  pattern  data is read from a pair of files having the same base name as the output file (-o), but with  .az  and .el  extensions  for azimuth and elevation patterns.  This name can be overridden with the command line option -ant followed by a base filename or path and base filename for the .az and .el files.  The program will first search for command line specified antenna files with -ant, then it will default to searching for antenna files having the same name as the output file.  

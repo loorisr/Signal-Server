@@ -509,11 +509,16 @@ int LoadTopoData(bbox region)
 
     // TODO: we don't handle loading data around 0/360 W
 
-    // Get the nearest whole number lat/lons based on coords
-    int r_min_lat = floor(region.lower_left.lat);
-    int r_max_lat = ceil(region.upper_right.lat);
-    int r_min_lon = floor(region.lower_left.lon);
-    int r_max_lon = ceil(region.upper_right.lon);
+    // Get the nearest whole number lat/lons based on coords.
+    // find_dem_xy() rounds to the nearest pixel centre, so a point less than
+    // half a pixel south/west of a whole degree (e.g. a TX at exactly 6.0000 E
+    // with the RX to the west) reads the first pixel of the next tile.  Widen
+    // the region by one pixel so that tile is always loaded.
+    const float margin = 1.0f / ppd;
+    int r_min_lat = floor(region.lower_left.lat - margin);
+    int r_max_lat = ceil(region.upper_right.lat + margin);
+    int r_min_lon = floor(region.lower_left.lon - margin);
+    int r_max_lon = ceil(region.upper_right.lon + margin);
 
     int tiles_lat = r_max_lat - r_min_lat;
     int tiles_lon = r_max_lon - r_min_lon;
